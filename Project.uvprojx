@@ -402,6 +402,16 @@
               <FileType>1</FileType>
               <FilePath>.\Src\Prog\system_stm32f1xx.c</FilePath>
             </File>
+            <File>
+              <FileName>uarts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Src\Prog\uarts.c</FilePath>
+            </File>
+            <File>
+              <FileName>gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Src\Prog\gpio.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

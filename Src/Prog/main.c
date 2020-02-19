@@ -4,29 +4,48 @@
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_system.h"
 #include "stm32f1xx_ll_gpio.h"
+#include "stm32f1xx_ll_usart.h"
 // #if defined(USE_FULL_ASSERT)
 // #include "stm32_assert.h"
 // #endif /* USE_FULL_ASSERT */
+#include "gpio.h"
+#include "uarts.h"
+#include <stdio.h>	// pour snprintf
 
-#define LED2_PIN		LL_GPIO_PIN_5
-#define LED2_GPIO_PORT		GPIOA
-#define LED2_GPIO_CLK_ENABLE()	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_GPIOA)
-#define BLUE_GPIO_CLK_ENABLE()	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_GPIOC)
-#define LED_ON()		LL_GPIO_SetOutputPin(LED2_GPIO_PORT, LED2_PIN)
-#define LED_OFF()		LL_GPIO_ResetOutputPin(LED2_GPIO_PORT, LED2_PIN)
-#define BLUE_BUTTON()	(!LL_GPIO_IsInputPinSet(GPIOC, LL_GPIO_PIN_13))
+void SystemClock_Config(void);
+void cmd_handler( char c );
 
-void     SystemClock_Config(void);
-void     Configure_GPIO(void);
 
 // HSE_EXT est pour utiliser une source d'horloge 8MHz externe
 // si HSE_EXT : MCO de la sonde ST-LINK    8MHz -> PLL -> 72 MHz
 // sinon      : oscillateur RC interne HSI 8MHz -> PLL -> 64 Mhz
 // HSE_EXT ne marche pas sur une nucleo coupee ni sur Blue Pill
 
-//#define HSE_EXT
+#define HSE_EXT
+
+// contexte global -----------------------------------------------------------
 
 unsigned int cnt100Hz = 0;
+
+// emission : par message
+volatile int msg_request = 0;
+char txbuf[32];
+volatile int txindex;
+
+// reception : fifo circulaire
+#ifdef RX_FIFO
+#define QRX 32		// a power of 2 !!!
+char rxbuf[QRX];
+volatile unsigned int rxwi=0;	// write index
+volatile unsigned int rxri=0;	// read index
+// exemple de lecture du fifo  :
+// 	while	( rxwi - rxri )
+//		{
+//		int c = rxbuf[(rxri++)&(QRX-1)];
+//		... }
+#endif
+
+
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -45,13 +64,49 @@ switch	(cnt100Hz % 100)
 	}
 }
 
+// UART2 interrupt handler
+void USART2_IRQHandler( void )
+{
+if	(
+	( LL_USART_IsActiveFlag_TXE( USART2 ) ) &&
+	( LL_USART_IsEnabledIT_TXE( USART2 ) )
+	)
+	{	// messages de taille variable
+	if	( txbuf[txindex] == 0 )
+		UART2_TX_INT_disable();
+	else	LL_USART_TransmitData8( USART2, txbuf[txindex++] );
+	}
+if	(
+	( LL_USART_IsActiveFlag_RXNE( USART2 ) ) &&
+	( LL_USART_IsEnabledIT_RXNE( USART2 ) )
+	)
+	{
+	#ifdef RX_FIFO
+	rxbuf[(rxwi++)&(QRX-1)] = LL_USART_ReceiveData8( USART2 );
+	#else
+	cmd_handler( LL_USART_ReceiveData8( USART2 ) );
+	#endif
+	}
+}
+
+void cmd_handler( char c )
+{
+if	( c >= ' ' )
+	snprintf( txbuf, sizeof(txbuf), "cmd \"%c\"\n", c );
+else	snprintf( txbuf, sizeof(txbuf), "cmd 0x%02x\n", c );
+txindex = 0;
+UART2_TX_INT_enable();
+}
 
 int main(void)
 {
-  /* Configure the system clock to 72 MHz */
-  SystemClock_Config();
+// Configure the system clock to 64 or 72 MHz according to HSE_EXT
+SystemClock_Config();
+
 // config LED
-  Configure_GPIO();
+gpio_init();
+
+
 // config systick @ 100Hz
 
   // periode
@@ -65,6 +120,10 @@ int main(void)
   // enable timer, enable interrupt
   SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 
+// config UART (interrupt handler doit etre pret!!)
+gpio_uart2_init();
+UART2_init( 9600 );
+
  while (1)
  	{
 	if	( BLUE_BUTTON() )
@@ -77,14 +136,6 @@ int main(void)
 		__WFI();				// Wait for Interrupt
 		}
  	}
-}
-
-void Configure_GPIO(void)
-{
-  LED2_GPIO_CLK_ENABLE();
-  LL_GPIO_SetPinMode(LED2_GPIO_PORT, LED2_PIN, LL_GPIO_MODE_OUTPUT);
-  LL_GPIO_SetPinOutputType(LED2_GPIO_PORT, LED2_PIN, LL_GPIO_OUTPUT_PUSHPULL);
-  BLUE_GPIO_CLK_ENABLE();
 }
 
 /**
