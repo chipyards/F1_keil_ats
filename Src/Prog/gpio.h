@@ -6,3 +6,5 @@ void gpio_init(void);
 void gpio_uart1_init(void);
 void gpio_uart2_init(void);
 void gpio_uart3_init(void);
+void gpio_spi1_slave_init(void);
+void gpio_spi2_slave_init(void);
