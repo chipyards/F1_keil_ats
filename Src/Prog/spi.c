@@ -1,3 +1,6 @@
+#include "options.h"
+
+#ifdef USE_SPI2SL
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_spi.h"
@@ -15,55 +18,55 @@
    le present code est teste et a jour seulement pour SPI2
 */
 
-// ring buffers pour SPI2
-unsigned char spi2_rx[QSPIBUF];
-unsigned int spi2_rx_wi= 0;	// index egaux <==> fifo vide
-unsigned int spi2_rx_ri= 0;
-static unsigned char spi2_tx[QSPIBUF];
-static unsigned int spi2_tx_wi= 0;
-static unsigned int spi2_tx_ri= 0;
-
+// contexte global
+SPItype SPI_2;
+     
 void SPI2_IRQHandler(void)
 {
 unsigned char d;
 if	( LL_SPI_IsActiveFlag_RXNE( SPI2 ) )
 	{		// Store received data, cela tient lieu d'acquittement pour l'interrupt
 	d = LL_SPI_ReceiveData8( SPI2 );
-	if	( spi2_rx_wi != ( spi2_rx_ri + QSPIBUF ) )	// prevention overrun (silencieuse)
-		spi2_rx[ (spi2_rx_wi++) & SPI_IMASK ] = d;
+	if	( SPI_2.rx_wi != ( SPI_2.rx_ri + QSPIBUF ) )	// prevention overrun (silencieuse)
+		SPI_2.rx[ (SPI_2.rx_wi++) & SPI_IMASK ] = d;
 	}
 if	( LL_SPI_IsActiveFlag_TXE( SPI2 ) )
 	{		// injecter donnee a emettre, cela tient lieu d'acquittement pour TXE
-	if	( spi2_tx_ri == spi2_tx_wi )
+	if	( SPI_2.tx_ri == SPI_2.tx_wi )
 		d = SPI_NO_DATA;				// signaler underrun
-	else	d = spi2_tx[ (spi2_tx_ri++) & SPI_IMASK ];
+	else	d = SPI_2.tx[ (SPI_2.tx_ri++) & SPI_IMASK ];
 	LL_SPI_TransmitData8( SPI2, d );
 	}
 }
 
-void spi2_fifo_init(void)
+// fonction generique, definie plus loin
+static void spi_slave_init( SPI_TypeDef * SPIx, int IRQ_prio );
+
+// attention : interrupt enable inside
+void spi2_slave_init( int IRQ_prio )
 {
-spi2_rx_wi= 0;
-spi2_rx_ri= 0;
-spi2_tx_wi= 0;
-spi2_tx_ri= 0;
+SPI_2.rx_wi= 0;
+SPI_2.rx_ri= 0;
+SPI_2.tx_wi= 0;
+SPI_2.tx_ri= 0;
+spi_slave_init( SPI2, IRQ_prio );
 }
 
 // retourne 0 si ok, -1 si refus (prevention overrun)
 int spi2_put8( unsigned int d )
 {
-if	( spi2_tx_wi == ( spi2_tx_ri + QSPIBUF ) )
+if	( SPI_2.tx_wi == ( SPI_2.tx_ri + QSPIBUF ) )
 	return -1;
-else	spi2_tx[ (spi2_tx_wi++) & SPI_IMASK ] = d;
+else	SPI_2.tx[ (SPI_2.tx_wi++) & SPI_IMASK ] = d;
 return 0;
 }
 
 // retourne un unsigned char, ou -1 si pas de data
 int spi2_get8(void)
 {
-if	( spi2_rx_ri == spi2_rx_wi )
+if	( SPI_2.rx_ri == SPI_2.rx_wi )
 	return -1;						// signaler underrun
-else	return 0xFF & spi2_rx[ (spi2_rx_ri++) & SPI_IMASK ];
+else	return 0xFF & SPI_2.rx[ (SPI_2.rx_ri++) & SPI_IMASK ];
 }
 
 /* signalisation compatible RASPI master
@@ -77,7 +80,7 @@ SCLK__________|  |__|  |__|  |__|  |__|  |__|  |__|  |__|  |________
 */
 
 // attention : interrupt enable inside
-void spi_slave_init( SPI_TypeDef * SPIx, int IRQ_prio )
+static void spi_slave_init( SPI_TypeDef * SPIx, int IRQ_prio )
 {
 IRQn_Type IRQn;
 
@@ -111,26 +114,4 @@ NVIC_EnableIRQ( IRQn );
 LL_SPI_EnableIT_RXNE( SPIx );
 }
 
-/* ring buffers pour SPI1
-unsigned char spi1_rx[QSPIBUF];
-unsigned int spi1_rx_wi= 0;
-unsigned int spi1_rx_ri= 0;
-unsigned char spi1_tx[QSPIBUF];
-unsigned int spi1_tx_wi= 0;
-unsigned int spi1_tx_ri= 0;
-
-void SPI1_IRQHandler(void)
-{
-unsigned char d;
-if	( LL_SPI_IsActiveFlag_RXNE( SPI1 ) )
-	{		// Store received data, cela tient lieu d'acquittement pour l'interrupt
-	d = LL_SPI_ReceiveData8( SPI1 );
-	spi1_rx[ (spi1_rx_wi++) & SPI_IMASK ] = d;
-	}
-if	( LL_SPI_IsActiveFlag_TXE( SPI1 ) )
-	{		// injecter donnee a emettre, cela tient lieu d'acquittement pour TXE
-	d = spi1_tx[ (spi1_tx_ri++) & SPI_IMASK ];
-	LL_SPI_TransmitData8( SPI1, d );
-	}
-}
-*/
+#endif

@@ -16,8 +16,10 @@
 // #if defined(USE_FULL_ASSERT)
 // #include "stm32_assert.h"
 // #endif /* USE_FULL_ASSERT */
+#include "options.h"
 #include "gpio.h"
 #include "uarts.h"
+#include "logfifo.h"
 #include "spi.h"
 #include <stdio.h>	// pour snprintf
 
@@ -37,11 +39,6 @@ void cmd_handler( char c );
 
 unsigned int cnt100Hz = 0;
 
-// emission UART : par message
-char utxbuf[128];
-volatile unsigned int utxwi=0;	// write index
-volatile unsigned int utxri=0;	// read index
-
 #ifdef RX_FIFO
 // reception UART : fifo circulaire rudimentaire
 #define QRX (1<<5)		// a power of 2 !!!
@@ -54,13 +51,6 @@ volatile unsigned int urxri=0;	// read index
 //		int c = urxbuf[(urxri++)&(QRX-1)];
 //		... }
 #endif
-
-// emission UART : pour emettre et vider le contenu du buffer
-void uflush(void)
-{
-utxri = 0;
-UART2_TX_INT_enable();
-}
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -79,6 +69,7 @@ switch	(cnt100Hz % 100)
 	}
 }
 
+#ifdef USE_UART2
 // UART2 interrupt handler
 void USART2_IRQHandler( void )
 {
@@ -86,10 +77,23 @@ if	(
 	( LL_USART_IsActiveFlag_TXE( USART2 ) ) &&
 	( LL_USART_IsEnabledIT_TXE( USART2 ) )
 	)
-	{	// messages de taille variable utxwi
-	if	( utxri >= utxwi )
-		{ UART2_TX_INT_disable(); utxwi = 0; utxri = 0; }
-	else	LL_USART_TransmitData8( USART2, utxbuf[utxri++] );
+	{
+	#ifdef USE_LOGFIFO
+	if	( logfifo.rda == logfifo.wra )
+		{			// rien a transmettre, attendre
+		UART2_TX_INT_disable();
+		}
+	else	{
+		int c;
+		c = logfifo.circ[logfifo.rda++];
+		if	( c == 0 )
+			LL_USART_TransmitData8( USART2, '\n' );
+		else	LL_USART_TransmitData8( USART2, c );
+		logfifo.rda &= LFIFOMS;
+		}
+	#else
+	LL_USART_TransmitData8( USART2, '?' );
+	#endif
 	}
 if	(
 	( LL_USART_IsActiveFlag_RXNE( USART2 ) ) &&
@@ -103,33 +107,55 @@ if	(
 	#endif
 	}
 }
-
-extern unsigned int spi2_rx_wi;	// index egaux <==> fifo vide
-extern unsigned int spi2_rx_ri;
+#endif
 
 void cmd_handler( char c )
 {
 // reponse test pour CDC/USB
 if	( c == '?' )
 	{
-	utxwi = snprintf( utxbuf, sizeof(utxbuf), "spi2 : rx_wi=%d rx_ri=%d\n", spi2_rx_wi, spi2_rx_ri );
-	if	( utxwi > sizeof(utxbuf) )
-		utxwi = sizeof(utxbuf);		// snprintf ne deborde pas mais il rend la taille avant trim...
-	uflush(); return;
+	LOGprint("spi2 : rx_wi=%d rx_ri=%d", SPI_2.rx_wi, SPI_2.rx_ri );
+	return;
 	}
 else if	( c == '!' )
 	{
-	uflush(); return;
+	LOGflush(); return;
 	}
 else	{
 	if	( c >= ' ' )
-		utxwi = snprintf( utxbuf, sizeof(utxbuf), "%c", c );
-	else	utxwi = snprintf( utxbuf, sizeof(utxbuf), " 0x%02x ", c );
+		LOGputc( c );
+	else	LOGprint( " 0x%02x ", c );
 	}
-uflush();
 // reponse test pour SPI/RASPI : le char est mis dans le fifo tel quel
 spi2_put8( c );
 }
+
+#ifdef USE_LOGFIFO
+// N.B. pour avoir la correspondance numero <--> perif , voir IRQn_Type
+void report_interrupts(void)
+{
+int i;
+unsigned int p;
+p = __NVIC_GetPriorityGrouping();
+LOGprint("priority grouping %d", p );
+// special systick
+i = -1;
+if	(  SysTick->CTRL & SysTick_CTRL_TICKINT_Msk )
+	{
+	p = __NVIC_GetPriority((IRQn_Type)i);
+	LOGprint("int #%2d, pri %d", i, p );
+	}
+// tous les autres
+for	( i = 0; i <=  97; ++i )
+	{
+	if	( __NVIC_GetEnableIRQ((IRQn_Type)i) )
+		{
+		p = __NVIC_GetPriority((IRQn_Type)i);
+		LOGprint("int #%2d, pri %d", i, p );
+		}
+	}
+}
+#endif
 
 int main(void)
 {
@@ -145,7 +171,7 @@ gpio_init();
   // periode
   SysTick->LOAD  = (SystemCoreClock / 100) - 1;
   // priorite
-  NVIC_SetPriority( SysTick_IRQn, 7 );
+  NVIC_SetPriority( SysTick_IRQn, 11 );
   // init counter
   SysTick->VAL = 0;
   // prescale (0 ===> %8)
@@ -153,14 +179,20 @@ gpio_init();
   // enable timer, enable interrupt
   SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 
+#ifdef USE_UART2
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
 UART2_init( 9600 );
+#endif
+
 // config SPI2 slave
 gpio_spi2_slave_init();
-spi2_fifo_init();
-spi_slave_init( SPI2, 6 );
+spi2_slave_init( 6 );
 
+#ifdef USE_UART2
+logfifo_init();
+report_interrupts();
+#endif
 
  while (1)
  	{
@@ -172,12 +204,10 @@ spi_slave_init( SPI2, 6 );
 		if	( c >= 0 )		// assembler les bytes venus de spi2
 			{
 			if	( c == ';' )
-				uflush();	// les envoyer vers CDC/USB
-			else if	( utxwi < sizeof(utxbuf) )
-				utxbuf[utxwi++] = c;
+				LOGflush();	// les envoyer vers CDC/USB
+			else	LOGputc(c);
 			}
 		}
-
 	// gestion du sleep
 	if	( BLUE_BUTTON() )
 		{//LED_ON();

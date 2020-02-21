@@ -1,3 +1,4 @@
+#include "options.h"
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_system.h"
@@ -36,6 +37,7 @@ NVIC_SetPriority( IRQn, prio );
 NVIC_EnableIRQ( IRQn );
 }
 
+#ifdef USE_UART1
 // UART1 en mode interruption ==============================================================
 // la fonction USART1_IRQHandler() doit etre définie par ailleurs
 
@@ -64,7 +66,9 @@ void UART1_TX_INT_disable()
 {
 LL_USART_DisableIT_TXE( USART1 );
 }
+#endif
 
+#ifdef USE_UART2
 // UART2 en mode interruption ==============================================================
 // la fonction USART2_IRQHandler() doit etre définie par ailleurs
 
@@ -95,7 +99,9 @@ void UART2_TX_INT_disable()
 {
 LL_USART_DisableIT_TXE( USART2 );
 }
+#endif
 
+#ifdef USE_UART3
 // UART3 en mode interruption ==============================================================
 // la fonction USART3_IRQHandler() doit etre définie par ailleurs
 
@@ -124,4 +130,4 @@ void UART3_TX_INT_disable()
 {
 LL_USART_DisableIT_TXE( USART3 );
 }
-
+#endif
