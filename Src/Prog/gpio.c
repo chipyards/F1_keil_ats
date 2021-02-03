@@ -1,4 +1,4 @@
-#include "stm32f1xx_ll_bus.h"
+   #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "gpio.h"
@@ -22,11 +22,12 @@ LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
 void gpio_uart1_init(void)
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
-// pin PA9 = TX
+// pin PA9 = TX (FT)
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE );
 LL_GPIO_SetPinSpeed(      GPIOA, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_MEDIUM );
-LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_PUSHPULL );
-// pin PA10 = RX
+// LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_PUSHPULL );
+LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN );	// 5V pullup !!!
+// pin PA10 = RX (FT)
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_FLOATING );
 }
 
@@ -46,11 +47,11 @@ LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_FLOATING );
 void gpio_uart3_init(void)
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
-// pin PB10 = TX
+// pin PB10 = TX (FT)
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_10, LL_GPIO_MODE_ALTERNATE );
 LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_MEDIUM );
 LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL );
-// pin PB11 = RX
+// pin PB11 = RX (FT)
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_11, LL_GPIO_MODE_FLOATING );
 }
 

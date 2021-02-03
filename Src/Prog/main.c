@@ -1,11 +1,7 @@
-/* cette demo SPI slave - CDC fait la chose suivante :
-	pour chaque char arrive du PC :
-		echo vers le PC sauf '?' et '!'
-		le char copie dans le fifo tx du SPI
-	pour chaque bloc arrive en SPI
-		le fifo tx rendu au master, complete avec des SPI_NO_DATA si necessaire
-		le contenu du fifo rx mis dans un message pour le PC, dont l'emission
-		est declenchee par le terminateur ';' (non emis) 
+/* test preliminaire passerelle pour multimetre AIMTTi 1604
+ * PC -> uart2 -> uart1 -> 1604
+ * bouton bleu -> 0x75 vers uart1 -> 1604 "connect"
+ * 1604 -> uart1 -> bin2hex -> uart2 -> PC
 */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_ll_bus.h"
@@ -38,6 +34,7 @@ void cmd_handler( char c );
 // contexte global -----------------------------------------------------------
 
 unsigned int cnt100Hz = 0;
+volatile int blue=0, old_blue=0;
 
 #ifdef RX_FIFO
 // reception UART : fifo circulaire rudimentaire
@@ -67,7 +64,28 @@ switch	(cnt100Hz % 100)
 		LED_OFF();
 		break;
 	}
+if	( ( blue ) && ( old_blue == 0 ) )
+	{
+	LL_USART_TransmitData8( USART1, 0x75 );	// AIMTTi "connect"
+	}
+old_blue = blue;
 }
+
+#ifdef USE_UART1
+// UART1 interrupt handler, RX ONLY
+void USART1_IRQHandler( void )
+{
+if	(
+	( LL_USART_IsActiveFlag_RXNE( USART1 ) ) &&
+	( LL_USART_IsEnabledIT_RXNE( USART1 ) )
+	)
+	{
+	int c = LL_USART_ReceiveData8( USART1 );
+	// LOGputc( c ); // echo
+	LOGprint("0x%02x", c );
+	}
+}
+#endif
 
 #ifdef USE_UART2
 // UART2 interrupt handler
@@ -114,7 +132,7 @@ void cmd_handler( char c )
 // reponse test pour CDC/USB
 if	( c == '?' )
 	{
-	LOGprint("spi2 : rx_wi=%d rx_ri=%d", SPI_2.rx_wi, SPI_2.rx_ri );
+	LOGprint("imposant" );
 	return;
 	}
 else if	( c == '!' )
@@ -123,11 +141,11 @@ else if	( c == '!' )
 	}
 else	{
 	if	( c >= ' ' )
-		LOGputc( c );
-	else	LOGprint( " 0x%02x ", c );
+		{ LOGputc( c ); LOGputc(' '); }
+	// else	LOGprint( " 0x%02x ", c );
+	LL_USART_TransmitData8( USART1, c );
 	}
-// reponse test pour SPI/RASPI : le char est mis dans le fifo tel quel
-spi2_put8( c );
+
 }
 
 #ifdef USE_LOGFIFO
@@ -183,42 +201,33 @@ gpio_init();
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
 UART2_init( 9600 );
-#endif
-
-// config SPI2 slave
-gpio_spi2_slave_init();
-spi2_slave_init( 6 );
-
-#ifdef USE_UART2
 logfifo_init();
 report_interrupts();
 #endif
 
- while (1)
+#ifdef USE_UART2
+// config UART (interrupt handler doit etre pret!!)
+gpio_uart1_init();
+UART1_init( 9600 );
+#endif
+
+while	(1)
  	{
 	// taches de fond
-	if	( !( LL_USART_IsEnabledIT_TXE( USART2 ) ) )	// protection rudimentaire...
-		{
-		int c;
-		c = spi2_get8();
-		if	( c >= 0 )		// assembler les bytes venus de spi2
-			{
-			if	( c == ';' )
-				LOGflush();	// les envoyer vers CDC/USB
-			else	LOGputc(c);
-			}
-		}
+
 	// gestion du sleep
 	if	( BLUE_BUTTON() )
-		{//LED_ON();
+		{
+		LED_ON(); blue = 1;
 		}
-	#ifdef GREEN_CPU
 	else	{
+		blue = 0;
+		#ifdef GREEN_CPU
 		SCB->SCR = 0;				// avoid deep sleep
 		PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
 		__WFI();				// Wait for Interrupt
+		#endif
 		}
-	#endif
  	}
 }
 

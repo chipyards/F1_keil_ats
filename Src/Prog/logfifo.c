@@ -18,7 +18,7 @@ void logfifo_init(void)
 {
 logfifo.wra = 0;
 logfifo.rda = 0;
-LOGprint( "LOG FIFO %d bytes", LFIFOQB );
+LOGline(""); LOGprint( "LOG FIFO %d bytes", LFIFOQB );
 }
 
 // ajouter un caractere dans la queue

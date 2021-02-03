@@ -55,7 +55,7 @@
 								<inputType id="com.atollic.truestudio.gcc.input.503630080" superClass="com.atollic.truestudio.gcc.input"/>
 							</tool>
 							<tool id="com.atollic.truestudio.exe.debug.toolchain.ld.1772036270" name="C Linker" superClass="com.atollic.truestudio.exe.debug.toolchain.ld">
-								<option id="com.atollic.truestudio.ld.general.scriptfile.1677947626" name="Linker script" superClass="com.atollic.truestudio.ld.general.scriptfile" useByScannerDiscovery="false" value="../STM32F103RBTx_FLASH.ld" valueType="string"/>
+								<option id="com.atollic.truestudio.ld.general.scriptfile.1677947626" name="Linker script" superClass="com.atollic.truestudio.ld.general.scriptfile" useByScannerDiscovery="false" value="../Debug_STM32F103RB_FLASH.ld" valueType="string"/>
 								<option id="com.atollic.truestudio.ld.optimization.do_garbage.432696123" name="Dead code removal " superClass="com.atollic.truestudio.ld.optimization.do_garbage" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="com.atollic.truestudio.ld.general.syscall_lib.2038970525" name="System calls" superClass="com.atollic.truestudio.ld.general.syscall_lib" useByScannerDiscovery="false" value="com.atollic.truestudio.ld.general.syscalls_lib.nosys" valueType="enumerated"/>
 								<option id="com.atollic.truestudio.ld.misc.linkerflags.1244384348" name="Other options" superClass="com.atollic.truestudio.ld.misc.linkerflags" useByScannerDiscovery="false" value=" " valueType="string"/>
@@ -95,7 +95,7 @@
 								<option id="com.atollic.truestudio.common_options.target.interwork.293166013" name="Mix ARM/Thumb" superClass="com.atollic.truestudio.common_options.target.interwork"/>
 							</tool>
 							<tool id="com.atollic.truestudio.exe.debug.toolchain.ldcc.621512083" name="C++ Linker" superClass="com.atollic.truestudio.exe.debug.toolchain.ldcc">
-								<option id="com.atollic.truestudio.ldcc.general.scriptfile.1949732691" name="Linker script" superClass="com.atollic.truestudio.ldcc.general.scriptfile" value="../STM32F103RBTx_FLASH.ld" valueType="string"/>
+								<option id="com.atollic.truestudio.ldcc.general.scriptfile.1949732691" name="Linker script" superClass="com.atollic.truestudio.ldcc.general.scriptfile" value="../Debug_STM32F103RB_FLASH.ld" valueType="string"/>
 								<option id="com.atollic.truestudio.ldcc.optimization.do_garbage.485306298" name="Dead code removal" superClass="com.atollic.truestudio.ldcc.optimization.do_garbage" value="true" valueType="boolean"/>
 								<option id="com.atollic.truestudio.common_options.target.mcpu.1349521863" name="Microcontroller" superClass="com.atollic.truestudio.common_options.target.mcpu" value="STM32F103RB" valueType="enumerated"/>
 								<option id="com.atollic.truestudio.common_options.target.instr_set.1794483988" name="Instruction set" superClass="com.atollic.truestudio.common_options.target.instr_set" value="com.atollic.truestudio.common_options.target.instr_set.thumb2" valueType="enumerated"/>

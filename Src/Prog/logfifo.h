@@ -26,5 +26,8 @@ void LOGputc( char c );
 // ajouter une ligne de texte formattee - sera tronquee si elle est trop longue
 void LOGprint( const char *fmt, ... );
 
+// ajouter une ligne de texte brute - sera tronquee si elle est trop longue
+void LOGline( const char *fmt );
+
 // a utiliser apres une serie de LOGputc() (pas necessaire apres LOGprint() ou LOGline() ) 
 void LOGflush(void);
