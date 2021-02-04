@@ -1,7 +1,8 @@
 /* test preliminaire passerelle pour multimetre AIMTTi 1604
- * PC -> uart2 -> uart1 -> 1604
- * bouton bleu -> 0x75 vers uart1 -> 1604 "connect"
- * 1604 -> uart1 -> bin2hex -> uart2 -> PC
+ * PC -> uart2 -> uartN -> 1604
+ * bouton bleu -> 0x75 vers uartN -> 1604 "connect"
+ * 1604 -> uartN -> bin2hex -> uart2 -> PC
+ * N = 1 ou 3
 */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_ll_bus.h"
@@ -66,7 +67,7 @@ switch	(cnt100Hz % 100)
 	}
 if	( ( blue ) && ( old_blue == 0 ) )
 	{
-	LL_USART_TransmitData8( USART1, 0x75 );	// AIMTTi "connect"
+	LL_USART_TransmitData8( USART3, 0x75 );	// AIMTTi "connect"
 	}
 old_blue = blue;
 }
@@ -81,6 +82,22 @@ if	(
 	)
 	{
 	int c = LL_USART_ReceiveData8( USART1 );
+	// LOGputc( c ); // echo
+	LOGprint("0x%02x", c );
+	}
+}
+#endif
+
+#ifdef USE_UART3
+// UART3 interrupt handler, RX ONLY
+void USART3_IRQHandler( void )
+{
+if	(
+	( LL_USART_IsActiveFlag_RXNE( USART3 ) ) &&
+	( LL_USART_IsEnabledIT_RXNE( USART3 ) )
+	)
+	{
+	int c = LL_USART_ReceiveData8( USART3 );
 	// LOGputc( c ); // echo
 	LOGprint("0x%02x", c );
 	}
@@ -143,7 +160,7 @@ else	{
 	if	( c >= ' ' )
 		{ LOGputc( c ); LOGputc(' '); }
 	// else	LOGprint( " 0x%02x ", c );
-	LL_USART_TransmitData8( USART1, c );
+	LL_USART_TransmitData8( USART3, c );
 	}
 
 }
@@ -197,6 +214,13 @@ gpio_init();
   // enable timer, enable interrupt
   SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 
+
+#ifdef USE_UART1
+// config UART (interrupt handler doit etre pret!!)
+gpio_uart1_init();
+UART1_init( 9600 );
+#endif
+
 #ifdef USE_UART2
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
@@ -205,10 +229,10 @@ logfifo_init();
 report_interrupts();
 #endif
 
-#ifdef USE_UART2
+#ifdef USE_UART3
 // config UART (interrupt handler doit etre pret!!)
-gpio_uart1_init();
-UART1_init( 9600 );
+gpio_uart3_init();
+UART3_init( 9600 );
 #endif
 
 while	(1)
