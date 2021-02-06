@@ -1,9 +1,8 @@
-/* test preliminaire passerelle pour multimetre AIMTTi 1604
- * PC -> uart2 -> uartN -> 1604
- * bouton bleu -> 0x75 vers uartN -> 1604 "connect"
- * 1604 -> uartN -> bin2hex -> uart2 -> PC
- * N = 1 ou 3
-*/
+/* passerelle pour 2 multimetres AIMTTi 1604
+ * PC -> uart2 -> uart1 et 3 -> 1604
+ * bouton bleu -> 0x75 -> 1604 "connect"
+ * 1604 -> uart1 et 3 -> bin 2 ascii -> uart2 -> PC
+ */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
@@ -34,8 +33,16 @@ void cmd_handler( char c );
 
 // contexte global -----------------------------------------------------------
 
-unsigned int cnt100Hz = 0;
+volatile unsigned int cnt100Hz = 0;
 volatile int blue=0, old_blue=0;
+
+unsigned char rxbuf1[16];
+unsigned char rxbuf3[16];
+volatile unsigned int rxcnt1 = 0;
+volatile unsigned int rxcnt3 = 0;
+volatile unsigned int space1 = 0;	// duree ecoulee depuis le dernier char reçu
+volatile unsigned int space3 = 0;
+
 
 #ifdef RX_FIFO
 // reception UART : fifo circulaire rudimentaire
@@ -57,16 +64,16 @@ void SysTick_Handler()
 switch	(cnt100Hz % 100)
 	{
 	case 0 :
-	//case 10 :
 		LED_ON();
 		break;
 	case 5 :
-	//case 15 :
 		LED_OFF();
 		break;
 	}
+space1++; space3++;
 if	( ( blue ) && ( old_blue == 0 ) )
 	{
+	LL_USART_TransmitData8( USART1, 0x75 );	// AIMTTi "connect"
 	LL_USART_TransmitData8( USART3, 0x75 );	// AIMTTi "connect"
 	}
 old_blue = blue;
@@ -82,8 +89,9 @@ if	(
 	)
 	{
 	int c = LL_USART_ReceiveData8( USART1 );
-	// LOGputc( c ); // echo
-	LOGprint("0x%02x", c );
+	// LOGprint("0x%02x", c );
+	space1 = 0;
+	rxbuf1[(rxcnt1++)&15] = c;
 	}
 }
 #endif
@@ -98,8 +106,9 @@ if	(
 	)
 	{
 	int c = LL_USART_ReceiveData8( USART3 );
-	// LOGputc( c ); // echo
-	LOGprint("0x%02x", c );
+	// LOGprint("0x%02x", c );
+	space3 = 0;
+	rxbuf3[(rxcnt3++)&15] = c;
 	}
 }
 #endif
@@ -149,7 +158,7 @@ void cmd_handler( char c )
 // reponse test pour CDC/USB
 if	( c == '?' )
 	{
-	LOGprint("imposant" );
+	LOGprint("C'est Imposant" );
 	return;
 	}
 else if	( c == '!' )
@@ -160,6 +169,7 @@ else	{
 	if	( c >= ' ' )
 		{ LOGputc( c ); LOGputc(' '); }
 	// else	LOGprint( " 0x%02x ", c );
+	LL_USART_TransmitData8( USART1, c );
 	LL_USART_TransmitData8( USART3, c );
 	}
 
@@ -191,6 +201,105 @@ for	( i = 0; i <=  97; ++i )
 	}
 }
 #endif
+
+static unsigned int sevenseg2asc( unsigned int s )
+{
+switch	( s & 0xFE )
+	{
+	case 0: return ' ';
+	case 0x1c: return 'L';
+	case 0x8e: return 'F';
+	case 0xfc: return '0';
+	case 0x60: return '1';
+	case 0xda: return '2';
+	case 0xf2: return '3';
+	case 0x66: return '4';
+	case 0xb6: return '5';
+	case 0xbe: return '6';
+	case 0xe0: return '7';
+	case 0xfe: return '8';
+	case 0xe6: return '9';
+	default: return 0;
+	}
+return 0;
+}
+
+int make_hex_report( int device, unsigned char *rxbuf, unsigned int rxcnt )
+{
+if	( rxcnt > 10 )
+	rxcnt = 10;
+char report[64]; unsigned int i, j=0;
+report[j++] = 'X' + device;
+for	( i = 0; i < rxcnt; i++ )
+	{ sprintf( report + j, "%02x ", rxbuf[i] ); j+= 3; }
+LOGline( report );
+return 0;
+}
+
+int make_report( int device, unsigned char *rxbuf, unsigned int rxcnt )
+{
+if	( rxcnt > 10 )
+	rxcnt = 10;
+char report[64]; unsigned int i, j=0, a;
+report[j++] = 'X' + device;
+for	( i = 0; i < rxcnt; i++ )
+	{
+	switch	( i )
+		{
+		case 0 : a = ( ( rxbuf[i] == 0x0d )?' ':'?');
+			report[j++] = a;
+			break;
+		case 1 : switch	( rxbuf[i] & 0x07 )
+				{
+				case 1 : a = 'v'; break;	// mV
+				case 2 : a = 'V'; break;	// V
+				case 3 : a = 'a'; break;	// mA
+				case 4 : a = 'A'; break;	// A
+				case 5 : a = ( (rxbuf[i] & 0xF0)?'k':'R'); break; // kOhm ou Ohm
+				case 6 : a = 'C'; break;	// continuity
+				case 7 : a = 'D'; break;	// diode
+				default : a = '?';
+				}
+			// note : rxbuf[i] & 0x08 indique AC, mais on l'a aussi au byte 3
+			// note : rxbuf[i] & 0xF0 indique position point de 1 a 5, de gauche a droite,
+			// sauf 0 pour Ohm, mais on a aussi le point dans les 7 seg.
+			report[j++] = a;
+			break;
+		case 2 : a = ' ';
+			if	( rxbuf[i] & 0x20 ) a = 'N';	// Null
+			else if ( rxbuf[i] & 0x40 ) a = 'S';	// auto Scale
+			if	( rxbuf[i] & 0x01 ) a = 'H';	// T-hold
+			else if ( rxbuf[i] & 0x02 ) a = 'M';	// Min-Max
+			report[j++] = a;
+			break;
+		case 3 : a = ' ';
+			if	( rxbuf[i] & 0x80 ) a = '~';	// AC
+		//	else if	( rxbuf[i] & 0x10 ) a = '_';	// DC
+			if	( rxbuf[i] & 0x02 ) a = '-';	// DC negative
+			report[j++] = a;
+			break;
+		break;
+		case 4 :
+		case 5 :
+		case 6 :
+		case 7 :
+		case 8 : a = sevenseg2asc( rxbuf[i] );
+			 if	( a )
+			 	{
+				report[j++] = a;
+				if	( rxbuf[i] & 1 )
+					report[j++] = '.';
+				}
+			 else	{
+				sprintf( report + j, "%02x ", rxbuf[i] ); j+= 3;
+				} break;
+		// default : sprintf( report + j, " %02x ", rxbuf[i] );
+		}
+	}
+report[j++] = 0;
+LOGline( report );
+return 0;
+}
 
 int main(void)
 {
@@ -238,11 +347,30 @@ UART3_init( 9600 );
 while	(1)
  	{
 	// taches de fond
+	if	( ( space1 > 11 ) && ( rxcnt1 > 1 ) )
+		{
+		if	( rxcnt1 > 10 )
+			rxcnt1 = 10;
+		if	( blue )
+			make_hex_report( 0, rxbuf1, rxcnt1 );
+		else	make_report( 0, rxbuf1, rxcnt1 );
+		rxcnt1 = 0;
+		}
+	if	( ( space3 > 11 ) && ( rxcnt3 > 1 ) )
+		{
+		if	( rxcnt3 > 10 )
+			rxcnt3 = 10;
+		if	( blue )
+			make_hex_report( 1, rxbuf3, rxcnt3 );
+		else	make_report( 1, rxbuf3, rxcnt3 );
+		rxcnt3 = 0;
+		}
 
 	// gestion du sleep
 	if	( BLUE_BUTTON() )
 		{
-		LED_ON(); blue = 1;
+		// LED_ON();
+		blue = 1;
 		}
 	else	{
 		blue = 0;
