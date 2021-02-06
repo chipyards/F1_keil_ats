@@ -33,15 +33,17 @@ void cmd_handler( char c );
 
 // contexte global -----------------------------------------------------------
 
-volatile unsigned int cnt100Hz = 0;
+volatile unsigned int ticks = 0;
 volatile int blue=0, old_blue=0;
 
-unsigned char rxbuf1[16];
+unsigned char rxbuf1[16];		// buffer pour reports bruts
 unsigned char rxbuf3[16];
 volatile unsigned int rxcnt1 = 0;
 volatile unsigned int rxcnt3 = 0;
 volatile unsigned int space1 = 0;	// duree ecoulee depuis le dernier char reçu
 volatile unsigned int space3 = 0;
+volatile unsigned int stamp1 = 0;	// timestamp du premier byte
+volatile unsigned int stamp3 = 0;
 
 
 #ifdef RX_FIFO
@@ -60,8 +62,8 @@ volatile unsigned int urxri=0;	// read index
 // systick interrupt handler
 void SysTick_Handler()
 {
-++cnt100Hz;
-switch	(cnt100Hz % 100)
+++ticks;
+switch	(ticks % 100)
 	{
 	case 0 :
 		LED_ON();
@@ -71,11 +73,11 @@ switch	(cnt100Hz % 100)
 		break;
 	}
 space1++; space3++;
-if	( ( blue ) && ( old_blue == 0 ) )
-	{
-	LL_USART_TransmitData8( USART1, 0x75 );	// AIMTTi "connect"
-	LL_USART_TransmitData8( USART3, 0x75 );	// AIMTTi "connect"
-	}
+// if	( ( blue ) && ( old_blue == 0 ) )
+//	{
+//	LL_USART_TransmitData8( USART1, 0x75 );	// AIMTTi "connect"
+//	LL_USART_TransmitData8( USART3, 0x75 );	// AIMTTi "connect"
+//	}
 old_blue = blue;
 }
 
@@ -90,6 +92,8 @@ if	(
 	{
 	int c = LL_USART_ReceiveData8( USART1 );
 	// LOGprint("0x%02x", c );
+	if	( rxcnt1 == 0 )
+		stamp1 = ticks;
 	space1 = 0;
 	rxbuf1[(rxcnt1++)&15] = c;
 	}
@@ -106,6 +110,8 @@ if	(
 	)
 	{
 	int c = LL_USART_ReceiveData8( USART3 );
+	if	( rxcnt3 == 0 )
+		stamp3 = ticks;
 	// LOGprint("0x%02x", c );
 	space3 = 0;
 	rxbuf3[(rxcnt3++)&15] = c;
@@ -236,12 +242,13 @@ LOGline( report );
 return 0;
 }
 
-int make_report( int device, unsigned char *rxbuf, unsigned int rxcnt )
+int make_report( int device, unsigned char *rxbuf, unsigned int rxcnt, unsigned int stamp )
 {
 if	( rxcnt > 10 )
 	rxcnt = 10;
 char report[64]; unsigned int i, j=0, a;
 report[j++] = 'X' + device;
+sprintf( report + j, "%04x ", stamp & 0xFFFF ); j+= 4;
 for	( i = 0; i < rxcnt; i++ )
 	{
 	switch	( i )
@@ -310,10 +317,8 @@ SystemClock_Config();
 gpio_init();
 
 
-// config systick @ 100Hz
-
   // periode
-  SysTick->LOAD  = (SystemCoreClock / 100) - 1;
+  SysTick->LOAD  = (SystemCoreClock / 200) - 1; // config systick @ 200Hz
   // priorite
   NVIC_SetPriority( SysTick_IRQn, 11 );
   // init counter
@@ -353,7 +358,7 @@ while	(1)
 			rxcnt1 = 10;
 		if	( blue )
 			make_hex_report( 0, rxbuf1, rxcnt1 );
-		else	make_report( 0, rxbuf1, rxcnt1 );
+		else	make_report( 0, rxbuf1, rxcnt1, stamp1 );
 		rxcnt1 = 0;
 		}
 	if	( ( space3 > 11 ) && ( rxcnt3 > 1 ) )
@@ -362,7 +367,7 @@ while	(1)
 			rxcnt3 = 10;
 		if	( blue )
 			make_hex_report( 1, rxbuf3, rxcnt3 );
-		else	make_report( 1, rxbuf3, rxcnt3 );
+		else	make_report( 1, rxbuf3, rxcnt3, stamp3 );
 		rxcnt3 = 0;
 		}
 
