@@ -26,7 +26,20 @@ void     Configure_GPIO(void);
 
 //#define HSE_EXT
 
+class pipo {
+int inc;
+public:
+pipo() : inc(25) {};
+int addi ( int x ) {
+	return inc + x;
+	};
+};
+
+pipo popi;
+int f = 75;
+
 unsigned int cnt100Hz = 0;
+
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -54,8 +67,10 @@ int main(void)
   Configure_GPIO();
 // config systick @ 100Hz
 
+  f = popi.addi( f );
+
   // periode
-  SysTick->LOAD  = (SystemCoreClock / 100) - 1;
+  SysTick->LOAD  = (SystemCoreClock / f) - 1;
   // priorite
   NVIC_SetPriority( SysTick_IRQn, 7 );
   // init counter
