@@ -9,16 +9,15 @@
 
 void gpio_init(void)
 {
-// nucleo LED = PA5
-LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
-LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_OUTPUT );
-LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_5, LL_GPIO_OUTPUT_PUSHPULL );
-// nucleo bouton bleu = PC13
+// blue pill LED = PC13 act. lo
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
+LL_GPIO_SetPinMode(       GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinOutputType( GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL );
+// pas de bouton bleu =
 }
 
 
-// initialiser GPIO pour UART1
+/* initialiser GPIO pour UART1 *
 void gpio_uart1_init(void)
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
@@ -29,6 +28,7 @@ LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_PUSHPULL );
 // pin PA10 = RX
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_FLOATING );
 }
+//*/
 
 // initialiser GPIO pour UART2
 void gpio_uart2_init(void)
@@ -42,7 +42,7 @@ LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL );
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_FLOATING );
 }
 
-// initialiser GPIO pour UART3
+/* initialiser GPIO pour UART3 *
 void gpio_uart3_init(void)
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
@@ -53,3 +53,4 @@ LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL );
 // pin PB11 = RX
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_11, LL_GPIO_MODE_FLOATING );
 }
+//*/

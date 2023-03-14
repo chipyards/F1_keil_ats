@@ -15,13 +15,20 @@
 void SystemClock_Config(void);
 void cmd_handler( char c );
 
+// osc. modes :
+//		HSI		HSE		HSE_EXT
+// fmax		64MHz		72MHz		72MHz
+// nucleo	Y		N		Y
+// nucleo cut	Y		N		N
+// blue pill	Y		Y		N
 
 // HSE_EXT est pour utiliser une source d'horloge 8MHz externe
-// si HSE_EXT : MCO de la sonde ST-LINK    8MHz -> PLL -> 72 MHz
+// sur nucleo : MCO de la sonde ST-LINK    8MHz -> PLL -> 72 MHz
+// sur blue pill et Olimex : quartz local  8MHz -> PLL -> 72 MHz
 // sinon      : oscillateur RC interne HSI 8MHz -> PLL -> 64 Mhz
-// HSE_EXT ne marche pas sur une nucleo coupee ni sur Blue Pill
 
-#define HSE_EXT
+#define HSE
+#define GREEN_CPU
 
 // contexte global -----------------------------------------------------------
 
@@ -54,13 +61,19 @@ void SysTick_Handler()
 switch	(cnt100Hz % 100)
 	{
 	case 0 :
-	//case 10 :
+	case 10 :
 		LED_ON();
 		break;
 	case 5 :
-	//case 15 :
+	case 15 :
 		LED_OFF();
 		break;
+
+	/*case 20 :
+		snprintf( txbuf, sizeof(txbuf), "Az" );
+		txindex = 0;
+		UART2_TX_INT_enable();
+		break; */
 	}
 }
 
@@ -126,15 +139,11 @@ UART2_init( 9600 );
 
  while (1)
  	{
-	if	( BLUE_BUTTON() )
-		{//LED_ON();
-		}
-	else
-		{
-		SCB->SCR = 0;				// avoid deep sleep
-		PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
-		__WFI();				// Wait for Interrupt
-		}
+	#ifdef GREEN_CPU
+	SCB->SCR = 0;				// avoid deep sleep
+	PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
+	__WFI();				// Wait for Interrupt
+	#endif
  	}
 }
 
@@ -159,19 +168,25 @@ void SystemClock_Config(void)
   LL_FLASH_SetLatency(LL_FLASH_LATENCY_2);
 
 #ifdef HSE_EXT
+#define HSE
+#endif
+
+#ifdef HSE
 /* Enable HSE oscillator or bypass */
+#ifdef HSE_EXT
 LL_RCC_HSE_EnableBypass();	// pas de quartz ==> MCO du ST-Link
+#endif
 LL_RCC_HSE_Enable();
 while(LL_RCC_HSE_IsReady() != 1)
-  {  };
+  { }
 #else
 LL_RCC_HSI_Enable();
 while(LL_RCC_HSI_IsReady() != 1)
-  {  };
+  { }
 #endif
 
 /* Main PLL configuration and activation */
-#ifdef HSE_EXT
+#ifdef HSE
 LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE_DIV_1, LL_RCC_PLL_MUL_9);
 #else
 // HSI est obligatoirement %2, donc avec MUL_16 qui est le max on a 64 MHz
@@ -180,14 +195,13 @@ LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSI_DIV_2, LL_RCC_PLL_MUL_16);
 
   LL_RCC_PLL_Enable();
   while(LL_RCC_PLL_IsReady() != 1)
-  {
-  };
+    { }
 
   /* Sysclk activation on the main PLL */
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
   LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
   while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL)
-  {  };
+    { }
 
   /* Set APB1 & APB2 prescaler*/
   LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
