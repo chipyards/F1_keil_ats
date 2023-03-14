@@ -12,6 +12,8 @@
 // #endif /* USE_FULL_ASSERT */
 #include "gpio.h"
 #include "pwm.h"
+#include "audio.h"
+
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
 
@@ -109,16 +111,11 @@ if	(
 
 void cmd_handler( char c )
 {
-static unsigned int pw = 200;
 switch	( c )
 	{
-	case '+' :
-		pw += 10;
-		LL_TIM_OC_SetCompareCH1( TIM3, pw );
-		break;
-	case '-' :
-		pw -= 10;
-		LL_TIM_OC_SetCompareCH1( TIM3, pw );
+	case 't' :
+		audio_init( troca );
+		audio_start();
 		break;
 	default :
 		if	( c >= ' ' )
@@ -155,7 +152,7 @@ gpio_init();
 gpio_uart2_init();
 UART2_init( 9600 );
 gpio_timer3_init();
-TIM3_PWM_init( 7200 );
+TIM3_PWM_init( PWM_PERIOD );
 
  while (1)
  	{

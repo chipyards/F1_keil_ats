@@ -43,7 +43,23 @@ LL_TIM_EnableCounter( TIM3 );
 
 // Interrupt
 NVIC_SetPriority( TIM3_IRQn, 2 );
-//NVIC_EnableIRQ( TIM3_IRQn );
-//LL_TIM_EnableIT_???( TIM3 );
+NVIC_EnableIRQ( TIM3_IRQn );
+
+LL_TIM_EnableIT_UPDATE( TIM3 );
 
 }
+
+/* interrupt routine demo
+void TIM3_IRQHandler(void)
+{
+if	( LL_TIM_IsActiveFlag_UPDATE( TIM3 ) )
+	{
+	LL_TIM_ClearFlag_UPDATE( TIM3 );
+	unsigned int pw = LL_TIM_OC_GetCompareCH1( TIM3 );
+	if	( pw > 7200 )
+		pw = 0;
+	else	pw += 1;
+	LL_TIM_OC_SetCompareCH1( TIM3, pw );
+	}
+}
+*/
