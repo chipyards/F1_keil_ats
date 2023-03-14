@@ -16,6 +16,15 @@ LL_GPIO_SetPinOutputType( GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL );
 // pas de bouton bleu =
 }
 
+// initialiser PWM out sur PA6
+void gpio_timer3_init()
+{
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
+// pin PA6 = T3.1
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE );
+LL_GPIO_SetPinSpeed(      GPIOA, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH );
+LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL );
+}
 
 /* initialiser GPIO pour UART1 *
 void gpio_uart1_init(void)

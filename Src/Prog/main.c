@@ -5,10 +5,13 @@
 #include "stm32f1xx_ll_system.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_usart.h"
+#include "stm32f1xx_ll_tim.h"
+
 // #if defined(USE_FULL_ASSERT)
 // #include "stm32_assert.h"
 // #endif /* USE_FULL_ASSERT */
 #include "gpio.h"
+#include "pwm.h"
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
 
@@ -28,7 +31,7 @@ void cmd_handler( char c );
 // sinon      : oscillateur RC interne HSI 8MHz -> PLL -> 64 Mhz
 
 #define HSE
-#define GREEN_CPU
+// #define GREEN_CPU
 
 // contexte global -----------------------------------------------------------
 
@@ -62,10 +65,12 @@ switch	(cnt100Hz % 100)
 	{
 	case 0 :
 	case 10 :
+	case 20 :
 		LED_ON();
 		break;
 	case 5 :
 	case 15 :
+	case 50 :
 		LED_OFF();
 		break;
 
@@ -104,11 +109,24 @@ if	(
 
 void cmd_handler( char c )
 {
-if	( c >= ' ' )
-	snprintf( txbuf, sizeof(txbuf), "cmd \"%c\"\n", c );
-else	snprintf( txbuf, sizeof(txbuf), "cmd 0x%02x\n", c );
-txindex = 0;
-UART2_TX_INT_enable();
+static unsigned int pw = 200;
+switch	( c )
+	{
+	case '+' :
+		pw += 10;
+		LL_TIM_OC_SetCompareCH1( TIM3, pw );
+		break;
+	case '-' :
+		pw -= 10;
+		LL_TIM_OC_SetCompareCH1( TIM3, pw );
+		break;
+	default :
+		if	( c >= ' ' )
+			snprintf( txbuf, sizeof(txbuf), "cmd \"%c\"\n", c );
+		else	snprintf( txbuf, sizeof(txbuf), "cmd 0x%02x\n", c );
+		txindex = 0;
+		UART2_TX_INT_enable();
+	}
 }
 
 int main(void)
@@ -136,6 +154,8 @@ gpio_init();
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
 UART2_init( 9600 );
+gpio_timer3_init();
+TIM3_PWM_init( 7200 );
 
  while (1)
  	{
