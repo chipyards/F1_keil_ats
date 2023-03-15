@@ -82,6 +82,9 @@ switch	(cnt100Hz % 100)
 		UART2_TX_INT_enable();
 		break; */
 	}
+if	( ( IS_PA12_SET() == 0 ) && ( etat.pos < 0 ) )
+	audio_start( troca );
+
 }
 
 // UART2 interrupt handler
@@ -114,8 +117,8 @@ void cmd_handler( char c )
 switch	( c )
 	{
 	case 't' :
-		audio_init( troca );
-		audio_start();
+		if	( etat.pos < 0 )
+			audio_start( troca );
 		break;
 	default :
 		if	( c >= ' ' )

@@ -23,6 +23,5 @@ extern const short dequant[];
 extern type_etat etat;
 
 // methodes
-void audio_init( const unsigned int * leson );
+void audio_start( const unsigned int * leson );
 
-void audio_start(void);

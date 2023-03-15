@@ -13,7 +13,14 @@ void gpio_init(void)
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
 LL_GPIO_SetPinMode(       GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT );
 LL_GPIO_SetPinOutputType( GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL );
-// pas de bouton bleu =
+// pas de bouton bleu, mais on va utiliser PA12 qui a un pullup en dur
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_12, LL_GPIO_MODE_FLOATING );
+// profiling sur PB12
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
+LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_12, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_12, LL_GPIO_OUTPUT_PUSHPULL );
+
 }
 
 // initialiser PWM out sur PA6

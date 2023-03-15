@@ -1,9 +1,11 @@
 #include "audio.h"
+#include "gpio.h"
 #include "stm32f1xx_ll_tim.h"
+#include "stm32f1xx_ll_gpio.h"
 
 type_etat etat;
 
-// interrupt audio
+// callback pour l'interrupt audio, duree < 1.4 us
 void sample_callback( void )
 {
 int pos = etat.pos;
@@ -42,30 +44,28 @@ else	{
 
 // leson est l'adresse d'un tableau dont le premier element est la taille du son
 // la suite contient les codes entasses dans des mots de 32 bits
-void audio_init( const unsigned int * leson )
+void audio_start( const unsigned int * leson )
 {
 etat.tai = leson[0];		// nombre de samples du son
 etat.wbuf1 = leson + 1;		// pack de codes
-etat.pos = -1;			// position en samples (-1 = stop)
 etat.iw = 1;			// indice du word (32 bits) N.B. 1 parceque le premier word est lu ci-dessous
 etat.pb0 = 0;			// position du lsb du code courant dans le word courant	
 etat.zew = etat.wbuf1[0];	// word courant
 etat.oldsig = PWM_SILENCE;	// predicteur N.B. cette valeur initiale determine la composante continue
+etat.pos = 0;			// position en samples (-1 = stop)
 }
 
-void audio_start()
-{
-etat.pos = 0;
-}
 
 void TIM3_IRQHandler(void)
 {
 static int cnt = 0;
 if	( LL_TIM_IsActiveFlag_UPDATE( TIM3 ) )
 	{
+	P12_PROFIL_1();
 	LL_TIM_ClearFlag_UPDATE( TIM3 );
 	if	( ++cnt & 1 )		// en raison de l'oversampling X2, on doit interpoler
 		sample_callback();	// interpolation grossiere (nearest neighbour)
+	P12_PROFIL_0();
 	}
 }
 
