@@ -61,11 +61,11 @@ void TIM3_IRQHandler(void)
 static int cnt = 0;
 if	( LL_TIM_IsActiveFlag_UPDATE( TIM3 ) )
 	{
-	P12_PROFIL_1();
+	PB12_PROFIL_1();
 	LL_TIM_ClearFlag_UPDATE( TIM3 );
 	if	( ++cnt & 1 )		// en raison de l'oversampling X2, on doit interpoler
 		sample_callback();	// interpolation grossiere (nearest neighbour)
-	P12_PROFIL_0();
+	PB12_PROFIL_0();
 	}
 }
 

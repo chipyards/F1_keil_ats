@@ -63,28 +63,24 @@ volatile unsigned int rxri=0;	// read index
 void SysTick_Handler()
 {
 ++cnt100Hz;
-switch	(cnt100Hz % 100)
+if	( etat.pos < 0 )
 	{
-	case 0 :
-	case 10 :
-	case 20 :
-		LED_ON();
-		break;
-	case 5 :
-	case 15 :
-	case 50 :
-		LED_OFF();
-		break;
-
-	/*case 20 :
-		snprintf( txbuf, sizeof(txbuf), "Az" );
-		txindex = 0;
-		UART2_TX_INT_enable();
-		break; */
+	switch	( cnt100Hz % 100 )
+		{
+		case 0 :
+			LED_ON();
+			break;
+		case 5 :
+			LED_OFF();
+			break;
+		}
 	}
-if	( ( IS_PA12_SET() == 0 ) && ( etat.pos < 0 ) )
+else	LED_ON();
+if	(
+	( ( IS_PA12_SET() == 0 ) || ( IS_PB13_SET() ) ) &&
+	( etat.pos < 0 )
+	)
 	audio_start( troca );
-
 }
 
 // UART2 interrupt handler
