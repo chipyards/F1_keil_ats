@@ -34,10 +34,12 @@ void cmd_handler( char c );
 
 #define HSE
 // #define GREEN_CPU
+#define DUREE_INH 10
 
 // contexte global -----------------------------------------------------------
 
 unsigned int cnt100Hz = 0;
+unsigned int inhibition = 0;
 
 // emission : par message
 volatile int msg_request = 0;
@@ -80,8 +82,12 @@ if	(
 	( ( IS_PA12_SET() == 0 ) || ( IS_PB13_SET() ) ) &&
 	( etat.pos < 0 )
 	)
-	audio_start( troca );
-}
+	if	( cnt100Hz > inhibition )
+		{
+		inhibition = cnt100Hz + ( DUREE_INH * 100 );
+		audio_start( frein );
+		}
+	}
 
 // UART2 interrupt handler
 void USART2_IRQHandler( void )
@@ -114,7 +120,7 @@ switch	( c )
 	{
 	case 't' :
 		if	( etat.pos < 0 )
-			audio_start( troca );
+			audio_start( frein );
 		break;
 	default :
 		if	( c >= ' ' )

@@ -1,5 +1,9 @@
 /* compression predictive avec perte
-amplitude nominale target_p = 1633 (soit (Fck/fsamp)/4 )
+PWM resolution = 3266
+amplitude nominale target_pk = 1633
+frequence horloge = 72000000 Hz
+frequence PWM = 22045.3 Hz
+frequence audio = 22045.3 Hz
 kplaf = 0.4, 5 bits de code soit QLIN = 4, QLOG = 12
 serie exponentielle :
 	3.5
@@ -38,12 +42,12 @@ tests :
 	-7000 -> 31 -> -653
  */
 // definitions a reporter dans audio.h :
-// 72000000 / 6532 = 11022.7 Hz
+// frequence audio = 22045.3 Hz
 #define QBIT 5
-#define SAMP_PERIOD  6532
-#define PWM_PERIOD   (SAMP_PERIOD/2)
-#define PWM_SILENCE  (PWM_PERIOD/2)
-
+#define PWM_SILENCE 1633
+#define PWM_PERIOD  3266
+#define SAMP_PERIOD 3266
+#define KOVER 1 // <-- OVERSAMPLING
 const short dequant[] = {
 0, 1, 2, 3, 4, 7, 11, 17, 
 27, 43, 67, 106, 167, 263, 415, 653, 

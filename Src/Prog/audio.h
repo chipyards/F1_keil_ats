@@ -5,8 +5,8 @@
 #define PWM_SILENCE  (PWM_PERIOD/2)
 
 // liste des sons a compiler
-#define USE_troca
-extern const unsigned int troca[];
+#define USE_frein
+extern const unsigned int frein[];
 
 // etat du systeme audio
 typedef struct {
