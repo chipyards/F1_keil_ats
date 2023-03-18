@@ -2,6 +2,7 @@
 #include "gpio.h"
 #include "stm32f1xx_ll_tim.h"
 #include "stm32f1xx_ll_gpio.h"
+#include "opto.h"
 
 type_etat etat;
 
@@ -61,14 +62,16 @@ void TIM3_IRQHandler(void)
 static int cnt = 0;
 if	( LL_TIM_IsActiveFlag_UPDATE( TIM3 ) )
 	{
-	LL_TIM_ClearFlag_UPDATE( TIM3 );
-/*
  	PB12_PROFIL_1();
+	LL_TIM_ClearFlag_UPDATE( TIM3 );
+	#if ( KOVER == 2 )
 	if	( ++cnt & 1 )		// en raison de l'oversampling X2, on doit interpoler
 		sample_callback();	// interpolation grossiere (nearest neighbour)
-	PB12_PROFIL_0();
-*/
+	#else
 	sample_callback();
+	#endif
+	opto_process();
+	PB12_PROFIL_0();
 	}
 }
 

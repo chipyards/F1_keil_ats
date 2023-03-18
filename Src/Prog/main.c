@@ -1,5 +1,6 @@
 
 /* Includes ------------------------------------------------------------------*/
+#include "options.h"
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_system.h"
@@ -13,28 +14,13 @@
 #include "gpio.h"
 #include "pwm.h"
 #include "audio.h"
+#include "opto.h"
 
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
 
 void SystemClock_Config(void);
 void cmd_handler( char c );
-
-// osc. modes :
-//		HSI		HSE		HSE_EXT
-// fmax		64MHz		72MHz		72MHz
-// nucleo	Y		N		Y
-// nucleo cut	Y		N		N
-// blue pill	Y		Y		N
-
-// HSE_EXT est pour utiliser une source d'horloge 8MHz externe
-// sur nucleo : MCO de la sonde ST-LINK    8MHz -> PLL -> 72 MHz
-// sur blue pill et Olimex : quartz local  8MHz -> PLL -> 72 MHz
-// sinon      : oscillateur RC interne HSI 8MHz -> PLL -> 64 Mhz
-
-#define HSE
-// #define GREEN_CPU
-#define DUREE_INH 10
 
 // contexte global -----------------------------------------------------------
 
@@ -79,7 +65,8 @@ if	( etat.pos < 0 )
 	}
 else	LED_ON();
 if	(
-	( ( IS_PA12_SET() == 0 ) || ( IS_PB13_SET() ) ) &&
+	// ( ( IS_PA12_SET() == 0 ) || ( IS_PB13_SET() ) ) &&
+	( IS_PB13_SET() ) &&
 	( etat.pos < 0 )
 	)
 	if	( cnt100Hz > inhibition )
@@ -122,6 +109,11 @@ switch	( c )
 		if	( etat.pos < 0 )
 			audio_start( frein );
 		break;
+	case 'a' :
+		snprintf( txbuf, sizeof(txbuf), "adc %u\n", adc_raw );
+		txindex = 0;
+		UART2_TX_INT_enable();
+		break;
 	default :
 		if	( c >= ' ' )
 			snprintf( txbuf, sizeof(txbuf), "cmd \"%c\"\n", c );
@@ -158,6 +150,7 @@ gpio_uart2_init();
 UART2_init( 9600 );
 gpio_timer3_init();
 TIM3_PWM_init( PWM_PERIOD );
+adc_init();
 
  while (1)
  	{

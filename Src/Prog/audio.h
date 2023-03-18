@@ -1,8 +1,9 @@
-// 72000000 / 6532 = 11022.7 Hz
+// frequence audio = 22045.3 Hz
 #define QBIT 5
-#define SAMP_PERIOD  6532
-#define PWM_PERIOD   (SAMP_PERIOD/2)	// oversampling x2
-#define PWM_SILENCE  (PWM_PERIOD/2)
+#define PWM_SILENCE 1633
+#define PWM_PERIOD  3266
+#define SAMP_PERIOD 3266
+#define KOVER 1 // <-- OVERSAMPLING
 
 // liste des sons a compiler
 #define USE_frein
