@@ -34,6 +34,9 @@ LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_12, LL_GPIO_OUTPUT_PUSHPULL );
 #else	// N.B. les ecriture vont quand meme actionner les pull-up/down
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_12, LL_GPIO_MODE_INPUT );
 #endif
+// opto barrier LED drive PB15
+LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_15, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_15, LL_GPIO_OUTPUT_PUSHPULL );
 // analog in sur PA0, ch. 0
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_0, LL_GPIO_MODE_ANALOG );

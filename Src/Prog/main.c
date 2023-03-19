@@ -7,6 +7,7 @@
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_usart.h"
 #include "stm32f1xx_ll_tim.h"
+#include "stm32f1xx_ll_adc.h"
 
 // #if defined(USE_FULL_ASSERT)
 // #include "stm32_assert.h"
@@ -29,7 +30,7 @@ unsigned int inhibition = 0;
 
 // emission : par message
 volatile int msg_request = 0;
-char txbuf[32];
+char txbuf[64];
 volatile int txindex;
 
 // reception : fifo circulaire
@@ -61,6 +62,13 @@ if	( etat.pos < 0 )
 		case 5 :
 			LED_OFF();
 			break;
+
+		case 90 :
+			snprintf( txbuf, sizeof(txbuf), "%d -> acc1 = %d, demod %d\n", adc_raw, acc1 >> LOG_TAU1, acc2 >> ( LOG_TAU2 - 8 ) );
+			txindex = 0;
+			UART2_TX_INT_enable();
+			break;
+
 		}
 	}
 else	LED_ON();
@@ -110,7 +118,15 @@ switch	( c )
 			audio_start( frein );
 		break;
 	case 'a' :
-		snprintf( txbuf, sizeof(txbuf), "adc %u\n", adc_raw );
+		snprintf( txbuf, sizeof(txbuf), "adc %d\n", adc_raw );
+		txindex = 0;
+		UART2_TX_INT_enable();
+		break;
+	case 'A' :
+		opto_process();
+		break;
+	case 'd' :
+		snprintf( txbuf, sizeof(txbuf), "acc1 = %d, demod %d (FS 524000)\n", acc1 >> LOG_TAU1, acc2 >> ( LOG_TAU2 - 8 ) );
 		txindex = 0;
 		UART2_TX_INT_enable();
 		break;
@@ -159,6 +175,8 @@ adc_init();
 	PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
 	__WFI();				// Wait for Interrupt
 	#endif
+	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
+	else					  PB12_PROFIL_1();
  	}
 }
 

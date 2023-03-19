@@ -1,10 +1,15 @@
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_adc.h"
+#include "stm32f1xx_ll_gpio.h"
 
+#include "gpio.h"
 #include "opto.h"
 
-volatile unsigned int adc_raw;
+volatile int adc_raw;
+volatile int aticks = 0;
+volatile int acc1 = 0;
+volatile int acc2 = 0;
 
 void adc_init(void)
 {
@@ -36,7 +41,15 @@ LL_ADC_REG_SetSequencerLength( ADC1, LL_ADC_REG_SEQ_SCAN_DISABLE );
 // LL_ADC_SetCommonPathInternalCh( (ADC_Common_TypeDef *)ADC123_COMMON_BASE, LL_ADC_PATH_INTERNAL_VREFINT );
 // ADC1->CR2 |= ADC_CR2_TSVREFE;
 
-// sampling time for EACH channel individually, le max est 26.6uS
+// sampling time for EACH channel individually, le max est 1.6us + 26.6uS
+/*         @arg @ref LL_ADC_SAMPLINGTIME_1CYCLE_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_7CYCLES_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_13CYCLES_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_28CYCLES_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_41CYCLES_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_55CYCLES_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_71CYCLES_5
+ *         @arg @ref LL_ADC_SAMPLINGTIME_239CYCLES_5 */
 // attention les symboles LL_ADC_CHANNEL_nn ce n'est pas seulement le numero
 LL_ADC_SetChannelSamplingTime( ADC1, LL_ADC_CHANNEL_0, LL_ADC_SAMPLINGTIME_239CYCLES_5 );
 // ADC1->SMPR1 |= ( 7 << 21 );	// 0x00E00000,  shift = 3 * 7 car les LSB c'est canal 10
@@ -54,9 +67,10 @@ LL_ADC_Enable(ADC1);
 
 void adc_start_cal(void)
 {
-/*
-ADC1->CR2 |= ADC_CR2_CAL;
-*/
+LL_ADC_StartCalibration(ADC1);
+while	( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 )
+	{ }
+// ADC1->CR2 |= ADC_CR2_CAL;
 }
 
 void adc_start_conv(void)
@@ -64,9 +78,12 @@ void adc_start_conv(void)
 LL_ADC_REG_StartConversionSWStart(ADC1);
 // ADC1->CR2 |= ( ADC_CR2_SWSTART | ADC_CR2_EXTTRIG );
 
-/* verif timing : bloquage pendant la conversion pour mesure duree conversion a l'oscillo *
-while	( LL_ADC_IsActiveFlag_EOS(ADC1) == 0 )
-{}
+/* verif timing : bloquage pendant la conversion pour mesure duree conversion a l'oscillo
+ * N.B. PLANTAGE si cette fonction est appelee depuis l'interrupt TIM3 update,
+ * EOS ne passe pas a 1 ! Mais on observe son fonctionnement Ok depuia la main loop.
+ *
+while	( !LL_ADC_IsActiveFlag_EOS(ADC1) )
+	{}
 //*/
 }
 
@@ -81,4 +98,30 @@ void opto_process(void)
 {
 adc_raw = adc_get();
 adc_start_conv();
+aticks++;
+// cycle 1002 Hz
+if	( aticks >= 22 )
+	{
+	OPTO_DRIVE_HI();
+	aticks = 0;
+	demod_process(1);
+	}
+if	( aticks == 11 )
+	{
+	OPTO_DRIVE_LO();
+	demod_process(-1);
+	}
+}
+
+void demod_process( int carrier )
+{
+// HPF 1 on raw_adc, dans le but d'enlever la composante DC
+int hpf1 = adc_raw - ( acc1 >> LOG_TAU1 );
+acc1 += hpf1;
+// demodulation synchrone
+int demod = hpf1 * carrier;
+// LPF 2 sur demod
+int hpf2 = demod - ( acc2 >> LOG_TAU2 );
+acc2 += hpf2;
+// acc2 est la sortie demodulee
 }
