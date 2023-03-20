@@ -52,29 +52,65 @@ volatile unsigned int rxri=0;	// read index
 void SysTick_Handler()
 {
 ++cnt100Hz;
-if	( etat.pos < 0 )
+// LED blinks
+int blink = log_demod - 8;
+if	( blink > 8 )
+	blink = 8;
+switch	( cnt100Hz % 100 )
 	{
-	switch	( cnt100Hz % 100 )
-		{
-		case 0 :
-			LED_ON();
-			break;
-		case 5 :
+	case 0 :
+		LED_ON();
+		if ( blink > 0 ) PB12_PROFIL_1();
+		break;
+	case 10 :
+		if ( blink > 1 ) PB12_PROFIL_1();
+		break;
+	case 20 :
+		if ( blink > 2 ) PB12_PROFIL_1();
+		break;
+	case 30 :
+		if ( blink > 3 ) PB12_PROFIL_1();
+		break;
+	case 40 :
+		if ( blink > 4 ) PB12_PROFIL_1();
+		break;
+	case 50 :
+		if ( blink > 5 ) PB12_PROFIL_1();
+		break;
+	case 60 :
+		if ( blink > 6 ) PB12_PROFIL_1();
+		break;
+	case 70 :
+		if ( blink > 7 ) PB12_PROFIL_1();
+		break;
+	case 5 :
+		PB12_PROFIL_0();
+		if	( etat.pos < 0 )
 			LED_OFF();
-			break;
-
-		case 90 :
-			snprintf( txbuf, sizeof(txbuf), "%d -> acc1 = %d, demod %d\n", adc_raw, acc1 >> LOG_TAU1, acc2 >> ( LOG_TAU2 - 8 ) );
-			txindex = 0;
-			UART2_TX_INT_enable();
-			break;
-
-		}
+	case 15 :
+	case 25 :
+	case 35 :
+	case 45 :
+	case 55 :
+	case 65 :
+	case 75 :
+	case 85 :
+	case 95 :
+		PB12_PROFIL_0();
+		break;
 	}
-else	LED_ON();
+if	( etat.pos >= 0 )
+	LED_ON();
+// log periodique
+if	( ( cnt100Hz % 100 ) == 90 )
+	{
+	snprintf( txbuf, sizeof(txbuf), "%d -> acc1 = %d, demod %d (%d)\n", adc_raw, acc1 >> LOG_TAU1, log_demod, acc2 >> ( LOG_TAU2 - 8 ) );
+	txindex = 0;
+	UART2_TX_INT_enable();
+	}
+// son manuel par bouton
 if	(
-	// ( ( IS_PA12_SET() == 0 ) || ( IS_PB13_SET() ) ) &&
-	( IS_PB13_SET() ) &&
+	( IS_PA12_SET() == 0 ) &&
 	( etat.pos < 0 )
 	)
 	if	( cnt100Hz > inhibition )
@@ -82,7 +118,7 @@ if	(
 		inhibition = cnt100Hz + ( DUREE_INH * 100 );
 		audio_start( frein );
 		}
-	}
+}
 
 // UART2 interrupt handler
 void USART2_IRQHandler( void )
@@ -121,9 +157,6 @@ switch	( c )
 		snprintf( txbuf, sizeof(txbuf), "adc %d\n", adc_raw );
 		txindex = 0;
 		UART2_TX_INT_enable();
-		break;
-	case 'A' :
-		opto_process();
 		break;
 	case 'd' :
 		snprintf( txbuf, sizeof(txbuf), "acc1 = %d, demod %d (FS 524000)\n", acc1 >> LOG_TAU1, acc2 >> ( LOG_TAU2 - 8 ) );
@@ -175,8 +208,10 @@ adc_init();
 	PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
 	__WFI();				// Wait for Interrupt
 	#endif
+	#ifdef prof_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
 	else					  PB12_PROFIL_1();
+	#endif
  	}
 }
 

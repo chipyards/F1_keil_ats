@@ -5,11 +5,13 @@
 
 #include "gpio.h"
 #include "opto.h"
+#include "audio.h"
 
 volatile int adc_raw;
 volatile int aticks = 0;
 volatile int acc1 = 0;
 volatile int acc2 = 0;
+volatile int log_demod;
 
 void adc_init(void)
 {
@@ -102,7 +104,8 @@ aticks++;
 // cycle 1002 Hz
 if	( aticks >= 22 )
 	{
-	OPTO_DRIVE_HI();
+	if	( etat.pos < 0 )	// inhiber laser pendant le son
+		OPTO_DRIVE_HI();
 	aticks = 0;
 	demod_process(1);
 	}
@@ -111,6 +114,21 @@ if	( aticks == 11 )
 	OPTO_DRIVE_LO();
 	demod_process(-1);
 	}
+}
+
+// calculer une approximation par exces du log2
+int ceil_log2( int x )
+{
+if	( x < 0 )
+	x = -x;
+int cnt, last_one = 0;
+for	( cnt = 0; cnt < 31; ++cnt )
+	{
+	if	( x & 1 )
+		last_one = cnt;
+	x >>= 1;
+	}
+return last_one;
 }
 
 void demod_process( int carrier )
@@ -124,4 +142,7 @@ int demod = hpf1 * carrier;
 int hpf2 = demod - ( acc2 >> LOG_TAU2 );
 acc2 += hpf2;
 // acc2 est la sortie demodulee
+if	( acc2 >= 0 )
+	log_demod = 0;
+else	log_demod = ceil_log2( -acc2 ) - ( LOG_TAU2 - 8 );
 }

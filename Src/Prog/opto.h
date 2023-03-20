@@ -2,6 +2,7 @@
 extern volatile int adc_raw;
 extern volatile int acc1;
 extern volatile int acc2;
+extern volatile int log_demod;
 
 void adc_init(void);
 void adc_start_cal(void);
@@ -22,4 +23,5 @@ unsigned int adc_get(void);
 #define LOG_TAU2	9
 
 void opto_process(void);
+int ceil_log2( int x );
 void demod_process( int carrier );
