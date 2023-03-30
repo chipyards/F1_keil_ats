@@ -1,8 +1,10 @@
 // inhibition apres declenchement du son (secondes)
 #define DUREE_INH 10
+// seuil de declenchement audio
+#define SOUND_BELOW_BLINK 4
 
 // Blue Pill par defaut
-#define NUCLEO
+// #define NUCLEO
 
 // profilage
 #define PROF_PB12

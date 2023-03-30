@@ -108,9 +108,9 @@ if	( ( cnt100Hz % 100 ) == 90 )
 	txindex = 0;
 	UART2_TX_INT_enable();
 	}
-// son manuel par bouton
+// son manuel si faisceau coupe ou par bouton PA12 act.lo
 if	(
-	( IS_PA12_SET() == 0 ) &&
+	( ( blink < SOUND_BELOW_BLINK ) || ( IS_PA12_SET() == 0 ) ) &&
 	( etat.pos < 0 )
 	)
 	if	( cnt100Hz > inhibition )
