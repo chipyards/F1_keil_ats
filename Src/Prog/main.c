@@ -14,8 +14,7 @@
 // #endif /* USE_FULL_ASSERT */
 #include "gpio.h"
 #include "pwm.h"
-#include "audio.h"
-#include "opto.h"
+#include "nokia.h"
 
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
@@ -26,12 +25,17 @@ void cmd_handler( char c );
 // contexte global -----------------------------------------------------------
 
 unsigned int cnt100Hz = 0;
-unsigned int inhibition = 0;
 
 // emission : par message
 volatile int msg_request = 0;
 char txbuf[64];
 volatile int txindex;
+
+#ifdef USE_NOKIA
+volatile int LCDcontrast = 59;	// 40-60 is usually a pretty good range.
+volatile int LCDbias = 3;	// theoretical is 4
+char LCDbuf[64];
+#endif
 
 // reception : fifo circulaire
 #ifdef RX_FIFO
@@ -53,71 +57,19 @@ void SysTick_Handler()
 {
 ++cnt100Hz;
 // LED blinks
-int blink = log_demod - 8;
-if	( blink > 8 )
-	blink = 8;
 switch	( cnt100Hz % 100 )
 	{
 	case 0 :
 		LED_ON();
-		if ( blink > 0 ) PB12_PROFIL_1();
-		break;
-	case 10 :
-		if ( blink > 1 ) PB12_PROFIL_1();
-		break;
-	case 20 :
-		if ( blink > 2 ) PB12_PROFIL_1();
-		break;
-	case 30 :
-		if ( blink > 3 ) PB12_PROFIL_1();
-		break;
-	case 40 :
-		if ( blink > 4 ) PB12_PROFIL_1();
-		break;
-	case 50 :
-		if ( blink > 5 ) PB12_PROFIL_1();
-		break;
-	case 60 :
-		if ( blink > 6 ) PB12_PROFIL_1();
-		break;
-	case 70 :
-		if ( blink > 7 ) PB12_PROFIL_1();
 		break;
 	case 5 :
-		PB12_PROFIL_0();
-		if	( etat.pos < 0 )
-			LED_OFF();
-	case 15 :
-	case 25 :
-	case 35 :
-	case 45 :
-	case 55 :
-	case 65 :
-	case 75 :
-	case 85 :
-	case 95 :
-		PB12_PROFIL_0();
+		LED_OFF();
 		break;
 	}
-if	( etat.pos >= 0 )
-	LED_ON();
 // log periodique
 if	( ( cnt100Hz % 100 ) == 90 )
 	{
-	snprintf( txbuf, sizeof(txbuf), "%d -> acc1 = %d, demod %d (%d)\n", adc_raw, acc1 >> LOG_TAU1, log_demod, acc2 >> ( LOG_TAU2 - 8 ) );
-	txindex = 0;
-	UART2_TX_INT_enable();
 	}
-// son manuel si faisceau coupe ou par bouton PA12 act.lo
-if	(
-	( ( blink < SOUND_BELOW_BLINK ) || ( IS_PA12_SET() == 0 ) ) &&
-	( etat.pos < 0 )
-	)
-	if	( cnt100Hz > inhibition )
-		{
-		inhibition = cnt100Hz + ( DUREE_INH * 100 );
-		audio_start( frein );
-		}
 }
 
 // UART2 interrupt handler
@@ -147,29 +99,40 @@ if	(
 
 void cmd_handler( char c )
 {
+static int x = 0, y = 0;
 switch	( c )
 	{
-	case 't' :
-		if	( etat.pos < 0 )
-			audio_start( frein );
-		break;
+	#ifdef USE_ADC
 	case 'a' :
 		snprintf( txbuf, sizeof(txbuf), "adc %d\n", adc_raw );
 		txindex = 0;
 		UART2_TX_INT_enable();
 		break;
-	case 'd' :
-		snprintf( txbuf, sizeof(txbuf), "acc1 = %d, demod %d (FS 524000)\n", acc1 >> LOG_TAU1, acc2 >> ( LOG_TAU2 - 8 ) );
-		txindex = 0;
-		UART2_TX_INT_enable();
+	#endif
+	case 'x' : x += 1; if ( x > 83 ) x = 0; break;
+	case 'y' : y += 1; if ( y > 5 )  y = 0; break;
+	case 'g' : LcdGotoXY( x, y ); break;
+	case 'c' : LcdClear( 0 ); break;
+	case 'z' : LcdClear( 0x54 ); break;
+	case '>' : LcdSetContrast( ++LCDcontrast ); break;
+	case '<' : LcdSetContrast( --LCDcontrast ); break;
+	case 'n' : LcdNegativeImage(1); break;
+	case 'p' : LcdNegativeImage(0); break;
+	case '0' : LcdWrite( LCD_D, 0 ); break;
+	case '|' : LcdWrite( LCD_D, 0xFF ); break;
+	case '!' :
+		snprintf( LCDbuf, sizeof(LCDbuf), "n=%d V=%03d ", LCDbias, LCDcontrast );
+		LcdString( LCDbuf );
 		break;
 	default :
-		if	( c >= ' ' )
-			snprintf( txbuf, sizeof(txbuf), "cmd \"%c\"\n", c );
-		else	snprintf( txbuf, sizeof(txbuf), "cmd 0x%02x\n", c );
-		txindex = 0;
-		UART2_TX_INT_enable();
+	if	( ( c >= '1' ) && ( c <= '7' ) )
+		{
+		LCDbias = c - '0';
+		LcdSetBias( LCDbias );
+		}
 	}
+snprintf( txbuf, sizeof(txbuf), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
+txindex = 0; UART2_TX_INT_enable();
 }
 
 int main(void)
@@ -197,11 +160,31 @@ gpio_init();
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
 UART2_init( 9600 );
+
+#ifdef USE_PWM
 gpio_timer3_init();
 TIM3_PWM_init( PWM_PERIOD );
-adc_init();
+#endif
 
- while (1)
+#ifdef USE_ADC
+adc_init();
+#endif
+
+#ifdef USE_NOKIA
+gpio_nokia_init();
+LcdInitialize();
+LcdClear( 1 );
+LCDcontrast = 59;	// 40-60 is usually a pretty good range.
+LcdSetContrast( LCDcontrast );
+LCDbias = 3;
+LcdSetBias( LCDbias );
+LcdGotoXY( 0, 0 );		// 123456789abc123456789abc
+snprintf( LCDbuf, sizeof(LCDbuf), "C'est ...   imposant !!!" );
+LcdString( LCDbuf );
+
+#endif
+
+while (1)
  	{
 	#ifdef GREEN_CPU
 	SCB->SCR = 0;				// avoid deep sleep

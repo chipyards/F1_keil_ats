@@ -1,13 +1,8 @@
-// inhibition apres declenchement du son (secondes)
-#define DUREE_INH 10
-// seuil de declenchement audio
-#define SOUND_BELOW_BLINK 4
-
 // Blue Pill par defaut
-// #define NUCLEO
+#define NUCLEO
 
 // profilage
-#define PROF_PB12
+// #define PROF_PB12
 
 // osc. modes :
 //		HSI		HSE		HSE_EXT
@@ -29,3 +24,8 @@
 
 // SLEEP necessite connexion reset du ST-Link, sinon brick !
 // #define GREEN_CPU
+
+// modules optionnels
+// #define USE_ADC
+// #define USE_PWM
+#define USE_NOKIA	// implies SPI1 remap or AF 5
