@@ -23,7 +23,7 @@ N.B. on pourrait aussi faire un master SPI soft... c'est dispo sur MAU08b.zip
  * normalement le slave n'est sensible qu'aux fronts montant de CLK - en effet c'est Ok
  * --> le code est plus clean mais le chronogramme un peu sale
  */
-// #define OLD_SCHOOL
+#define OLD_SCHOOL
 
 // #include "stm32l4xx_ll_bus.h"
 // #include "stm32l4xx_ll_gpio.h"
@@ -47,7 +47,7 @@ LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
 // ici on devrait pouvoir utiliser FULL_DUPLEX ou HALF_DUPLEX_TX aussi bien
 #ifdef OLD_SCHOOL
 LL_SPI_SetTransferDirection( SPI1,LL_SPI_FULL_DUPLEX );
-LL_SPI_SetRxFIFOThreshold( SPI1, LL_SPI_RX_FIFO_TH_QUARTER );	// pour utiliser RXNE
+//LL_SPI_SetRxFIFOThreshold( SPI1, LL_SPI_RX_FIFO_TH_QUARTER );	// pour utiliser RXNE
 #else
 LL_SPI_SetTransferDirection( SPI1,LL_SPI_HALF_DUPLEX_TX );
 #endif
