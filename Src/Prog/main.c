@@ -109,6 +109,8 @@ switch	( c )
 		UART2_TX_INT_enable();
 		break;
 	#endif
+	case 'R' : NOKIA_RST_LO(); break;
+	case 'r' : LcdInitialize(); break;
 	case 'x' : x += 1; if ( x > 83 ) x = 0; break;
 	case 'y' : y += 1; if ( y > 5 )  y = 0; break;
 	case 'g' : LcdGotoXY( x, y ); break;
@@ -121,8 +123,8 @@ switch	( c )
 	case '0' : LcdWrite( LCD_D, 0 ); break;
 	case '|' : LcdWrite( LCD_D, 0xFF ); break;
 	case '!' :
-		snprintf( LCDbuf, sizeof(LCDbuf), "n=%d V=%03d ", LCDbias, LCDcontrast );
-		LcdString( LCDbuf );
+		snprintf( LCDbuf, sizeof(LCDbuf), "n=%d V=%03d   ", LCDbias, LCDcontrast );
+		LcdString( LCDbuf, 1 );
 		break;
 	default :
 	if	( ( c >= '1' ) && ( c <= '7' ) )
@@ -173,15 +175,18 @@ adc_init();
 #ifdef USE_NOKIA
 gpio_nokia_init();
 LcdInitialize();
-LcdClear( 1 );
+LcdClear( 0x55 );
 LCDcontrast = 59;	// 40-60 is usually a pretty good range.
 LcdSetContrast( LCDcontrast );
 LCDbias = 3;
 LcdSetBias( LCDbias );
 LcdGotoXY( 0, 0 );		// 123456789abc123456789abc
 snprintf( LCDbuf, sizeof(LCDbuf), "C'est ...   imposant !!!" );
-LcdString( LCDbuf );
-
+LcdString( LCDbuf, 1 );		// 123456789abcde
+snprintf( LCDbuf, sizeof(LCDbuf), "C'est imposant" );
+LcdString( LCDbuf, 0 );
+LcdGotoXY( 4 * 12, 3 ); LcdString( "1527", 1 );
+LcdString2( 0, 4, "1527" );
 #endif
 
 while (1)

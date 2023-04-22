@@ -27,9 +27,16 @@ void LcdNegativeImage( int negative );
 
 void LcdSetPower( int on );
 
-// ecrit 6 bytes consecutifs a l'index courant dans la RAM du LCD
-// 5 bytes de la font 5x8 et 1 d'espacement
-void LcdCharacter(char character);
+// ecrit 6 ou 7 bytes consecutifs a l'index courant dans la RAM du LCD
+// 5 bytes de la font 5x8 et 1 ou 2 d'espacement
+void LcdCharacter( char character, int narrow );
 
-// ecrit 6 bytes consecutifs par caractere
-void LcdString( const char *characters );
+// narrow = 0 : 12 car par ligne, auto wrap ( 12 * 7 = 84 )
+// narrow = 1 : 14 car par ligne, auto wrap ( 14 * 6 = 84 )
+void LcdString( const char *characters, int narrow );
+
+// ecrit un caractere de taille double : 12 bytes sur 2 lignes
+void LcdCharacter2( int x, int y, char character );
+
+// 7 car par ligne, auto wrap ( 7 * 12 = 84 )
+void LcdString2(  int x, int y, const char *characters );

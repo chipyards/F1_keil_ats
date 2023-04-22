@@ -1,7 +1,7 @@
 #ifdef NUCLEO
 #define LED_ON()	LL_GPIO_SetOutputPin(   GPIOA, LL_GPIO_PIN_5 )
 #define LED_OFF()	LL_GPIO_ResetOutputPin( GPIOA, LL_GPIO_PIN_5 )
-#else
+#else	// Blue Pill
 #define LED_OFF()	LL_GPIO_SetOutputPin(   GPIOC, LL_GPIO_PIN_13 )
 #define LED_ON()	LL_GPIO_ResetOutputPin( GPIOC, LL_GPIO_PIN_13 )
 #endif
@@ -14,8 +14,18 @@
 void gpio_init(void);
 void gpio_timer3_init(void);
 
-void gpio_nokia_init(void);
-
 // void gpio_uart1_init(void);
 void gpio_uart2_init(void);
 // void gpio_uart3_init(void);
+
+// NOKIA RST connected to PB10 (CN10.25 aka D6)
+#define NOKIA_RST_LO()	LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_10 )
+#define NOKIA_RST_HI()	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_10 )
+// NOKIA DC connected to PA10 (CN10.33 aka D2)
+#define NOKIA_DC_LO()	LL_GPIO_ResetOutputPin( GPIOA, LL_GPIO_PIN_10 )
+#define NOKIA_DC_HI()	LL_GPIO_SetOutputPin(   GPIOA, LL_GPIO_PIN_10 )
+// SPI1.NSS (soft) connected to PB4 (CN10.27 aka D5)
+#define NOKIA_CE_LO()	LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_4 )
+#define NOKIA_CE_HI()	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_4 )
+
+void gpio_nokia_init(void);

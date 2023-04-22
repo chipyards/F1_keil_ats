@@ -19,9 +19,11 @@ N.B. on pourrait aussi faire un master SPI soft... c'est dispo sur MAU08b.zip
 /* OLD SCHOOL utilise une reception "dummy" pour determiner quand remettre CE a 1
  * ainsi on attend que CLK soit idle (0) pour agir sur CE
  * --> le chronogramme est clean mais le code est sale
+ * recommande pour F103
  * NEW SCHOOL utilise le bit BSY, alors CE est remis a 1 alors que CLK est encore a 1
  * normalement le slave n'est sensible qu'aux fronts montant de CLK - en effet c'est Ok
  * --> le code est plus clean mais le chronogramme un peu sale
+ * recommande pour L476
  */
 #define OLD_SCHOOL
 
@@ -31,12 +33,13 @@ N.B. on pourrait aussi faire un master SPI soft... c'est dispo sur MAU08b.zip
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_spi.h"
+#include "gpio.h"
 #include "nokia.h"
 
 // N.B. general setup/hold pour PCD8544 : 100ns
-// vu que RST, DC, NSS sont controles par soft, on devra :
+// vu que RST, DC, NSS sont controles par soft, on devra au choix :
 //	- moderer l'horloge du STM32 (<= 10 MHz)
-//	- moderer l'optimisation
+//	- inserer des NOPs
 
 // SPI1 en TX half duplex
 static void SPI_init(void)
@@ -47,7 +50,7 @@ LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SPI1);
 // ici on devrait pouvoir utiliser FULL_DUPLEX ou HALF_DUPLEX_TX aussi bien
 #ifdef OLD_SCHOOL
 LL_SPI_SetTransferDirection( SPI1,LL_SPI_FULL_DUPLEX );
-//LL_SPI_SetRxFIFOThreshold( SPI1, LL_SPI_RX_FIFO_TH_QUARTER );	// pour utiliser RXNE
+//LL_SPI_SetRxFIFOThreshold( SPI1, LL_SPI_RX_FIFO_TH_QUARTER );	// pour utiliser RXNE sur STM32L476
 #else
 LL_SPI_SetTransferDirection( SPI1,LL_SPI_HALF_DUPLEX_TX );
 #endif
@@ -57,8 +60,9 @@ LL_SPI_SetClockPolarity( SPI1, LL_SPI_POLARITY_LOW );	// idle low
 LL_SPI_SetClockPhase( SPI1, LL_SPI_PHASE_1EDGE );	// 1st edge samples incoming data
 LL_SPI_SetNSSMode( SPI1, LL_SPI_NSS_SOFT );
 LL_SPI_SetTransferBitOrder( SPI1, LL_SPI_MSB_FIRST );
-// LL_SPI_SetBaudRatePrescaler( SPI1, LL_SPI_BAUDRATEPRESCALER_DIV32 );	// 250 kHz @ 8 MHz
-LL_SPI_SetBaudRatePrescaler( SPI1, LL_SPI_BAUDRATEPRESCALER_DIV256 );	// 281.25 kHz @ 72 MHz
+if	( SystemCoreClock > 10000100 )
+	LL_SPI_SetBaudRatePrescaler( SPI1, LL_SPI_BAUDRATEPRESCALER_DIV32 );	// 250 kHz @ 8 MHz, 312.5 kHz @ 10 MHz
+else	LL_SPI_SetBaudRatePrescaler( SPI1, LL_SPI_BAUDRATEPRESCALER_DIV256 );	// 281.25 kHz @ 72 MHz
 LL_SPI_Enable(SPI1);
 }
 
@@ -76,11 +80,11 @@ void LcdWrite( int modeDC, int data )
  */
 // bit de mode
 if	( modeDC )
-	LL_GPIO_SetOutputPin(   GPIOA, LL_GPIO_PIN_10 );	// mode Data
-else	LL_GPIO_ResetOutputPin( GPIOA, LL_GPIO_PIN_10 ); 	// mode Command
+	NOKIA_DC_HI();	// mode Data
+else	NOKIA_DC_LO(); 	// mode Command
 
 // NSS = CE act lo
-LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_4 );
+NOKIA_CE_LO();
 
 // poor people's delay
 // better use DWT: Data watchpoint trigger
@@ -94,7 +98,7 @@ while	( !LL_SPI_IsActiveFlag_TXE(SPI1) )
 // Send spi_m data
 LL_SPI_TransmitData8(SPI1, data );
 
-#ifdef OLD_SCHOOL // methode old school (F103) ppour detecter fin de byte
+#ifdef OLD_SCHOOL // methode old school (F103) pour detecter fin de byte
 // Wait for spi_m data reception <==> end of transmission
 while	( !LL_SPI_IsActiveFlag_RXNE(SPI1) ) {}
 // Read dummy received data to clear RXNE */
@@ -108,15 +112,15 @@ while	( LL_SPI_IsActiveFlag_BSY(SPI1) )
 __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP");
 __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP");
 
-// NSS = CE act lo
-LL_GPIO_SetOutputPin( GPIOB, LL_GPIO_PIN_4 );
+// NSS = CE idle hi
+NOKIA_CE_HI();
 
 __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP");
 __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP");
 
 }
 
-// code arduino pour le LCD Nokia 5110 ou 3310 (PCD8544 chip) revu par JLN
+// code pour le LCD Nokia 5110 ou 3310 (PCD8544 chip) revu par JLN
 // soft font 5x8 incluse
 
 
@@ -134,7 +138,7 @@ __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM volatile ("NOP"); __ASM vo
  */
 void LcdInitialize(void)
 {
-/*
+/* base arduino
   pinMode(PIN_SCE, OUTPUT);
   pinMode(PIN_RESET, OUTPUT);
   pinMode(PIN_DC, OUTPUT);
@@ -147,12 +151,12 @@ void LcdInitialize(void)
 */
 
 // NOKIA reset
-LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_10 ); 	// Nokia Reset act. lo
+NOKIA_RST_LO(); 	// Nokia Reset act. lo
 
 SPI_init();
 
 // NOKIA end of reset
-LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_10 );	// Nokia Reset act. lo
+NOKIA_RST_HI();		// Nokia Reset idle hi
 
 LcdWrite( LCD_C, 0x21 );  // LCD Extended Commands.
 LcdWrite( LCD_C, 0xB1 );  // Set LCD Vop (Contrast).
@@ -320,12 +324,13 @@ static const char font5x8[128-32][5] = {
   ,{0x78, 0x46, 0x41, 0x46, 0x78} // 0x7f DEL
 };
 
-// ecrit 7 bytes consecutifs a l'index courant dans la RAM du LCD
-// 5 bytes de la font 5x8 et 1 d'espacement de chaque cote
-void LcdCharacter( char character )
+// ecrit 6 ou 7 bytes consecutifs a l'index courant dans la RAM du LCD
+// 5 bytes de la font 5x8 et 1 ou 2 d'espacement
+void LcdCharacter( char character, int narrow )
 {
 int index;
-LcdWrite( LCD_D, 0x00 );
+if	( narrow )
+	LcdWrite( LCD_D, 0x00 );
 for	( index = 0; index < 5; index++ )
 	{
 	LcdWrite( LCD_D, font5x8[character - 0x20][index]);
@@ -333,10 +338,52 @@ for	( index = 0; index < 5; index++ )
 LcdWrite( LCD_D, 0x00 );
 }
 
-// ecrit 7 bytes consecutifs par caractere, 12 car par ligne, auto wrap
-void LcdString( const char *characters )
+// narrow = 0 : 12 car par ligne, auto wrap ( 12 * 7 = 84 )
+// narrow = 1 : 14 car par ligne, auto wrap ( 14 * 6 = 84 )
+void LcdString( const char *characters, int narrow )
 {
 while	( *characters )
-	LcdCharacter( *characters++ );
+	LcdCharacter( *characters++, narrow );
 }
 
+// duplication des bits en vue de doubler l'echelle verticale d'un glyphe
+static unsigned int duplicate_bits( int c )
+{
+unsigned int res = 0;
+for	( int i = 0; i < 8; i++ )	// on espace les bits
+	{
+	res |= ( c & 0x80 );
+	res <<= 2; c <<= 1;
+	}
+return ( res >> 6 ) | ( res >> 7 );	// et on duplique
+}
+
+// ecrit un caractere de taille double : 12 bytes sur 2 lignes
+void LcdCharacter2( int x, int y, char character )
+{
+unsigned int i, d; unsigned char cache[5];
+LcdGotoXY( x, y );
+for	( i = 0; i < 5; i++ )
+	{			// top row : least significant bytes
+	d = duplicate_bits( font5x8[character-0x20][i] );
+	cache[i] = d >> 8;
+	LcdWrite( LCD_D, d ); LcdWrite( LCD_D, d );
+	}
+LcdWrite( LCD_D, 0x00 ); LcdWrite( LCD_D, 0x00 );
+LcdGotoXY( x, y + 1 );
+for	( i = 0; i < 5; i++ )
+	{			// bottom row : most significant bytes
+	LcdWrite( LCD_D, cache[i] ); LcdWrite( LCD_D, cache[i] );
+	}
+LcdWrite( LCD_D, 0x00 ); LcdWrite( LCD_D, 0x00 );
+}
+
+// 7 car par ligne, auto wrap ( 7 * 12 = 84 )
+void LcdString2(  int x, int y, const char *characters )
+{
+while	( *characters )
+	{
+	LcdCharacter2( x, y, *characters++ );
+	x += 12;
+	}
+}
