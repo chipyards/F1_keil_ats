@@ -15,7 +15,7 @@
 #include "gpio.h"
 #include "pwm.h"
 #include "nokia.h"
-
+#include "flashy.h"
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
 
@@ -118,6 +118,31 @@ switch	( c )
 	case 'z' : LcdClear( 0x54 ); break;
 	case '>' : LcdSetContrast( ++LCDcontrast ); break;
 	case '<' : LcdSetContrast( --LCDcontrast ); break;
+	#ifdef USE_FLASHY
+	case 'W' : {
+		unsigned short nokcfg1;
+		nokcfg1 = LCDcontrast | ( LCDbias << 8 );
+		flashy_unlock();
+		flashy_page_erase( LAST_FLASH_PAGE );	// derniere page
+		flashy_write_short( LAST_FLASH_PAGE,    nokcfg1 );
+		flashy_write_short( LAST_FLASH_PAGE+2, ~nokcfg1 );
+		flashy_relock();
+		} break;
+	case 'v' : {
+		unsigned int nokcfg = *((unsigned int *)LAST_FLASH_PAGE);
+		snprintf( txbuf, sizeof(txbuf), "nokcfg=%08x\n", nokcfg );
+		txindex = 0; UART2_TX_INT_enable();
+		} break;
+	case 'V' : {
+		unsigned short nokcfg1, nokcfg2;
+		nokcfg1 = ((__IO uint16_t*)LAST_FLASH_PAGE)[0];
+		nokcfg2 = ((__IO uint16_t*)LAST_FLASH_PAGE)[1];
+		if	( nokcfg2 == ( ~nokcfg1 & 0xFFFF ) )
+			snprintf( txbuf, sizeof(txbuf), "verif n=%d V=%03d\n",LCDbias, LCDcontrast );
+		else	snprintf( txbuf, sizeof(txbuf), "err %04x %04x\n", ~nokcfg1, nokcfg2 );
+		txindex = 0; UART2_TX_INT_enable();
+		} break;
+	#endif
 	case 'n' : LcdNegativeImage(1); break;
 	case 'p' : LcdNegativeImage(0); break;
 	case '0' : LcdWrite( LCD_D, 0 ); break;
@@ -133,8 +158,11 @@ switch	( c )
 		LcdSetBias( LCDbias );
 		}
 	}
-snprintf( txbuf, sizeof(txbuf), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
-txindex = 0; UART2_TX_INT_enable();
+if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
+	{
+	snprintf( txbuf, sizeof(txbuf), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
+	txindex = 0; UART2_TX_INT_enable();
+	}
 }
 
 int main(void)
@@ -176,9 +204,20 @@ adc_init();
 gpio_nokia_init();
 LcdInitialize();
 LcdClear( 0x55 );
+#ifdef USE_FLASHY
+unsigned short nokcfg1, nokcfg2;
+nokcfg1 = ((__IO uint16_t*)LAST_FLASH_PAGE)[0];
+nokcfg2 = ((__IO uint16_t*)LAST_FLASH_PAGE)[1];
+if	( nokcfg2 == ( ~nokcfg1 & 0xFFFF ) )
+	{
+	LCDcontrast = nokcfg1 & 0x7F;	// 40-60 is usually a pretty good range.
+	LCDbias     = nokcfg1 >> 8;
+	}
+#else
 LCDcontrast = 59;	// 40-60 is usually a pretty good range.
-LcdSetContrast( LCDcontrast );
 LCDbias = 3;
+#endif
+LcdSetContrast( LCDcontrast );
 LcdSetBias( LCDbias );
 LcdGotoXY( 0, 0 );		// 123456789abc123456789abc
 snprintf( LCDbuf, sizeof(LCDbuf), "C'est ...   imposant !!!" );
