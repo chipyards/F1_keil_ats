@@ -224,7 +224,7 @@ snprintf( LCDbuf, sizeof(LCDbuf), "C'est ...   imposant !!!" );
 LcdString( LCDbuf, 1 );		// 123456789abcde
 snprintf( LCDbuf, sizeof(LCDbuf), "C'est imposant" );
 LcdString( LCDbuf, 0 );
-LcdGotoXY( 4 * 12, 3 ); LcdString( "1527", 1 );
+LcdGotoXY( 4 * 12, 5 ); LcdString( "1527", 1 );
 LcdString2( 0, 4, "1527" );
 #endif
 

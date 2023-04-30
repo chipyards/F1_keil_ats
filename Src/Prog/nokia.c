@@ -352,8 +352,9 @@ static unsigned int duplicate_bits( int c )
 unsigned int res = 0;
 for	( int i = 0; i < 8; i++ )	// on espace les bits
 	{
+	res <<= 2;
 	res |= ( c & 0x80 );
-	res <<= 2; c <<= 1;
+	c <<= 1;
 	}
 return ( res >> 6 ) | ( res >> 7 );	// et on duplique
 }
