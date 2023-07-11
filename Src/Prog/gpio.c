@@ -22,7 +22,7 @@ LL_GPIO_SetPinMode(       GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_OUTPUT );
 LL_GPIO_SetPinOutputType( GPIOC, LL_GPIO_PIN_13, LL_GPIO_OUTPUT_PUSHPULL );
 #endif
 // Blue pill n'a pas de bouton bleu, alors utiliser PA12 qui a un pullup en dur
-// on ajout pullup interne pour copat. sur Nucleo
+// on ajout pullup interne pour compat. sur Nucleo
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
 LL_GPIO_SetOutputPin(     GPIOA, LL_GPIO_PIN_12 );
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_12, LL_GPIO_MODE_INPUT );
@@ -121,7 +121,8 @@ LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL );
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_FLOATING );
 }
 
-/* initialiser GPIO pour UART3 *
+#ifdef USE_UART3
+/* initialiser GPIO pour UART3 */
 void gpio_uart3_init(void)
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
@@ -132,4 +133,5 @@ LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL );
 // pin PB11 = RX
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_11, LL_GPIO_MODE_FLOATING );
 }
-//*/
+#endif
+

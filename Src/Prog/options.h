@@ -26,7 +26,8 @@
 // #define GREEN_CPU
 
 // modules optionnels
-// #define USE_ADC
+// #define USE_ADC	// retired for the moment
 // #define USE_PWM
-#define USE_NOKIA	// implies SPI1 remap or AF 5
-#define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)
+// #define USE_NOKIA	// implies SPI1 remap or AF 5
+// #define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)
+#define USE_UART3

@@ -6,15 +6,11 @@
 #include "stm32f1xx_ll_system.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_usart.h"
-#include "stm32f1xx_ll_tim.h"
-#include "stm32f1xx_ll_adc.h"
 
 // #if defined(USE_FULL_ASSERT)
 // #include "stm32_assert.h"
 // #endif /* USE_FULL_ASSERT */
 #include "gpio.h"
-#include "pwm.h"
-#include "nokia.h"
 #include "flashy.h"
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
@@ -27,11 +23,12 @@ void cmd_handler( char c );
 unsigned int cnt100Hz = 0;
 
 // emission : par message
-volatile int msg_request = 0;
+// volatile int msg_request = 0;
 char txbuf[64];
 volatile int txindex;
 
 #ifdef USE_NOKIA
+#include "nokia.h"
 volatile int LCDcontrast = 59;	// 40-60 is usually a pretty good range.
 volatile int LCDbias = 3;	// theoretical is 4
 char LCDbuf[64];
@@ -48,6 +45,8 @@ volatile unsigned int rxri=0;	// read index
 //		{
 //		int c = rxbuf[(rxri++)&(QRX-1)];
 //		... }
+#else
+volatile char rxbyte;
 #endif
 
 
@@ -92,14 +91,45 @@ if	(
 	#ifdef RX_FIFO
 	rxbuf[(rxwi++)&(QRX-1)] = LL_USART_ReceiveData8( USART2 );
 	#else
-	cmd_handler( LL_USART_ReceiveData8( USART2 ) );
+	rxbyte = LL_USART_ReceiveData8( USART2 );
+	cmd_handler( rxbyte );
 	#endif
 	}
 }
 
+#ifdef USE_UART3
+char txbuf3[8];
+volatile int txindex3;
+
+// UART3 interrupt handler
+void USART3_IRQHandler( void )
+{
+if	(
+	( LL_USART_IsActiveFlag_TXE( USART3 ) ) &&
+	( LL_USART_IsEnabledIT_TXE( USART3 ) )
+	)
+	{	// messages de taille variable
+	if	( txbuf3[txindex3] == 0 )
+		UART3_TX_INT_disable();
+	else	LL_USART_TransmitData8( USART3, txbuf3[txindex3++] );
+	}
+if	(
+	( LL_USART_IsActiveFlag_RXNE( USART3 ) ) &&
+	( LL_USART_IsEnabledIT_RXNE( USART3 ) )
+	)
+	{	// echo vers UART2 pour test
+	snprintf( txbuf, sizeof(txbuf), "/%c/", LL_USART_ReceiveData8( USART3 ) );
+	txindex = 0;
+	UART2_TX_INT_enable();
+	}
+}
+#endif
+
 void cmd_handler( char c )
 {
+#ifdef USE_NOKIA
 static int x = 0, y = 0;
+#endif
 switch	( c )
 	{
 	#ifdef USE_ADC
@@ -109,6 +139,7 @@ switch	( c )
 		UART2_TX_INT_enable();
 		break;
 	#endif
+	#ifdef USE_NOKIA
 	case 'R' : NOKIA_RST_LO(); break;
 	case 'r' : LcdInitialize(); break;
 	case 'x' : x += 1; if ( x > 83 ) x = 0; break;
@@ -157,11 +188,24 @@ switch	( c )
 		LCDbias = c - '0';
 		LcdSetBias( LCDbias );
 		}
+	#endif
 	}
 if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 	{
+	#ifdef USE_NOKIA
 	snprintf( txbuf, sizeof(txbuf), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
 	txindex = 0; UART2_TX_INT_enable();
+	#else
+	// simple echo
+	snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
+	txindex = 0; UART2_TX_INT_enable();
+	#endif
+	#ifdef USE_UART3
+	// echo vers UART3 pour test
+	snprintf( txbuf3, sizeof(txbuf3), "|%c|", ((c>=' ')?(c):('?')) );
+	txindex3 = 0;
+	UART3_TX_INT_enable();
+	#endif
 	}
 }
 
@@ -191,12 +235,20 @@ gpio_init();
 gpio_uart2_init();
 UART2_init( 9600 );
 
+#ifdef USE_UART3
+UART3_init( 9600 );
+gpio_uart3_init();
+#endif
+
 #ifdef USE_PWM
+#include "stm32f1xx_ll_tim.h"
+// #include "pwm.h"
 gpio_timer3_init();
 TIM3_PWM_init( PWM_PERIOD );
 #endif
 
 #ifdef USE_ADC
+#include "stm32f1xx_ll_adc.h"
 adc_init();
 #endif
 
