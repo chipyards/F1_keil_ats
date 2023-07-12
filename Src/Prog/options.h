@@ -2,7 +2,7 @@
 #define NUCLEO
 
 // profilage
-// #define PROF_PB12
+#define PROF_PB12
 
 // osc. modes :
 //		HSI		HSE		HSE_EXT

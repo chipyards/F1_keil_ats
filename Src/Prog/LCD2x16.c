@@ -14,10 +14,8 @@
 
 /*------------------------- Speed dependant settings -------------------------*/
 
-/* If processor works on high frequency delay has to be increased, it can be 
-   increased by factor 2^N by this constant                                   */
-//#define DELAY_2N     2
-#define DELAY_2N     3	// JLN, calibrated for >= 1us/unit @ 72 MHz
+// pour la tempo tickdelay()
+#define myMHz	72	// STM32F103 @ 72 MHz
 
 /*------------------------- Text LCD size definitions ------------------------*/
 
@@ -97,11 +95,15 @@ const char UserFont[8][8] = {
 *   Parameter:    cnt:    number of while cycles to delay                      *
 *   Return:                                                                    *
 *******************************************************************************/
-// ATTENTION cette fonction est RUINEE par toute optimisation > O0
-static void delay (int cnt)
+// temporisation base sur systick
+// unites en periodes d'horloge du timer
+// tickd doit etre inferieur a (LOAD+1)/2
+void tickdelay( unsigned int tickd );
+
+// cnt en us, hyp. 1 us = myMHz ticks (myMHz = SYSCLK en MHz)
+static void delay( int cnt )
 {
-  cnt <<= DELAY_2N;
-  while (cnt--);
+tickdelay( ( cnt * myMHz ) - 14 );
 }
 
 
@@ -226,12 +228,13 @@ void lcd_init (void)
   /* Set all pins for LCD as outputs                                          */
   LCD_ALL_DIR_OUT
 
-  delay (15000);
+  delay (4100); delay (4100);
+  delay (4100); delay (4100);	// 16ms
   LCD_RS(0)
   lcd_write_4bit (0x3);                 /* Select 8-bit interface             */
-  delay (4100);
+  delay (4100);			// 4.1ms
   lcd_write_4bit (0x3);
-  delay (100);
+  delay (100);			// 0.1 ms
   lcd_write_4bit (0x3);
   lcd_write_4bit (0x2);                 /* Select 4-bit interface             */
 

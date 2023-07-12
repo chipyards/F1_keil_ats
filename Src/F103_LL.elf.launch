@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <launchConfiguration type="com.atollic.hardwaredebug.launch.launchConfigurationType">
 <stringAttribute key="com.atollic.hardwaredebug.jlink_common.cpu_core" value="Cortex-M"/>
-<stringAttribute key="com.atollic.hardwaredebug.jlink_common.device" value="STM32F103RB"/>
+<stringAttribute key="com.atollic.hardwaredebug.jlink_common.device" value="STM32F103C8"/>
 <stringAttribute key="com.atollic.hardwaredebug.jlink_common.endian" value="little"/>
 <stringAttribute key="com.atollic.hardwaredebug.jlink_common.init_speed" value="4000"/>
 <booleanAttribute key="com.atollic.hardwaredebug.jlink_common.jlink_check_serial_number" value="false"/>
@@ -33,18 +33,18 @@
 <booleanAttribute key="com.atollic.hardwaredebug.stlink.enable_external_loader" value="false"/>
 <booleanAttribute key="com.atollic.hardwaredebug.stlink.enable_logging" value="false"/>
 <stringAttribute key="com.atollic.hardwaredebug.stlink.external_loader" value=""/>
-<stringAttribute key="com.atollic.hardwaredebug.stlink.log_file" value="F:\DEV\STM32\F1_GNU\Projet_Mixte\Src\Debug\st-link_gdbserver_log.txt"/>
+<stringAttribute key="com.atollic.hardwaredebug.stlink.log_file" value="F:\DEV\STM32\F1_GNU\F103_keil_ats\Src\Debug\st-link_gdbserver_log.txt"/>
 <booleanAttribute key="com.atollic.hardwaredebug.stlink.stlink_check_serial_number" value="false"/>
 <stringAttribute key="com.atollic.hardwaredebug.stlink.stlink_txt_serial_number" value=""/>
 <stringAttribute key="org.eclipse.cdt.dsf.gdb.DEBUG_NAME" value="${TOOLCHAIN_PATH}/arm-atollic-eabi-gdb"/>
 <intAttribute key="org.eclipse.cdt.launch.ATTR_BUILD_BEFORE_LAUNCH_ATTR" value="2"/>
 <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_REGISTER_GROUPS" value=""/>
-<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="Debug/Projet_Mixte.elf"/>
-<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="Projet_Mixte"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="Debug/F103_LL.elf"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="F103_LL"/>
 <booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="false"/>
 <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value=""/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
-<listEntry value="/Projet_Mixte"/>
+<listEntry value="/F103_LL"/>
 </listAttribute>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
 <listEntry value="4"/>

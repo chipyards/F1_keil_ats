@@ -50,7 +50,7 @@ volatile unsigned int rxri=0;	// read index
 volatile char rxbyte;
 #endif
 
-
+volatile unsigned int A = 1;
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -67,9 +67,31 @@ switch	( cnt100Hz % 100 )
 		break;
 	}
 // log periodique
-if	( ( cnt100Hz % 100 ) == 90 )
+if	( ( cnt100Hz % 200 ) == 90 )
 	{
+	char lcdbuf[16];
+	snprintf( lcdbuf, sizeof(lcdbuf), "%6d", A );
+	set_cursor( 0, 1 ); lcd_print(lcdbuf);
 	}
+}
+
+// temporisation base sur systick
+// unites en periodes d'horloge du timer
+// tickd doit etre inferieur a (LOAD+1)/2
+void tickdelay( unsigned int tickd )
+{
+int tper = SysTick->LOAD + 1;
+int nextVAL, diff;
+nextVAL = SysTick->VAL - tickd;
+if	( nextVAL < 0 )
+	nextVAL += tper;
+do	{				// diff c'est le temps restant a attendre
+	diff = SysTick->VAL - nextVAL;
+	if	( diff <= -(tper/2) )	// on maintient diff entre -(tper/2) et (tper/2)
+		diff = 1;
+	else if ( diff > (tper/2) )
+		break;
+	} while ( diff > 0 );
 }
 
 // UART2 interrupt handler
@@ -213,6 +235,12 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 		case '4' :
 		 	lcd_read_status();
 		 	break;
+ 		case '>' : A++; break;
+		case '<' : A--; break;
+		case '5' : A = 5 * 72; break;
+		case 'd' : A = 10 * 72; break;
+		case 'c' : A = 100 * 72; break;
+		case 'q' : A = 4100 * 72; break;
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
@@ -317,6 +345,12 @@ while (1)
 	#ifdef prof_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
 	else					  PB12_PROFIL_1();
+	#endif
+	#ifdef PROF_PB12
+	PB12_PROFIL_1();
+	tickdelay( A );
+	PB12_PROFIL_0();
+	tickdelay( A );
 	#endif
  	}
 }
