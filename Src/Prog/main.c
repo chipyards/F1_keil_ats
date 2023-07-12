@@ -7,13 +7,14 @@
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_usart.h"
 
-// #if defined(USE_FULL_ASSERT)
-// #include "stm32_assert.h"
-// #endif /* USE_FULL_ASSERT */
 #include "gpio.h"
 #include "flashy.h"
 #include "uarts.h"
 #include <stdio.h>	// pour snprintf
+
+#ifdef USE_LCD2x16
+#include "LCD2x16.h"
+#endif
 
 void SystemClock_Config(void);
 void cmd_handler( char c );
@@ -196,9 +197,26 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 	snprintf( txbuf, sizeof(txbuf), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
 	txindex = 0; UART2_TX_INT_enable();
 	#else
-	// simple echo
-	snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
-	txindex = 0; UART2_TX_INT_enable();
+	switch	( c )
+		{
+		case '1' :
+			LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
+			lcd_init();
+			break;
+		case '2' :
+			lcd_clear();
+			break;
+		case '3' :
+			set_cursor( 1, 1 );
+			lcd_print("hello");
+			break;
+		case '4' :
+		 	lcd_read_status();
+		 	break;
+		default:	// simple echo
+			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
+			txindex = 0; UART2_TX_INT_enable();
+		}
 	#endif
 	#ifdef USE_UART3
 	// echo vers UART3 pour test
@@ -230,6 +248,7 @@ gpio_init();
   SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk;
   // enable timer, enable interrupt
   SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
+
 
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
@@ -278,6 +297,14 @@ snprintf( LCDbuf, sizeof(LCDbuf), "C'est imposant" );
 LcdString( LCDbuf, 0 );
 LcdGotoXY( 4 * 12, 5 ); LcdString( "1527", 1 );
 LcdString2( 0, 4, "1527" );
+#endif
+
+#ifdef USE_LCD2x16
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
+lcd_init();	// init ne clear pas !
+lcd_clear();
+set_cursor( 0, 0 ); lcd_print("C'est IMPOSANT");
+set_cursor( 6, 1 ); lcd_print("vrai!");
 #endif
 
 while (1)
