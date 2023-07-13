@@ -1,6 +1,7 @@
 #ifdef NUCLEO
 #define LED_ON()	LL_GPIO_SetOutputPin(   GPIOA, LL_GPIO_PIN_5 )
 #define LED_OFF()	LL_GPIO_ResetOutputPin( GPIOA, LL_GPIO_PIN_5 )
+#define BLUE_PRESS()	(!LL_GPIO_IsInputPinSet(GPIOC, LL_GPIO_PIN_13 ))
 #else	// Blue Pill
 #define LED_OFF()	LL_GPIO_SetOutputPin(   GPIOC, LL_GPIO_PIN_13 )
 #define LED_ON()	LL_GPIO_ResetOutputPin( GPIOC, LL_GPIO_PIN_13 )

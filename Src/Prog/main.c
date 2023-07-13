@@ -51,6 +51,10 @@ volatile char rxbyte;
 #endif
 
 volatile unsigned int Avar = 1;
+#ifdef USE_UART3
+int autoFM = 0;
+int FM_send( int N );
+#endif
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -67,12 +71,18 @@ switch	( cnt100Hz % 100 )
 		break;
 	}
 // log periodique
+#ifdef USE_LCD2x16
 if	( ( cnt100Hz % 200 ) == 90 )
 	{
 	char lcdbuf[16];
 	snprintf( lcdbuf, sizeof(lcdbuf), "%6d ", Avar);
 	set_cursor( 0, 0 ); lcd_print(lcdbuf);
 	}
+#endif
+#ifdef USE_UART3
+if	( autoFM && ( ( cnt100Hz % 400 ) == 90 ) )
+	FM_send( Avar++ );
+#endif
 }
 
 // temporisation base sur systick
@@ -279,6 +289,7 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 	#else
 	switch	( c )
 		{
+		#ifdef USE_LCD2x16
 		case '1' :
 			LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
 			lcd_init();
@@ -290,10 +301,12 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			set_cursor( 1, 1 );
 			lcd_print("hello");
 			break;
+		#endif
 		case 'T' : Rx_cmd(0); Tx_cmd(1); break;
 		case 'R' : Tx_cmd(0); Rx_cmd(1); break;
-		case 'S' : Rx_cmd(0); Tx_cmd(0); break;
+		case 'S' : Rx_cmd(0); Tx_cmd(0); autoFM = 0; break;
 		case 'A' : FM_send( Avar++ ); break;
+		case 'B' : autoFM = 1; break;
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
@@ -332,6 +345,8 @@ UART2_init( 9600 );
 #ifdef USE_UART3
 UART3_init( 9600 );
 gpio_uart3_init();
+if	( BLUE_PRESS() )
+	Rx_cmd(1);
 #endif
 
 #ifdef USE_PWM
@@ -402,9 +417,11 @@ while (1)
 	#endif
 	if	( ( FM_status == 8 ) || ( FM_status == 9 ) )
 		{
-		set_cursor( 0, 1 ); lcd_print("----------------");
 		rxbuf3[sizeof(rxbuf3)-1] = 0;
+		#ifdef USE_LCD2x16
+		set_cursor( 0, 1 ); lcd_print("----------------");
 		set_cursor( 0, 1 ); lcd_print( rxbuf3 );
+		#endif
 		FM_status = 0;
 		}
  	}

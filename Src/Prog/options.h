@@ -31,5 +31,5 @@
 // #define USE_NOKIA	// implies SPI1 remap or AF 5
 // #define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)
 #define USE_UART3
-#define USE_LCD2x16
+// #define USE_LCD2x16
 
