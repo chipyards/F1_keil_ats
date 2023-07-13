@@ -50,7 +50,7 @@ volatile unsigned int rxri=0;	// read index
 volatile char rxbyte;
 #endif
 
-volatile unsigned int A = 1;
+volatile unsigned int Avar = 1;
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -70,8 +70,8 @@ switch	( cnt100Hz % 100 )
 if	( ( cnt100Hz % 200 ) == 90 )
 	{
 	char lcdbuf[16];
-	snprintf( lcdbuf, sizeof(lcdbuf), "%6d", A );
-	set_cursor( 0, 1 ); lcd_print(lcdbuf);
+	snprintf( lcdbuf, sizeof(lcdbuf), "%6d ", Avar);
+	set_cursor( 0, 0 ); lcd_print(lcdbuf);
 	}
 }
 
@@ -121,8 +121,13 @@ if	(
 }
 
 #ifdef USE_UART3
-char txbuf3[8];
+char txbuf3[24];
 volatile int txindex3;
+#define FM_MAGIC1 0xA5
+#define FM_MAGIC2 0xe6
+char rxbuf3[16];
+volatile int rxindex3 = 0;
+volatile int FM_status = 0;
 
 // UART3 interrupt handler
 void USART3_IRQHandler( void )
@@ -133,18 +138,71 @@ if	(
 	)
 	{	// messages de taille variable
 	if	( txbuf3[txindex3] == 0 )
-		UART3_TX_INT_disable();
-	else	LL_USART_TransmitData8( USART3, txbuf3[txindex3++] );
+		{ UART3_TX_INT_disable(); Tx_cmd(0); }
+	else	{
+		Tx_cmd(1);
+		LL_USART_TransmitData8( USART3, txbuf3[txindex3++] );
+		}
 	}
 if	(
 	( LL_USART_IsActiveFlag_RXNE( USART3 ) ) &&
 	( LL_USART_IsEnabledIT_RXNE( USART3 ) )
 	)
-	{	// echo vers UART2 pour test
-	snprintf( txbuf, sizeof(txbuf), "/%c/", LL_USART_ReceiveData8( USART3 ) );
-	txindex = 0;
-	UART2_TX_INT_enable();
+	{
+	// FM Rx FSM
+	//	0 : idle
+	//	1 : FF received, waiting fo magic
+	//	2 : magic1 received, waiting for magic2
+	//	3 : magic2 received, accepting data
+	//	8 : terminator received, waiting for ack
+	//	9 : buffer full, waiting for ack
+	char c = LL_USART_ReceiveData8( USART3 );
+	switch	( FM_status )
+		{
+		case 0: if	( c == 0xFF )
+				{ FM_status = 1; rxindex3 = 0; }
+			break;
+		case 1:	if	( c == FM_MAGIC1 )
+				FM_status = 2;
+			else if	( c != 0xFF )
+				FM_status = 0;
+			break;
+		case 2:	if	( c == FM_MAGIC2 )
+				FM_status = 3;
+			else	FM_status = 0;
+			break;
+		case 3: if	( rxindex3 < sizeof(rxbuf3) )
+				{
+				if	( c <= ' ' )
+					{ c = 0; FM_status = 8; }	// fin normale
+				rxbuf3[rxindex3++] = c;
+				}
+			else	FM_status = 9;				// buffer full
+			break;
+		case 8: // nothing to do, app will reset FM_status
+		case 9: // nothing to do, app will reset FM_status
+			break;
+		default: FM_status = 0;
+		}
+	// echo vers UART2 pour test
+	// snprintf( txbuf, sizeof(txbuf), "/%c/", LL_USART_ReceiveData8( USART3 ) );
+	// txindex = 0; UART2_TX_INT_enable();
 	}
+}
+
+// message formatage for FM 433MHz
+#define QFF 4
+int FM_send( int N )
+{
+int i;
+for	( i = 0; i < QFF; i++ )
+	txbuf3[i] = 0xFF;
+txbuf3[i++] = FM_MAGIC1;
+txbuf3[i++] = FM_MAGIC2;
+i += snprintf( txbuf3 + i, sizeof(txbuf3)-i, "%04x  ", N );
+txindex3 = 0;
+UART3_TX_INT_enable();
+return i;
 }
 #endif
 
@@ -232,25 +290,14 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			set_cursor( 1, 1 );
 			lcd_print("hello");
 			break;
-		case '4' :
-		 	lcd_read_status();
-		 	break;
- 		case '>' : A++; break;
-		case '<' : A--; break;
-		case '5' : A = 5 * 72; break;
-		case 'd' : A = 10 * 72; break;
-		case 'c' : A = 100 * 72; break;
-		case 'q' : A = 4100 * 72; break;
+		case 'T' : Rx_cmd(0); Tx_cmd(1); break;
+		case 'R' : Tx_cmd(0); Rx_cmd(1); break;
+		case 'S' : Rx_cmd(0); Tx_cmd(0); break;
+		case 'A' : FM_send( Avar++ ); break;
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
 		}
-	#endif
-	#ifdef USE_UART3
-	// echo vers UART3 pour test
-	snprintf( txbuf3, sizeof(txbuf3), "|%c|", ((c>=' ')?(c):('?')) );
-	txindex3 = 0;
-	UART3_TX_INT_enable();
 	#endif
 	}
 }
@@ -335,6 +382,7 @@ set_cursor( 0, 0 ); lcd_print("C'est IMPOSANT");
 set_cursor( 6, 1 ); lcd_print("vrai!");
 #endif
 
+// LA GROSSE BOUCLE MAIN LOOP
 while (1)
  	{
 	#ifdef GREEN_CPU
@@ -348,10 +396,17 @@ while (1)
 	#endif
 	#ifdef PROF_PB12
 	PB12_PROFIL_1();
-	tickdelay( A );
+	tickdelay( Avar );
 	PB12_PROFIL_0();
-	tickdelay( A );
+	tickdelay( Avar );
 	#endif
+	if	( ( FM_status == 8 ) || ( FM_status == 9 ) )
+		{
+		set_cursor( 0, 1 ); lcd_print("----------------");
+		rxbuf3[sizeof(rxbuf3)-1] = 0;
+		set_cursor( 0, 1 ); lcd_print( rxbuf3 );
+		FM_status = 0;
+		}
  	}
 }
 

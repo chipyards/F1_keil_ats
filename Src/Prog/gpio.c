@@ -133,6 +133,29 @@ LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_MEDIUM );
 LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_10, LL_GPIO_OUTPUT_PUSHPULL );
 // pin PB11 = RX
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_11, LL_GPIO_MODE_FLOATING );
+// supplement pour transceiver FM 433MHz
+// Tx Cmd	PB9
+LL_GPIO_ResetOutputPin(   GPIOB, LL_GPIO_PIN_9 );
+LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_PUSHPULL );
+LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_9, LL_GPIO_SPEED_FREQ_MEDIUM);
+// Rx Cmd	PB8
+LL_GPIO_ResetOutputPin(   GPIOB, LL_GPIO_PIN_8 );
+LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_8, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL );
+LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_MEDIUM);
+}
+
+void Tx_cmd( int on )
+{
+if	( on )	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_9 );
+else		LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_9 );
+}
+
+void Rx_cmd( int on )
+{
+if	( on )	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_8 );
+else		LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_8 );
 }
 #endif
 

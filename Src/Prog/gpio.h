@@ -17,6 +17,8 @@ void gpio_timer3_init(void);
 // void gpio_uart1_init(void);
 void gpio_uart2_init(void);
 void gpio_uart3_init(void);
+void Tx_cmd( int on );
+void Rx_cmd( int on );
 
 // NOKIA RST connected to PB10 (CN10.25 aka D6)
 #define NOKIA_RST_LO()	LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_10 )
