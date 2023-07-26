@@ -1,4 +1,15 @@
-
+/* prog pour emettre ou recevoir des messages en FM 433 MHz
+- emission :
+	- quelques FF, 2 magic numbers, 1 payload, 2 bytes de CRC
+	- payload actuelle : un nombre de 4 digits en hexa
+	- emission periodique (4s) si autoFM = 1, ou emission manuelle via CDC
+	  compiler avec autoFM = 1 pour tester un emetteur autonome
+- reception :
+	- reset avec bouton bleu : reception permanente meme pendant emission
+	  ==> relecture possible (pas sur a tester)
+	- la FSM de reception detecte au moins un FF et les magic numbers
+	  PAS ENCORE LE CRC
+ */
 /* Includes ------------------------------------------------------------------*/
 #include "options.h"
 #include "stm32f1xx_ll_bus.h"
@@ -52,8 +63,8 @@ volatile char rxbyte;
 
 volatile unsigned int Avar = 1;
 #ifdef USE_UART3
-int autoFM = 0;
-int FM_send( int N );
+int autoFM = 1;
+int FM_send( const unsigned char * payload );
 #endif
 
 // systick interrupt handler
@@ -81,7 +92,11 @@ if	( ( cnt100Hz % 200 ) == 90 )
 #endif
 #ifdef USE_UART3
 if	( autoFM && ( ( cnt100Hz % 400 ) == 90 ) )
-	FM_send( Avar++ );
+	{
+	char tbuf[8];
+	snprintf( tbuf, sizeof(tbuf), "%04x", Avar++ );
+	FM_send( (unsigned char *)tbuf );
+	};
 #endif
 }
 
@@ -200,16 +215,41 @@ if	(
 	}
 }
 
+
 // message formatage for FM 433MHz
-#define QFF 4
-int FM_send( int N )
+// CRC CCITT 16 little endian
+unsigned int crc_1byte( unsigned int crc, unsigned int b )
 {
-int i;
+for	( unsigned int i = 0; i < 8; i++ )
+	{
+	if	( ( crc ^ b ) & 1 )
+		crc = ( crc >> 1 ) ^ 0x8408;
+	else	crc >>= 1;
+	b >>= 1;
+	}
+return crc;
+}
+#define QFF 4	// temps de demarrage + 1 FF de sync
+#define QTAIL 3	// 2 CRC + 1 stuff
+int FM_send( const unsigned char * payload )
+{
+unsigned int i, c, crc;
 for	( i = 0; i < QFF; i++ )
 	txbuf3[i] = 0xFF;
-txbuf3[i++] = FM_MAGIC1;
-txbuf3[i++] = FM_MAGIC2;
-i += snprintf( txbuf3 + i, sizeof(txbuf3)-i, "%04x  ", N );
+crc = 0;
+txbuf3[i++] = FM_MAGIC1; crc = crc_1byte( crc, FM_MAGIC1 );
+txbuf3[i++] = FM_MAGIC2; crc = crc_1byte( crc, FM_MAGIC2 );
+// charge utile du message
+while	( ( c = *payload++ ) )
+	{
+	txbuf3[i++] = c; crc = crc_1byte( crc, c );
+	if	( i >= ( sizeof(txbuf3) - QTAIL ) )
+		break;
+	}
+// CRC
+txbuf3[i++] = crc & 0xFF;
+txbuf3[i++] = ( crc >> 8 ) & 0xFF;
+txbuf3[i++] = ' ';
 txindex3 = 0;
 UART3_TX_INT_enable();
 return i;
@@ -305,7 +345,11 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 		case 'T' : Rx_cmd(0); Tx_cmd(1); break;
 		case 'R' : Tx_cmd(0); Rx_cmd(1); break;
 		case 'S' : Rx_cmd(0); Tx_cmd(0); autoFM = 0; break;
-		case 'A' : FM_send( Avar++ ); break;
+		case 'A' : {
+			   char tbuf[8];
+			   snprintf( tbuf, sizeof(tbuf), "%04x", Avar++ );
+			   FM_send( (unsigned char *)tbuf );
+			   } break;
 		case 'B' : autoFM = 1; break;
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );

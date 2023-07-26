@@ -24,7 +24,7 @@ g++ -Wall -o CRC16_jln -O2 CRC16_jln.cpp
 
 	  0  ___   1  ___   2  ___   3  ___   4  ___   5  ___   6  ___   7  ___   8  ___   9  ___   10 ___   11 ___   12 ___   13 ___   14 ___   15 ___   16 
 	 X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X  |   | X
-	0-->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--|
+	0-->|_+_|--->|___|--->|___|--->|___|--->|___|--->|_+_|--->|___|--->|___|--->|___|--->|___|--->|___|--->|___|--->|_+_|--->|___|--->|___|--->|___|--|
               |                                            |                                                              |                               |
 	      b0                                           b5                                                             b12                             |
               |                                            |                                                              |                               |
@@ -59,13 +59,45 @@ g++ -Wall -o CRC16_jln -O2 CRC16_jln.cpp
 		alors
 			- les 16 bits du CRC sont renverses
 
+- acceleration par table
+	- on cree une table des CRC des 256 bytes possibles, indexée par le byte source
+	- version little-endian (vue dans le code adam)
+		- index pour la table (8 bits) : on fait un xor de l'input byte avec les 8 LSBs du crc
+		- on extrait un crc de 16 bits de la table
+		- on fait subir au 8 LSBs de ce crc un xor avec les 8 MSBs de l'ancien crc (shiftes a droite de 8 bits donc)
+	- version big-endian (vue dans le code SDCard)
+		- index pour la table (8 bits) : on fait un xor de l'input byte avec les 8 MSBs du crc (shiftes a droite de 8 bits donc)
+		- on extrait un crc de 16 bits de la table
+		- on fait subir au 8 MSBs de ce crc un xor avec les 8 LSBs de l'ancien crc (shiftes a gauche de 8 bits donc)
+	- résumé :
+		- les 8 bits qui auraient été éjectés par le shift sont xorisés avec les 8 bits d'input,
+		  c'est cela meme qu'ils auraient subi en mode 1-bit step
+		- on obtient (via la table) le crc de ces 8 bits
+		- les 8 bits du crc originale, non ejectes auraient, ete decales de 8 positions (et xorisés maintes fois)
+		  on les décale donc et on complete avec des zeros injectés
+		- ce mot est xorisé avec le crc obtenu via la table : c'est le crc resultat
+	- comparaison avec CRC32 de zlib (little-endian) selon Mark Adler
+		- index pour la table (8 bits) : on fait un xor de l'input byte avec les 8 LSBs du crc
+		- on extrait un crc de 16 bits de la table
+		- on fait subir au 24 LSBs de ce crc un xor avec les 24 MSBs de l'ancien crc (shiftes a droite de 8 bits donc)
+	  N.B. Adler (zlib) donne une explication tres compacte de la division polynomiale
+	  N.B. le prog mysum de JLN fait un truc similaire en big endian - les progs 32 bits sont dans une archive eternelle CRC.zip
+		
 - reinjection :
 	si on append le CRC du corps du message apres celui (avec la bonne endianness) on obtient zero !!! (le "residue" chez reveng)
 	les "codewords" de reveng ont ce CRC appendu.
 	En plus c'est vrai quelle que soit la valeur du CRC init (evident si on considere que ce crc resulte d'une portion de message deja traitee)
 
-- Notation Koopman : utilise un mot binaire fait en associant a chaque terme du polynome un bit d'indice egal a l'exposant
-  soit 0b1_0001_0000_0010_0001 ensuite il enleve le LSB (terme 1 (degre 0) toujours present) soit 0b1000_1000_0001_0000 = 0x8810
+- lien avec le LFSR
+	Le meme circuit avec un input forcé à zéro et une valeur initiale non nulle donne un LFSR.
+	Pour le LFSR on prefere en general une sequence de longeur max, i.e. un polynôme primitif (aka premier, indivisible)
+	cette caracteristique n'est pas recherchée pour les CRC.
+ 
+- Notation Koopman
+	- utilise un mot binaire fait en associant a chaque terme du polynome un bit d'indice egal a l'exposant
+	  (i.e. ajouter un bit de fort poids au mask big-endian)
+	- ensuite il enleve le LSB (terme 1 (degre 0) toujours present)
+	dans notre exemple 0x1021 -> 0b1_0001_0000_0010_0001 -> 0b1000_1000_0001_0000 = 0x8810
   N.B. les notations koopman et little endian mask ont le MSB a 1 ce qui indique aussi la taille du CRC, le mask little endian ne l'indique pas.
 
 - links
@@ -177,11 +209,25 @@ void crc_step( unsigned int bit )
 	else	crc >>= 1;
 	};
 
+/*
 void crc_8steps( unsigned int b )
 	{
 	for	( unsigned int i = 0; i < 8; i++ )
 		{
 		crc_step( b & 1 );
+		b >>= 1;
+		}
+	};
+*/
+
+// compact 8-bit form
+void crc_8steps( unsigned int b )
+	{
+	for	( unsigned int i = 0; i < 8; i++ )
+		{
+		if	( ( crc ^ b ) & 1 )
+			crc = ( crc >> 1 ) ^ 0x8408;
+		else	crc >>= 1;
 		b >>= 1;
 		}
 	};
