@@ -1,16 +1,21 @@
-/* prog pour emettre ou recevoir des messages en FM 433 MHz
+/* prog pour emettre ou recevoir des messages en FM 433 MHz, taille variable, pas de delimiteur, contenu arbitraire
 - emission :
 	- quelques FF, 2 magic numbers, 1 opcode, 1 payload, 2 bytes de CRC
-	  N.B. l'opcode doit fournir implicitement ou explicitement la taille de la payload (pas de delimiteur)
-	- payload actuelle : un nombre de 4 digits en hexa
+	  N.B. l'opcode doit fournir implicitement ou explicitement la taille de la payload (pas de delimiteur),
+	  il n'est pas lui-meme compte dans cette taille
+	- payload actuelle : un nombre de 0 a 8 digits hex en ascii
 	- emission periodique (4s) si autoTx = 1, ou emission manuelle via CDC
 	  compiler avec autoTx = 1 pour tester un emetteur autonome
-	BAD ! l'emission par interrupt utilise encore byte 00 comme delimiteur, fail s'il y a 00 dans data OU crc !
 - reception :
 	- reset avec bouton bleu : reception permanente meme pendant emission
 	  ==> relecture possible (works ok)
 	- la FSM de reception detecte au moins un FF, les magic numbers, lit l'opcode, deduit la taille de la payload
 	  stocke opcode et payload, et verifie le crc
+	- message transfere vers CDC (ascii)
+- CRC :
+	- polynome CCIT-16, little endian, mask 0x8408 (Koopman 0x8810), CRC-16/KERMIT chez reveng.sourceforge.io
+	- init 0, simuler avec CRC16_jln -p
+	- couvre l'opcode et la payload
  */
 /* Includes ------------------------------------------------------------------*/
 #include "options.h"
@@ -36,8 +41,7 @@ void cmd_handler( char c );
 
 unsigned int cnt100Hz = 0;
 
-// emission : par message
-// volatile int msg_request = 0;
+// emission sur CDC : par message
 char txbuf[64];
 volatile int txindex;
 
@@ -48,7 +52,7 @@ volatile int LCDbias = 3;	// theoretical is 4
 char LCDbuf[64];
 #endif
 
-// reception : fifo circulaire
+// reception CDC : fifo circulaire
 #ifdef RX_FIFO
 #define QRX 32		// a power of 2 !!!
 char rxbuf[QRX];
@@ -74,14 +78,17 @@ void SysTick_Handler()
 {
 ++cnt100Hz;
 // LED blinks
-switch	( cnt100Hz % 100 )
+if	( autoTx == 0 )
 	{
-	case 0 :
-		LED_ON();
-		break;
-	case 5 :
-		LED_OFF();
-		break;
+	switch	( cnt100Hz % 100 )
+		{
+		case 0 :
+			LED_ON();
+			break;
+		case 5 :
+			LED_OFF();
+			break;
+		}
 	}
 // log periodique
 #ifdef USE_LCD2x16
@@ -93,14 +100,24 @@ if	( ( cnt100Hz % 200 ) == 90 )
 	}
 #endif
 #ifdef USE_UART3
-if	( autoTx && ( ( cnt100Hz % 400 ) == 90 ) )
+if	( autoTx )
 	{
-	char tbuf[12];
-	snprintf( tbuf, sizeof(tbuf), "%04x", Avar++ );
-	FM_send( 4, (unsigned char *)tbuf );
-	// snprintf( tbuf, sizeof(tbuf), "15270742" );
-	// FM_send( 8, (unsigned char *)tbuf );
-	};
+	if	( ( cnt100Hz % 400 ) == 90 )
+		{
+		char tbuf[12];
+		LED_ON();
+		int size = snprintf( tbuf, sizeof(tbuf), "%X", Avar );
+		if	( Avar == 0 )
+			size = 0;
+		FM_send( size, (unsigned char *)tbuf );
+		if	( Avar <= 0x20 )
+			Avar++;
+		else	Avar <<= 1;
+		}
+	if	( ( cnt100Hz % 400 ) == 150 )
+		LED_OFF();
+	}
+
 #endif
 }
 
@@ -123,7 +140,7 @@ do	{				// diff c'est le temps restant a attendre
 	} while ( diff > 0 );
 }
 
-// UART2 interrupt handler
+// UART2 (CDC) interrupt handler
 void USART2_IRQHandler( void )
 {
 if	(
@@ -150,15 +167,21 @@ if	(
 }
 
 #ifdef USE_UART3
-char txbuf3[24];
-volatile int txindex3;
+// systemes de communication FM 433 MHz
 #define FM_MAGIC1 0xA5
 #define FM_MAGIC2 0xe6
-char rxbuf3[16];	// rxbuf est plus petit, il n'a pas les FF, magics, et le CRC
+// Tx zone
+char txbuf3[16];
+volatile int txindex3;
+volatile unsigned int tx_paycnt;
+volatile unsigned int tx_crc;
+volatile int tx_status = 0;
+// Rx zone
+char rxbuf3[16];
 volatile int rxindex3 = 0;
 volatile unsigned int rx_paycnt;
 volatile unsigned int rx_crc;
-volatile int FM_status = 0;
+volatile int rx_status = 0;
 
 // CRC CCITT 16 little endian
 unsigned int crc_1byte( unsigned int crc, unsigned int b )
@@ -176,16 +199,59 @@ return crc;
 // UART3 interrupt handler
 void USART3_IRQHandler( void )
 {
+char c;
 if	(
 	( LL_USART_IsActiveFlag_TXE( USART3 ) ) &&
 	( LL_USART_IsEnabledIT_TXE( USART3 ) )
 	)
-	{	// messages de taille variable
-	if	( txbuf3[txindex3] == 0 )	// provisoire
-		{ UART3_TX_INT_disable(); Tx_cmd(0); }
-	else	{
-		Tx_cmd(1);
-		LL_USART_TransmitData8( USART3, txbuf3[txindex3++] );
+	{
+	// FM Rx FSM status
+	//	0 : idle
+	//	1..7 : FF to send
+	//	8 : magic1 to send
+	//	9 : magic2 to send
+	//	10 : payload to begin, opcode to send
+	//	11 : sending payload data
+	//	12 : 2nd CRC byte to send
+	//	13 : sacrified byte to send
+	//	14 : transmitter to be switched off
+	switch	( tx_status )
+		{
+		case 1:	Tx_cmd(1);
+			LL_USART_TransmitData8( USART3, 0xFF ); tx_status++; break;
+		case 2:	LL_USART_TransmitData8( USART3, 0xFF ); tx_status++; break;
+		case 3:	LL_USART_TransmitData8( USART3, 0xFF ); tx_status++; break;
+		case 4:	LL_USART_TransmitData8( USART3, 0xFF ); tx_status = 8; break;
+		case 8:	LL_USART_TransmitData8( USART3, FM_MAGIC1 ); tx_status++; break;
+		case 9:	LL_USART_TransmitData8( USART3, FM_MAGIC2 ); tx_status++; break;
+		case 10: txindex3 = 0;
+			c = txbuf3[txindex3++];
+			LL_USART_TransmitData8( USART3, c );
+			tx_crc = crc_1byte( 0, c );		// init crc = 0
+			tx_paycnt = c;				// opcode = taille, provisoire
+			tx_status++;
+			break;
+		case 11: if	( tx_paycnt )
+				{
+				c = txbuf3[txindex3++];
+				LL_USART_TransmitData8( USART3, c );
+				tx_crc = crc_1byte( tx_crc, c );
+				tx_paycnt--;
+				}
+			else	{
+				LL_USART_TransmitData8( USART3, tx_crc & 0xFF );
+				tx_status++;
+				}
+			break;
+		case 12: LL_USART_TransmitData8( USART3, ( tx_crc >> 8 ) & 0xFF );
+			tx_status++;
+			break;
+		case 13: LL_USART_TransmitData8( USART3, ' ' );
+			tx_status++;
+			break;
+		case 14: UART3_TX_INT_disable(); Tx_cmd(0);
+			tx_status = 0;
+			break;
 		}
 	}
 if	(
@@ -193,7 +259,7 @@ if	(
 	( LL_USART_IsEnabledIT_RXNE( USART3 ) )
 	)
 	{
-	// FM Rx FSM
+	// FM Rx FSM status
 	//	0 : idle
 	//	1 : FF received, waiting fo magic
 	//	2 : magic1 received, waiting for magic2
@@ -204,29 +270,29 @@ if	(
 	//	20 : buffer full, waiting for ack
 	//	21 : bad crc 1st, waiting for ack
 	//	22 : bad crc 2nd, waiting for ack
-	char c = LL_USART_ReceiveData8( USART3 );
-	switch	( FM_status )
+	c = LL_USART_ReceiveData8( USART3 );
+	switch	( rx_status )
 		{
 		case 0: if	( c == 0xFF )
-				{ FM_status = 1; rxindex3 = 0; }
+				{ rx_status = 1; rxindex3 = 0; }
 			break;
 		case 1:	if	( c == FM_MAGIC1 )
-				FM_status = 2;
+				rx_status = 2;
 			else if	( c != 0xFF )
-				FM_status = 0;
+				rx_status = 0;
 			break;
 		case 2:	if	( c == FM_MAGIC2 )
-				FM_status = 3;
-			else	FM_status = 0;
+				rx_status = 3;
+			else	rx_status = 0;
 			break;
 		case 3: if	( rxindex3 < sizeof(rxbuf3) )
 				{
 				rxbuf3[rxindex3++] = c;			// opcode
 				rx_paycnt = c;				// opcode = taille, provisoire
-				rx_crc = crc_1byte( 0, c );
-				FM_status = 4;
+				rx_crc = crc_1byte( 0, c );		// init crc = 0
+				rx_status = 4;
 				}
-			else	FM_status = 20;				// buffer full
+			else	rx_status = 20;				// buffer full
 			break;
 		case 4:	if	( rxindex3 <= rx_paycnt )
 				{
@@ -235,35 +301,48 @@ if	(
 					rxbuf3[rxindex3++] = c;
 					rx_crc = crc_1byte( rx_crc, c );
 					}
-				else	FM_status = 20;			// buffer full
+				else	rx_status = 20;			// buffer full
 				}
 			else	{
 				if	( c == ( rx_crc & 0xFF ) )
-					FM_status = 5;
-				else	FM_status = 21;			// bad CRC
+					rx_status = 5;
+				else	rx_status = 21;			// bad CRC
 				}
 			break;
 		case 5:
 			if	( c == ( ( rx_crc >> 8 ) & 0xFF ) )
-				FM_status = 10;
-			else	FM_status = 22;			// bad CRC
+				rx_status = 10;
+			else	rx_status = 22;			// bad CRC
 			break;
-		case 10: // nothing to do, app will reset FM_status
-		case 20: // nothing to do, app will reset FM_status
-		case 21: // nothing to do, app will reset FM_status
-		case 22: // nothing to do, app will reset FM_status
+		case 10: // nothing to do, app will reset rx_status
+		case 20: // nothing to do, app will reset rx_status
+		case 21: // nothing to do, app will reset rx_status
+		case 22: // nothing to do, app will reset rx_status
 			break;
-		default: FM_status = 0;
+		default: rx_status = 0;
 		}
-	// echo vers UART2 pour test
-	// snprintf( txbuf, sizeof(txbuf), "/%c/", LL_USART_ReceiveData8( USART3 ) );
-	// txindex = 0; UART2_TX_INT_enable();
 	}
 }
 
 
 // message formatage for FM 433MHz
+void FM_send( unsigned int opcode, const unsigned char * payload )
+{
+unsigned int i=0, paycnt;
+txbuf3[i++] = opcode;
+paycnt = opcode;	// provisoire
+while	( paycnt )
+	{
+	txbuf3[i++] = *(payload++);
+	paycnt--;
+	if	( i >= sizeof(txbuf3) )
+		break;
+	}
+tx_status = 1;
+UART3_TX_INT_enable();
+}
 
+/*
 #define QFF 4	// temps de demarrage + 1 FF de sync
 #define QTAIL 3	// 2 CRC + 1 null
 void FM_send( unsigned int opcode, const unsigned char * payload )
@@ -290,7 +369,7 @@ txbuf3[i++] = ' ';	// sacrifie, sera tronque par la coupure du Tx
 txbuf3[i++] = 0;	// delimiteur provisoire
 txindex3 = 0;
 UART3_TX_INT_enable();
-}
+} */
 #endif
 
 void cmd_handler( char c )
@@ -496,28 +575,28 @@ while (1)
 	PB12_PROFIL_0();
 	tickdelay( Avar );
 	#endif
-	if	( FM_status == 10 )
+	if	( rx_status == 10 )
 		{
-		rxbuf3[rx_paycnt+1] = 0;	// rxbuf3 contint l'opcode suivi de la payload
-		snprintf( txbuf, sizeof(txbuf), "Ok %s\n", rxbuf3+1 ); // la payload, sans l'opcode
+		rxbuf3[rx_paycnt+1] = 0;	// rxbuf3 contient l'opcode suivi de la payload
+		snprintf( txbuf, sizeof(txbuf), "Ok %u %s\n", rxbuf3[0], rxbuf3+1 ); // opcode puis payload, sans l'opcode
 		txindex = 0; UART2_TX_INT_enable();
 
 		#ifdef USE_LCD2x16
 		set_cursor( 0, 1 ); lcd_print("----------------");
 		set_cursor( 0, 1 ); lcd_print( rxbuf3 );
 		#endif
-		FM_status = 0;
+		rx_status = 0;
 		}
-	else if	( ( FM_status == 20 ) || ( FM_status == 21 ) || ( FM_status == 22 ) )
+	else if	( ( rx_status == 20 ) || ( rx_status == 21 ) || ( rx_status == 22 ) )
 		{
 
-		snprintf( txbuf, sizeof(txbuf), "Bad %d\n", FM_status );
+		snprintf( txbuf, sizeof(txbuf), "Bad %d\n", rx_status );
 		txindex = 0; UART2_TX_INT_enable();
 
 		#ifdef USE_LCD2x16
 		set_cursor( 0, 1 ); lcd_print("err-------------");
 		#endif
-		FM_status = 0;
+		rx_status = 0;
 		}
  	}
 }
