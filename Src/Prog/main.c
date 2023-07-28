@@ -1,10 +1,10 @@
 /* prog pour emettre ou recevoir des messages en FM 433 MHz, taille variable, pas de delimiteur, contenu arbitraire
 - emission :
 	- quelques FF, 2 magic numbers, 1 opcode, 1 payload, 2 bytes de CRC
-	  N.B. l'opcode doit fournir implicitement ou explicitement la taille de la payload (pas de delimiteur),
-	  il n'est pas lui-meme compte dans cette taille
-	- payload actuelle : un nombre de 0 a 8 digits hex en ascii
-	- emission periodique (4s) si autoTx = 1, ou emission manuelle via CDC
+	  N.B. les 4 LSBs de l'opcode fournissent la taille de la payload (pas de delimiteur),
+	  l'opcode n'est pas lui-meme compte dans cette taille
+	- payload de test : op 0x00 : 32 bit en binaire, op 0x10 : 32 bits hex en ascii (0 a 8 digits)
+	- emission periodique (3s) si autoTx = 1, ou emission manuelle via CDC
 	  compiler avec autoTx = 1 pour tester un emetteur autonome
 - reception :
 	- reset avec bouton bleu : reception permanente meme pendant emission
@@ -70,6 +70,9 @@ volatile char rxbyte;
 volatile unsigned int Avar = 1;
 #ifdef USE_UART3
 int autoTx = 1;
+// les 4 MSBs pour l'opcode au debut du message
+#define OP_BIN 0x00
+#define OP_ASC 0x10
 void FM_send( unsigned int opcode, const unsigned char * payload );
 #endif
 
@@ -102,19 +105,24 @@ if	( ( cnt100Hz % 200 ) == 90 )
 #ifdef USE_UART3
 if	( autoTx )
 	{
-	if	( ( cnt100Hz % 400 ) == 90 )
-		{
+	if	( ( cnt100Hz % 600 ) == 90 )
+		{		// message binaire
+		LED_ON();
+		FM_send( OP_BIN | 4, (unsigned char *)&Avar );
+		}
+	if	( ( cnt100Hz % 600 ) == 390 )
+		{		// message ascii (hex)
 		char tbuf[12];
 		LED_ON();
 		int size = snprintf( tbuf, sizeof(tbuf), "%X", Avar );
 		if	( Avar == 0 )
 			size = 0;
-		FM_send( size, (unsigned char *)tbuf );
+		FM_send( OP_ASC | size, (unsigned char *)tbuf );
 		if	( Avar <= 0x20 )
 			Avar++;
 		else	Avar <<= 1;
 		}
-	if	( ( cnt100Hz % 400 ) == 150 )
+	if	( ( cnt100Hz % 300 ) == 150 )
 		LED_OFF();
 	}
 
@@ -171,13 +179,13 @@ if	(
 #define FM_MAGIC1 0xA5
 #define FM_MAGIC2 0xe6
 // Tx zone
-char txbuf3[16];
+char txbuf3[16];	// opcode plus 0 to 15 bytes payload
 volatile int txindex3;
 volatile unsigned int tx_paycnt;
 volatile unsigned int tx_crc;
 volatile int tx_status = 0;
 // Rx zone
-char rxbuf3[16];
+char rxbuf3[16];	// opcode plus 0 to 15 bytes payload
 volatile int rxindex3 = 0;
 volatile unsigned int rx_paycnt;
 volatile unsigned int rx_crc;
@@ -228,7 +236,7 @@ if	(
 			c = txbuf3[txindex3++];
 			LL_USART_TransmitData8( USART3, c );
 			tx_crc = crc_1byte( 0, c );		// init crc = 0
-			tx_paycnt = c;				// opcode = taille, provisoire
+			tx_paycnt = c & 0x0F;			// taille = 4 LSBs
 			tx_status++;
 			break;
 		case 11: if	( tx_paycnt )
@@ -288,7 +296,7 @@ if	(
 		case 3: if	( rxindex3 < sizeof(rxbuf3) )
 				{
 				rxbuf3[rxindex3++] = c;			// opcode
-				rx_paycnt = c;				// opcode = taille, provisoire
+				rx_paycnt = c & 0x0F;			// taille = 4 LSBs
 				rx_crc = crc_1byte( 0, c );		// init crc = 0
 				rx_status = 4;
 				}
@@ -342,34 +350,6 @@ tx_status = 1;
 UART3_TX_INT_enable();
 }
 
-/*
-#define QFF 4	// temps de demarrage + 1 FF de sync
-#define QTAIL 3	// 2 CRC + 1 null
-void FM_send( unsigned int opcode, const unsigned char * payload )
-{
-unsigned int i, crc, paycnt;
-for	( i = 0; i < QFF; i++ )
-	txbuf3[i] = 0xFF;
-txbuf3[i++] = FM_MAGIC1;
-txbuf3[i++] = FM_MAGIC2;
-txbuf3[i++] = opcode; crc = crc_1byte( 0, opcode );
-// charge utile du message
-paycnt = opcode;	// provisoire
-while	( paycnt )
-	{
-	crc = crc_1byte( crc, ( txbuf3[i++] = *(payload++) ) );
-	paycnt--;
-	if	( i >= ( sizeof(txbuf3) - QTAIL ) )
-		break;
-	}
-// CRC
-txbuf3[i++] = crc & 0xFF;
-txbuf3[i++] = ( crc >> 8 ) & 0xFF;
-txbuf3[i++] = ' ';	// sacrifie, sera tronque par la coupure du Tx
-txbuf3[i++] = 0;	// delimiteur provisoire
-txindex3 = 0;
-UART3_TX_INT_enable();
-} */
 #endif
 
 void cmd_handler( char c )
@@ -461,12 +441,17 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 		case 'T' : Rx_cmd(0); Tx_cmd(1); break;
 		case 'R' : Tx_cmd(0); Rx_cmd(1); break;
 		case 'S' : Rx_cmd(0); Tx_cmd(0); autoTx = 0; break;
-		case 'A' : {
-			   char tbuf[8];
-			   snprintf( tbuf, sizeof(tbuf), "%04x", Avar++ );
-			   FM_send( 4, (unsigned char *)tbuf );
+		case 'e' : {
+			   char tbuf[20];			//   123456789012345
+			   int size = snprintf( tbuf, sizeof(tbuf), "C'est imposant" );
+			   FM_send( OP_ASC | size, (unsigned char *)tbuf );
 			   } break;
-		case 'B' : autoTx = 1; break;
+		case 'f' : {
+			   char tbuf[20];			//   123456789012345
+			   int size = snprintf( tbuf, sizeof(tbuf), "C'est imposant!" );
+			   FM_send( OP_ASC | size, (unsigned char *)tbuf );
+			   } break;
+		case 'A' : autoTx = 1; break;
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
@@ -577,8 +562,22 @@ while (1)
 	#endif
 	if	( rx_status == 10 )
 		{
-		rxbuf3[rx_paycnt+1] = 0;	// rxbuf3 contient l'opcode suivi de la payload
-		snprintf( txbuf, sizeof(txbuf), "Ok %u %s\n", rxbuf3[0], rxbuf3+1 ); // opcode puis payload, sans l'opcode
+		int op = rxbuf3[0] & 0xF0;
+		int sz = rxbuf3[0] & 0x0F;
+		if	( op == OP_BIN )
+			{
+			if	( sz == 4 )
+				snprintf( txbuf, sizeof(txbuf), "bin Ok %02X%02X%02X%02X ", rxbuf3[4], rxbuf3[3], rxbuf3[2], rxbuf3[1] );
+			else	snprintf( txbuf, sizeof(txbuf), "opcode 0x%02X, ?", rxbuf3[0] );
+			}
+		else if	( op == OP_ASC )
+			{
+			if	( sz > 14 )	// taille limitee a 14 en ascii pour pouvoir AJOUTER le null terminator
+				sz = 14;	// c'est juste pour la commodite de l'affichage
+			rxbuf3[sz+1] = 0;	// rxbuf3 contient l'opcode suivi de la payload
+			snprintf( txbuf, sizeof(txbuf), "asc Ok %d %s\n", rxbuf3[0] & 0x0F, rxbuf3+1 ); // size puis payload, sans l'opcode
+			}
+		else	snprintf( txbuf, sizeof(txbuf), "opcode 0x%02X, ?", rxbuf3[0] );
 		txindex = 0; UART2_TX_INT_enable();
 
 		#ifdef USE_LCD2x16
