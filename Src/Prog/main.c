@@ -3,11 +3,11 @@
 	- quelques FF, 2 magic numbers, 1 opcode, 1 payload, 2 bytes de CRC
 	  N.B. les 4 LSBs de l'opcode fournissent la taille de la payload (pas de delimiteur),
 	  l'opcode n'est pas lui-meme compte dans cette taille
-	- payload de test : op 0x00 : 32 bit en binaire, op 0x10 : 32 bits hex en ascii (0 a 8 digits)
+	- payload de test : op 0x00 : 32 bit en binaire, op 0x10 : 32 bits hex en ascii (0 a 8 digits) ou texte <= 14 char
 	- emission periodique (3s) si autoTx = 1, ou emission manuelle via CDC
-	  compiler avec autoTx = 1 pour tester un emetteur autonome
+	  compiler sans USE_LCD2x16 demarre avec autoTx = 1 pour tester un emetteur autonome
 - reception :
-	- reset avec bouton bleu : reception permanente meme pendant emission
+	- reset avec bouton bleu ou compiler avec USE_LCD2x16 : reception permanente meme pendant emission
 	  ==> relecture possible (works ok)
 	- la FSM de reception detecte au moins un FF, les magic numbers, lit l'opcode, deduit la taille de la payload
 	  stocke opcode et payload, et verifie le crc
@@ -69,7 +69,11 @@ volatile char rxbyte;
 
 volatile unsigned int Avar = 1;
 #ifdef USE_UART3
+#ifdef USE_LCD2x16
+int autoTx = 0;
+#else
 int autoTx = 1;
+#endif
 // les 4 MSBs pour l'opcode au debut du message
 #define OP_BIN 0x00
 #define OP_ASC 0x10
@@ -81,7 +85,9 @@ void SysTick_Handler()
 {
 ++cnt100Hz;
 // LED blinks
+#ifdef USE_UART3
 if	( autoTx == 0 )
+#endif
 	{
 	switch	( cnt100Hz % 100 )
 		{
@@ -94,14 +100,6 @@ if	( autoTx == 0 )
 		}
 	}
 // log periodique
-#ifdef USE_LCD2x16
-if	( ( cnt100Hz % 200 ) == 90 )
-	{
-	char lcdbuf[16];
-	snprintf( lcdbuf, sizeof(lcdbuf), "%6d ", Avar);
-	set_cursor( 0, 0 ); lcd_print(lcdbuf);
-	}
-#endif
 #ifdef USE_UART3
 if	( autoTx )
 	{
@@ -435,9 +433,10 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			break;
 		case '3' :
 			set_cursor( 1, 1 );
-			lcd_print("hello");
+			lcd_print("hello ");
 			break;
 		#endif
+		#ifdef USE_UART3
 		case 'T' : Rx_cmd(0); Tx_cmd(1); break;
 		case 'R' : Tx_cmd(0); Rx_cmd(1); break;
 		case 'S' : Rx_cmd(0); Tx_cmd(0); autoTx = 0; break;
@@ -452,6 +451,7 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			   FM_send( OP_ASC | size, (unsigned char *)tbuf );
 			   } break;
 		case 'A' : autoTx = 1; break;
+		#endif
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
@@ -492,6 +492,9 @@ UART3_init( 9600 );
 gpio_uart3_init();
 if	( BLUE_PRESS() )
 	Rx_cmd(1);
+#ifdef USE_LCD2x16
+Rx_cmd(1);
+#endif
 #endif
 
 #ifdef USE_PWM
@@ -560,6 +563,7 @@ while (1)
 	PB12_PROFIL_0();
 	tickdelay( Avar );
 	#endif
+	#ifdef USE_UART3
 	if	( rx_status == 10 )
 		{
 		int op = rxbuf3[0] & 0xF0;
@@ -567,7 +571,15 @@ while (1)
 		if	( op == OP_BIN )
 			{
 			if	( sz == 4 )
+				{
 				snprintf( txbuf, sizeof(txbuf), "bin Ok %02X%02X%02X%02X ", rxbuf3[4], rxbuf3[3], rxbuf3[2], rxbuf3[1] );
+				#ifdef USE_LCD2x16
+				  char lcdbuf[20];
+				  snprintf( lcdbuf, sizeof(lcdbuf), "bin Ok %02X%02X%02X%02X", rxbuf3[4], rxbuf3[3], rxbuf3[2], rxbuf3[1] );
+				  set_cursor( 0, 0 ); lcd_print("----------------");
+				  set_cursor( 0, 0 ); lcd_print( lcdbuf );
+				#endif
+				}
 			else	snprintf( txbuf, sizeof(txbuf), "opcode 0x%02X, ?", rxbuf3[0] );
 			}
 		else if	( op == OP_ASC )
@@ -576,27 +588,26 @@ while (1)
 				sz = 14;	// c'est juste pour la commodite de l'affichage
 			rxbuf3[sz+1] = 0;	// rxbuf3 contient l'opcode suivi de la payload
 			snprintf( txbuf, sizeof(txbuf), "asc Ok %d %s\n", rxbuf3[0] & 0x0F, rxbuf3+1 ); // size puis payload, sans l'opcode
+			#ifdef USE_LCD2x16
+			  set_cursor( 0, 1 ); lcd_print("----------------");
+			  set_cursor( 0, 1 ); lcd_print( rxbuf3+1 );
+			#endif
 			}
 		else	snprintf( txbuf, sizeof(txbuf), "opcode 0x%02X, ?", rxbuf3[0] );
 		txindex = 0; UART2_TX_INT_enable();
-
-		#ifdef USE_LCD2x16
-		set_cursor( 0, 1 ); lcd_print("----------------");
-		set_cursor( 0, 1 ); lcd_print( rxbuf3 );
-		#endif
 		rx_status = 0;
 		}
 	else if	( ( rx_status == 20 ) || ( rx_status == 21 ) || ( rx_status == 22 ) )
 		{
-
 		snprintf( txbuf, sizeof(txbuf), "Bad %d\n", rx_status );
 		txindex = 0; UART2_TX_INT_enable();
-
 		#ifdef USE_LCD2x16
-		set_cursor( 0, 1 ); lcd_print("err-------------");
+		  set_cursor( 0, 0 ); lcd_print("::::::::::::::::");
+		  set_cursor( 2, 0 ); lcd_print( txbuf );
 		#endif
 		rx_status = 0;
 		}
+	#endif
  	}
 }
 
