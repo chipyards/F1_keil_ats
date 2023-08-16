@@ -504,9 +504,12 @@ gpio_timer3_init();
 TIM3_PWM_init( PWM_PERIOD );
 #endif
 
-#ifdef USE_ADC
-#include "stm32f1xx_ll_adc.h"
+#ifdef USE_ADC_4CH
+#include "adc.h"
+// 2 ADCs
 adc_init();
+// configurer le timer TIM3 en timebase (pour interrupts seulement)
+adc_timer_init( SystemCoreClock / 2000 );	// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR
 #endif
 
 #ifdef USE_NOKIA
