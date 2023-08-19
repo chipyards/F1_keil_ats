@@ -46,16 +46,16 @@ void cmd_handler( char c );
 
 unsigned int cnt100Hz = 0;
 
-// emission sur CDC : par message
-char txbuf[64];
-volatile int txindex;
-
 #ifdef USE_NOKIA
 #include "nokia.h"
 volatile int LCDcontrast = 59;	// 40-60 is usually a pretty good range.
 volatile int LCDbias = 3;	// theoretical is 4
 char LCDbuf[64];
 #endif
+
+// emission sur CDC : par message
+char txbuf[64];
+volatile int txindex;
 
 // reception CDC : fifo circulaire
 #ifdef RX_FIFO
@@ -175,6 +175,36 @@ if	(
 	cmd_handler( rxbyte );
 	#endif
 	}
+}
+
+// N.B. pour avoir la correspondance numero <--> perif , voir IRQn_Type
+// F103 : UARTS 1,2,3 : 37, 38, 39; TIM 2, 3, 4 : 28, 29, 30
+void report_interrupts(void)
+{
+int i, p, space, j;
+p = __NVIC_GetPriorityGrouping();
+j = snprintf( txbuf, sizeof(txbuf), "P.G. %d\n", p );
+// special systick (#-1)
+i = -1;
+if	(  SysTick->CTRL & SysTick_CTRL_TICKINT_Msk )
+	{
+	p = __NVIC_GetPriority((IRQn_Type)i);
+	space = sizeof(txbuf) - j;
+	if	( space > 0 )
+		j += snprintf( txbuf+j, space, "i #%2d, p %d\n", i, p );
+	}
+// tous les autres
+for	( i = 0; i <=  97; ++i )
+	{
+	if	( __NVIC_GetEnableIRQ((IRQn_Type)i) )
+		{
+		p = __NVIC_GetPriority((IRQn_Type)i);
+		space = sizeof(txbuf) - j;
+		if	( space > 0 )
+			j += snprintf( txbuf+j, space, "i #%2d, p %d\n", i, p );
+		}
+	}
+txindex = 0; UART2_TX_INT_enable();
 }
 
 #ifdef USE_UART3
@@ -493,6 +523,8 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			txindex = 0; UART2_TX_INT_enable();
 			break;
 		#endif
+		case '$' : report_interrupts();
+			break;
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
