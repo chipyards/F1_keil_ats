@@ -106,6 +106,13 @@ NVIC_EnableIRQ( TIM3_IRQn );
 LL_TIM_EnableIT_UPDATE( TIM3 );
 }
 
+// disable timer interrupts
+void adc_timer_stop()
+{
+LL_TIM_DisableIT_UPDATE( TIM3 );
+}
+
+
 // 2 ADCs
 void adc_init()
 {
@@ -147,10 +154,11 @@ LL_ADC_SetCommonPathInternalCh( __LL_ADC_COMMON_INSTANCE(), LL_ADC_PATH_INTERNAL
  *         LL_ADC_SAMPLINGTIME_71CYCLES_5	 84 cy
  *         LL_ADC_SAMPLINGTIME_239CYCLES_5 	252 cy */
 // attention les symboles LL_ADC_CHANNEL_nn ce n'est pas seulement le numero
-LL_ADC_SetChannelSamplingTime( ADC1, ADC1_CH0, LL_ADC_SAMPLINGTIME_41CYCLES_5 );
-LL_ADC_SetChannelSamplingTime( ADC1, ADC1_CH1, LL_ADC_SAMPLINGTIME_41CYCLES_5 );
-LL_ADC_SetChannelSamplingTime( ADC2, ADC2_CH0, LL_ADC_SAMPLINGTIME_41CYCLES_5 );
-LL_ADC_SetChannelSamplingTime( ADC2, ADC2_CH1, LL_ADC_SAMPLINGTIME_41CYCLES_5 );
+#define MY_SAMPLING_TIME LL_ADC_SAMPLINGTIME_239CYCLES_5
+LL_ADC_SetChannelSamplingTime( ADC1, ADC1_CH0, MY_SAMPLING_TIME );
+LL_ADC_SetChannelSamplingTime( ADC1, ADC1_CH1, MY_SAMPLING_TIME );
+LL_ADC_SetChannelSamplingTime( ADC2, ADC2_CH0, MY_SAMPLING_TIME );
+LL_ADC_SetChannelSamplingTime( ADC2, ADC2_CH1, MY_SAMPLING_TIME );
 
 // numero de channel par defaut (sera mis a jour par interrupt)
 LL_ADC_REG_SetSequencerRanks( ADC1, LL_ADC_REG_RANK_1, ADC1_CH0 );
@@ -174,5 +182,43 @@ ADC_StartCalibration(ADC2);
 while ( ADC_GetCalibrationStatus(ADC1) ) {}
 while ( ADC_GetCalibrationStatus(ADC2) ) {}
 */
+}
+
+// Run calibration on 2 ADCs
+void adc_calib(void)
+{
+// en theorie il faut un delai de 2 ADC clock periods avant et apres la calib
+// Certaines comments disent que l'ADC doit etre disabled avant de calibrer, d'autres disent le contraire !
+LL_ADC_StartCalibration(ADC1);
+LL_ADC_StartCalibration(ADC2);
+// la boucle d'attente plante si cette fonction est appelee depuis une interrupt t.q. UART
+// while ( ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) && ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) )
+//	 { }
+}
+
+// reset calibration on 2 ADCs N.B. ceci n'est pas supporte par LL !
+void adc_uncalib(void)
+{
+ADC1->CR2 |= ADC_CR2_RSTCAL;
+ADC2->CR2 |= ADC_CR2_RSTCAL;
+}
+
+// demarrer une conversion de test sur ADC1_CH0 et ADC2_CH0
+// il faudra lire directement dans ADC1->DR, ADC2->DR
+void adc_start_conv(void)
+{
+LL_ADC_REG_SetSequencerRanks( ADC1, LL_ADC_REG_RANK_1, ADC1_CH0 );
+LL_ADC_REG_SetSequencerRanks( ADC2, LL_ADC_REG_RANK_1, ADC2_CH0 );
+LL_ADC_ClearFlag_EOS(ADC1);
+LL_ADC_ClearFlag_EOS(ADC2);
+LL_ADC_REG_StartConversionSWStart(ADC1);
+LL_ADC_REG_StartConversionSWStart(ADC2);
+/* verif timing : bloquage pendant la conversion pour mesure duree conversion a l'oscillo
+ * N.B. PLANTAGE si cette fonction est appelee depuis une interrupt,
+ * EOS aka EOC ne passe pas a 1 ! Mais on observe son fonctionnement Ok depuis la main loop.
+ *
+while	( !LL_ADC_IsActiveFlag_EOS(ADC1) )
+	{}
+//*/
 }
 

@@ -9,7 +9,7 @@ extern "C" {
 #define ADC1_CH1	LL_ADC_CHANNEL_17	// Vrefint (1.20V +- 4%)
 #define ADC2_CH1	LL_ADC_CHANNEL_8	// PB0 Hall
 
-#define TOTFIR		16	// 2 * ordre du FIR de chaque canal
+#define TOTFIR		128	// 2 * ordre du FIR de chaque canal
 
 // shared global storage
 extern volatile unsigned int fircnt;	// dont 1 lsb pour le canal
@@ -22,8 +22,21 @@ extern volatile int adc_res_ready;	// handshake
 // configurer le timer TIM3 en timebase (pour interrupts seulement)
 void adc_timer_init( unsigned int period );
 
+// disable timer interrupts
+void adc_timer_stop(void);
+
 // 2 ADCs
 void adc_init(void);
+
+// Run calibration on 2 ADCs
+void adc_calib(void);
+
+// reset calibration on 2 ADCs N.B. ceci n'est pas supporte par LL !
+void adc_uncalib(void);
+
+// demarrer une conversion de test sur ADC1_CH0 et ADC2_CH0
+void adc_start_conv(void);
+
 
 #ifdef __cplusplus
 }

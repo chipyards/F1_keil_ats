@@ -24,6 +24,7 @@
 #include "stm32f1xx_ll_system.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_usart.h"
+#include "stm32f1xx_ll_adc.h"
 
 #include "gpio.h"
 #include "flashy.h"
@@ -32,6 +33,10 @@
 
 #ifdef USE_LCD2x16
 #include "LCD2x16.h"
+#endif
+
+#ifdef USE_ADC_4CH
+#include "adc.h"
 #endif
 
 void SystemClock_Config(void);
@@ -128,7 +133,7 @@ if	( autoTx )
 }
 
 // temporisation base sur systick
-// unites en periodes d'horloge du timer
+// unites en periodes d'horloge du timer ( HCLK ou HCLK/8 )
 // tickd doit etre inferieur a (LOAD+1)/2
 void tickdelay( unsigned int tickd )
 {
@@ -452,6 +457,42 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			   } break;
 		case 'A' : autoTx = 1; break;
 		#endif
+		#ifdef USE_ADC_4CH
+		case 'x' :
+			snprintf( txbuf, sizeof(txbuf), "NPVHdd %d %d %d %d %d %d\n", adc1_res0, adc2_res0, adc1_res1, adc2_res1,
+				  (int)adc2_res0 - (int)adc1_res0, (int)adc2_res1 - (int)adc2_res0 );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		case 'h' :
+			adc_timer_stop();
+			snprintf( txbuf, sizeof(txbuf), "ADC interrupt halted\n" );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		case 'c' :
+			adc_calib();
+			snprintf( txbuf, sizeof(txbuf), "calib. done\n" );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		case 'u' :
+			adc_uncalib();
+			snprintf( txbuf, sizeof(txbuf), "calib. erased\n" );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		case 'r' :
+			adc_timer_init( SystemCoreClock / 2000 );	// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR );
+			snprintf( txbuf, sizeof(txbuf), "ADC interrupt restarted\n" );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		case 't' :
+			adc_start_conv();
+			snprintf( txbuf, sizeof(txbuf), "test conversion started\n" );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		case 'd' :
+			snprintf( txbuf, sizeof(txbuf), "test conversion %lu %lu\n", ADC1->DR, ADC2->DR );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
+		#endif
 		default:	// simple echo
 			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
 			txindex = 0; UART2_TX_INT_enable();
@@ -505,7 +546,6 @@ TIM3_PWM_init( PWM_PERIOD );
 #endif
 
 #ifdef USE_ADC_4CH
-#include "adc.h"
 // 2 ADCs
 adc_init();
 // configurer le timer TIM3 en timebase (pour interrupts seulement)
@@ -556,11 +596,11 @@ while (1)
 	PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
 	__WFI();				// Wait for Interrupt
 	#endif
-	#ifdef prof_EOS
+	#ifdef PROF_PB12_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
 	else					  PB12_PROFIL_1();
 	#endif
-	#ifdef PROF_PB12
+	#ifdef PROF_PB12_DLY
 	PB12_PROFIL_1();
 	tickdelay( Avar );
 	PB12_PROFIL_0();
