@@ -130,7 +130,7 @@ LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL );
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_FLOATING );
 }
 
-#ifdef USE_UART3
+#ifdef USE_UART3_FM
 /* initialiser GPIO pour UART3 */
 void gpio_uart3_init(void)
 {
