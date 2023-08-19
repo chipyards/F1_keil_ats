@@ -703,12 +703,12 @@ while (1)
   */
 void SystemClock_Config(void)
 {
-  /* Set FLASH latency */
-  LL_FLASH_SetLatency(LL_FLASH_LATENCY_2);
 
 #ifdef HSE_EXT
 #define HSE
 #endif
+
+LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
 
 #ifdef HSE
 /* Enable HSE oscillator or bypass */
@@ -724,27 +724,40 @@ while(LL_RCC_HSI_IsReady() != 1)
   { }
 #endif
 
-/* Main PLL configuration and activation */
-#ifdef HSE
-LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE_DIV_1, LL_RCC_PLL_MUL_9);
-#else
-// HSI est obligatoirement %2, donc avec MUL_16 qui est le max on a 64 MHz
-LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSI_DIV_2, LL_RCC_PLL_MUL_16);
-#endif
+#ifdef USE_PLL
+  /* Set FLASH latency : 2 for HCLK > 48 MHz  */
+  LL_FLASH_SetLatency(LL_FLASH_LATENCY_2);
+  /* Main PLL configuration and activation */
+  #ifdef HSE
+  LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE_DIV_1, LL_RCC_PLL_MUL_9);
+  #else
+  // HSI est obligatoirement %2, donc avec MUL_16 qui est le max on a 64 MHz
+  LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSI_DIV_2, LL_RCC_PLL_MUL_16);
+  #endif
 
   LL_RCC_PLL_Enable();
   while(LL_RCC_PLL_IsReady() != 1)
     { }
 
   /* Sysclk activation on the main PLL */
-  LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
   LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
   while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL)
     { }
-
-  /* Set APB1 & APB2 prescaler*/
+  /* Set APB1 prescaler : max 36 MHz */
   LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
-  LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
+#else
+  #ifdef HSE
+  LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_HSE);
+  while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_HSE)
+    { }
+  #endif
+  /* Set FLASH latency : 0 for HCLK <= 24 MHz */
+  LL_FLASH_SetLatency(LL_FLASH_LATENCY_0);
+  /* Set APB1 prescaler : max 36 MHz */
+  LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
+#endif
+  /* Set APB12 prescaler : max 72 MHz */
+LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
 
     /* Update SystemCoreClock variable */
   SystemCoreClockUpdate();

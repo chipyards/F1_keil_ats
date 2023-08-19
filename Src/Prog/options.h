@@ -7,7 +7,8 @@
 #define PROF_PB12_EOS
 // osc. modes :
 //		HSI		HSE		HSE_EXT
-// fmax		64MHz		72MHz		72MHz
+// fmin		 8MHz		 8MHz		 8MHz
+// fmax PLL	64MHz		72MHz		72MHz
 // nucleo	Y		N		Y
 // nucleo cut	Y		N		N
 // blue pill	Y		Y		N
@@ -17,11 +18,12 @@
 // sur blue pill et Olimex : quartz local  8MHz -> PLL -> 72 MHz
 // sinon      : oscillateur RC interne HSI 8MHz -> PLL -> 64 Mhz
 
-// ici branche blue_pill, c'est blue pill par defaut 
+// nous sommes dans la branche blue_pill, c'est blue pill par defaut
 #define HSE
 #ifdef NUCLEO
 #define HSE_EXT
 #endif
+// #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
 // SLEEP necessite connexion reset du ST-Link, sinon brick !
 // #define GREEN_CPU

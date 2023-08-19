@@ -6,6 +6,7 @@
 #include "stm32f1xx_ll_usart.h"
 #include "uarts.h"
 
+// F103 clock system : USART1 est sur APB2 (fast), USART2 et 3 sont sur APB1(max 36 MHz)
 // code d'initialisation commun aux UARTs
 static void UART_8_N_1( USART_TypeDef * U, unsigned int perif_clk, unsigned int bauds )
 {
@@ -44,7 +45,7 @@ NVIC_EnableIRQ( IRQn );
 void UART1_init( unsigned int bauds )
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_USART1 );
-UART_8_N_1( USART1, SystemCoreClock, bauds );
+UART_8_N_1( USART1, SystemCoreClock, bauds );	// hyp. APB2 toujours avec DIV_1
 
 NVIC_init( USART1_IRQn, 9 );
 NVIC_ClearPendingIRQ( USART1_IRQn );
@@ -74,9 +75,9 @@ LL_USART_DisableIT_TXE( USART1 );
 void UART2_init( unsigned int bauds )
 {
 LL_APB1_GRP1_EnableClock( LL_APB1_GRP1_PERIPH_USART2 );
-
-UART_8_N_1( USART2, SystemCoreClock/2, bauds );		// UWAGA : APB1 Prescaler = 2
-
+if	( LL_RCC_GetAPB1Prescaler() == LL_RCC_APB1_DIV_1 )
+	UART_8_N_1( USART2, SystemCoreClock, bauds );
+else	UART_8_N_1( USART2, SystemCoreClock/2, bauds );	// hyp. si APB1 n'a pas DIV_1, il a DIV_2
 NVIC_init( USART2_IRQn, 10 );
 NVIC_ClearPendingIRQ( USART2_IRQn );
 /* Enable USART2 Receive interrupts --> USART2_IRQHandler */
@@ -104,7 +105,9 @@ LL_USART_DisableIT_TXE( USART2 );
 void UART3_init( unsigned int bauds )
 {
 LL_APB1_GRP1_EnableClock( LL_APB1_GRP1_PERIPH_USART3 );
-UART_8_N_1( USART3, SystemCoreClock/2, bauds );		// UWAGA : APB1 Prescaler = 2
+if	( LL_RCC_GetAPB1Prescaler() == LL_RCC_APB1_DIV_1 )
+	UART_8_N_1( USART3, SystemCoreClock, bauds );
+else	UART_8_N_1( USART3, SystemCoreClock/2, bauds );	// hyp. si APB1 n'a pas DIV_1, il a DIV_2
 
 NVIC_init( USART3_IRQn, 11 );
 NVIC_ClearPendingIRQ( USART3_IRQn );

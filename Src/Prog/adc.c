@@ -7,6 +7,7 @@
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_adc.h"
 #include "stm32f1xx_ll_tim.h"
+#include "options.h"
 
 #include "adc.h"
 
@@ -122,8 +123,13 @@ LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC2);
 
 // ADC clock prescaler (avail: 2, 4, 6, 8) max clock is 14 MHz
 // common for both ADCs
+#ifdef USE_PLL
 // exemple : DIV_8 @ 72 MHz -> 9 MHz
 LL_RCC_SetADCClockSource( LL_RCC_ADC_CLKSRC_PCLK2_DIV_8 );
+#else
+// exemple : DIV_2 @ 8 MHz -> 4 MHz
+LL_RCC_SetADCClockSource( LL_RCC_ADC_CLKSRC_PCLK2_DIV_2 );
+#endif
 
 // LL_ADC_SetResolution( ADC1, LL_ADC_RESOLUTION_12B );	// toujours 12 bits
 LL_ADC_SetDataAlignment( ADC1, LL_ADC_DATA_ALIGN_RIGHT );
