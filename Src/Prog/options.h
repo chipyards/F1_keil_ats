@@ -1,10 +1,10 @@
-// Blue Pill par defaut
+// nous sommes dans la branche blue_pill, c'est blue pill par defaut
 // #define NUCLEO
 
 // profilage
-#define PROF_PB12
-// #define PROF_PB12_DLY
-#define PROF_PB12_EOS
+// #define PROF_PB12
+// #define PROF_PB12_EOS
+
 // osc. modes :
 //		HSI		HSE		HSE_EXT
 // fmin		 8MHz		 8MHz		 8MHz
@@ -18,7 +18,6 @@
 // sur blue pill et Olimex : quartz local  8MHz -> PLL -> 72 MHz
 // sinon      : oscillateur RC interne HSI 8MHz -> PLL -> 64 Mhz
 
-// nous sommes dans la branche blue_pill, c'est blue pill par defaut
 #define HSE
 #ifdef NUCLEO
 #define HSE_EXT

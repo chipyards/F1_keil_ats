@@ -130,6 +130,22 @@ if	( autoTx )
 	}
 
 #endif
+#ifdef USE_ADC_4CH
+if	( ( cnt100Hz % 100 ) == 10 )
+	{
+	if	( adc_res_ready == 2 )
+		{
+		snprintf( txbuf, sizeof(txbuf), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
+			  ( (int)adc2_res0 - (int)adc1_res0 )/CHANFIR, ( (int)adc2_res1 - (int)adc2_res0 )/CHANFIR );
+		adc_res_ready = 0;
+		txindex = 0; UART2_TX_INT_enable();
+		}
+	else	{
+		snprintf( txbuf, sizeof(txbuf), "adc res not ready\n");
+		txindex = 0; UART2_TX_INT_enable();
+		}
+	}
+#endif
 }
 
 // temporisation base sur systick
@@ -493,6 +509,11 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 				  (int)adc2_res0 - (int)adc1_res0, (int)adc2_res1 - (int)adc2_res0 );
 			txindex = 0; UART2_TX_INT_enable();
 			break;
+		case 'y' :
+			snprintf( txbuf, sizeof(txbuf), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
+				  ( (int)adc2_res0 - (int)adc1_res0 )/CHANFIR, ( (int)adc2_res1 - (int)adc2_res0 )/CHANFIR );
+			txindex = 0; UART2_TX_INT_enable();
+			break;
 		case 'h' :
 			adc_timer_stop();
 			snprintf( txbuf, sizeof(txbuf), "ADC interrupt halted\n" );
@@ -580,6 +601,32 @@ TIM3_PWM_init( PWM_PERIOD );
 #ifdef USE_ADC_4CH
 // 2 ADCs
 adc_init();
+
+  #ifdef PROF_PB12
+  PB12_PROFIL_1();
+  #endif
+
+// tempo 10 us @ 72 MHz
+tickdelay( 72 * 10 );
+
+  #ifdef PROF_PB12
+  PB12_PROFIL_0();
+  #endif
+
+// la calibration
+adc_calib();
+
+  #ifdef PROF_PB12
+  PB12_PROFIL_1();
+  #endif
+
+// tempo min 2 cycles
+tickdelay( 8 * 3 );	// 3 cycles ADC ne durent pas plus que 8 Tck puisque le diviseur max est 8
+
+  #ifdef PROF_PB12
+  PB12_PROFIL_0();
+  #endif
+
 // configurer le timer TIM3 en timebase (pour interrupts seulement)
 adc_timer_init( SystemCoreClock / 2000 );	// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR
 #endif
@@ -631,12 +678,6 @@ while (1)
 	#ifdef PROF_PB12_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
 	else					  PB12_PROFIL_1();
-	#endif
-	#ifdef PROF_PB12_DLY
-	PB12_PROFIL_1();
-	tickdelay( Avar );
-	PB12_PROFIL_0();
-	tickdelay( Avar );
 	#endif
 	#ifdef USE_UART3
 	if	( rx_status == 10 )

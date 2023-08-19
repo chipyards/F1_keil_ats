@@ -33,9 +33,11 @@ LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_12, LL_GPIO_MODE_INPUT );
 // profiling | signalisation sur PB12
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
 #ifdef PROF_PB12
+LL_GPIO_ResetOutputPin(   GPIOB, LL_GPIO_PIN_12 );
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_12, LL_GPIO_MODE_OUTPUT );
 LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_12, LL_GPIO_OUTPUT_PUSHPULL );
 LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_12, LL_GPIO_SPEED_FREQ_HIGH );
+
 #else	// N.B. les ecriture vont quand meme actionner les pull-up/down
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_12, LL_GPIO_MODE_INPUT );
 #endif

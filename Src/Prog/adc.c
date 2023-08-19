@@ -17,7 +17,12 @@ volatile unsigned int adc1_res0 = 0;
 volatile unsigned int adc1_res1 = 0;
 volatile unsigned int adc2_res0 = 0;
 volatile unsigned int adc2_res1 = 0;
-volatile int adc_res_ready = 0;		// handshake
+// handshake :
+//	mis a 2 par ce handler quand il a mis a jour les resus
+//	mis a 0 par l'appli quand elle a assimile les resus
+// le handler ne remet pas a jour les resus tant qu'ils n'ont pas ete assimiles
+volatile int adc_res_ready = 0;
+
 
 // interrupt handler for TIM3
 void TIM3_IRQHandler(void)
@@ -47,21 +52,28 @@ else	{
 	}
 // compter
 ++fircnt;
-if	( fircnt >= TOTFIR )	// TOTFIR = 2 * ordre du FIR de chaque canal
+if	( fircnt == (TOTFIR-1) )	// avant derniere conversion du cycle
 	{
-	fircnt = 0;
-	adc1_res1 = adc1_sum1;
-	adc2_res1 = adc2_sum1;
-	adc_res_ready = 1;
-	adc1_sum1 = 0;
-	adc2_sum1 = 0;
-	}
-else if ( fircnt == (TOTFIR-1) )
-	{
-	adc1_res0 = adc1_sum0;
-	adc2_res0 = adc2_sum0;
+	if	( adc_res_ready == 0 )
+		{
+		adc1_res0 = adc1_sum0;
+		adc2_res0 = adc2_sum0;
+		adc_res_ready = 1;
+		}
 	adc1_sum0 = 0;
 	adc2_sum0 = 0;
+	}
+else if	( fircnt >= TOTFIR )	// TOTFIR = 2 * ordre du FIR de chaque canal
+	{
+	fircnt = 0;
+	if	( adc_res_ready == 1 )
+		{
+		adc1_res1 = adc1_sum1;
+		adc2_res1 = adc2_sum1;
+		adc_res_ready = 2;
+		}
+	adc1_sum1 = 0;
+	adc2_sum1 = 0;
 	}
 // demarrer nouvelle conversions
 LL_ADC_REG_StartConversionSWStart( ADC1 );
@@ -198,8 +210,8 @@ void adc_calib(void)
 LL_ADC_StartCalibration(ADC1);
 LL_ADC_StartCalibration(ADC2);
 // la boucle d'attente plante si cette fonction est appelee depuis une interrupt t.q. UART
-// while ( ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) && ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) )
-//	 { }
+while	( ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) || ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) )
+	{ }
 }
 
 // reset calibration on 2 ADCs N.B. ceci n'est pas supporte par LL !
