@@ -17,6 +17,7 @@
 #include "stm32f1xx_ll_usart.h"
 #include "stm32f1xx_ll_adc.h"
 
+#include "sys.h"
 #include "gpio.h"
 #include "flashy.h"
 #include "uarts.h"
@@ -48,23 +49,24 @@ volatile int LCDbias = 3;	// theoretical is 4
 char LCDbuf[64];
 #endif
 
+#ifdef USE_CDC
 // emission sur CDC : par message
-char txbuf[64];
-volatile int txindex;
-
+char txbuf2[64];
+volatile int txindex2;
 // reception CDC : fifo circulaire
 #ifdef RX_FIFO
 #define QRX 32		// a power of 2 !!!
-char rxbuf[QRX];
-volatile unsigned int rxwi=0;	// write index
-volatile unsigned int rxri=0;	// read index
+char rxbuf2[QRX];
+volatile unsigned int rxwi2=0;	// write index
+volatile unsigned int rxri2=0;	// read index
 // exemple de lecture du fifo  :
-// 	while	( rxwi - rxri )
+// 	while	( rxwi2 - rxri2 )
 //		{
-//		int c = rxbuf[(rxri++)&(QRX-1)];
+//		int c = rxbuf2[(rxri2++)&(QRX-1)];
 //		... }
 #else
-volatile char rxbyte;
+volatile char rxbyte2;
+#endif
 #endif
 
 volatile unsigned int Avar = 1;
@@ -79,10 +81,7 @@ int autoTx = 1;
 void SysTick_Handler()
 {
 ++cnt100Hz;
-// LED blinks
-#ifdef USE_UART3_FM
-if	( autoTx == 0 )
-#endif
+/* LED blinks
 	{
 	switch	( cnt100Hz % 100 )
 		{
@@ -94,6 +93,7 @@ if	( autoTx == 0 )
 			break;
 		}
 	}
+*/
 // log periodique
 #ifdef USE_UART3_FM
 if	( autoTx )
@@ -121,42 +121,27 @@ if	( autoTx )
 
 #endif
 #ifdef USE_ADC_4CH
+#ifdef USE_CDC
 if	( ( autoTx ) && ( ( cnt100Hz % 100 ) == 10 ) )
 	{
 	if	( adc_res_ready == 2 )
 		{
-		snprintf( txbuf, sizeof(txbuf), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
+		snprintf( txbuf2, sizeof(txbuf2), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
 			  ( (int)adc2_res0 - (int)adc1_res0 )/CHANFIR, ( (int)adc2_res1 - (int)adc2_res0 )/CHANFIR );
 		adc_res_ready = 0;
-		txindex = 0; UART2_TX_INT_enable();
+		txindex2 = 0; UART2_TX_INT_enable();
 		}
 	else	{
-		snprintf( txbuf, sizeof(txbuf), "adc res not ready\n");
-		txindex = 0; UART2_TX_INT_enable();
+		snprintf( txbuf2, sizeof(txbuf2), "adc res not ready\n");
+		txindex2 = 0; UART2_TX_INT_enable();
 		}
 	}
 #endif
+#endif
 }
 
-// temporisation base sur systick
-// unites en periodes d'horloge du timer ( HCLK ou HCLK/8 )
-// tickd doit etre inferieur a (LOAD+1)/2
-void tickdelay( unsigned int tickd )
-{
-int tper = SysTick->LOAD + 1;
-int nextVAL, diff;
-nextVAL = SysTick->VAL - tickd;
-if	( nextVAL < 0 )
-	nextVAL += tper;
-do	{				// diff c'est le temps restant a attendre
-	diff = SysTick->VAL - nextVAL;
-	if	( diff <= -(tper/2) )	// on maintient diff entre -(tper/2) et (tper/2)
-		diff = 1;
-	else if ( diff > (tper/2) )
-		break;
-	} while ( diff > 0 );
-}
 
+#ifdef USE_CDC
 // UART2 (CDC) interrupt handler
 void USART2_IRQHandler( void )
 {
@@ -165,9 +150,9 @@ if	(
 	( LL_USART_IsEnabledIT_TXE( USART2 ) )
 	)
 	{	// messages de taille variable
-	if	( txbuf[txindex] == 0 )
+	if	( txbuf2[txindex2] == 0 )
 		UART2_TX_INT_disable();
-	else	LL_USART_TransmitData8( USART2, txbuf[txindex++] );
+	else	LL_USART_TransmitData8( USART2, txbuf2[txindex2++] );
 	}
 if	(
 	( LL_USART_IsActiveFlag_RXNE( USART2 ) ) &&
@@ -175,42 +160,12 @@ if	(
 	)
 	{
 	#ifdef RX_FIFO
-	rxbuf[(rxwi++)&(QRX-1)] = LL_USART_ReceiveData8( USART2 );
+	rxbuf2[(rxwi2++)&(QRX-1)] = LL_USART_ReceiveData8( USART2 );
 	#else
-	rxbyte = LL_USART_ReceiveData8( USART2 );
-	cmd_handler( rxbyte );
+	rxbyte2 = LL_USART_ReceiveData8( USART2 );
+	cmd_handler( rxbyte2 );
 	#endif
 	}
-}
-
-// N.B. pour avoir la correspondance numero <--> perif , voir IRQn_Type
-// F103 : UARTS 1,2,3 : 37, 38, 39; TIM 2, 3, 4 : 28, 29, 30
-void report_interrupts(void)
-{
-int i, p, space, j;
-p = __NVIC_GetPriorityGrouping();
-j = snprintf( txbuf, sizeof(txbuf), "P.G. %d\n", p );
-// special systick (#-1)
-i = -1;
-if	(  SysTick->CTRL & SysTick_CTRL_TICKINT_Msk )
-	{
-	p = __NVIC_GetPriority((IRQn_Type)i);
-	space = sizeof(txbuf) - j;
-	if	( space > 0 )
-		j += snprintf( txbuf+j, space, "i #%2d, p %d\n", i, p );
-	}
-// tous les autres
-for	( i = 0; i <=  97; ++i )
-	{
-	if	( __NVIC_GetEnableIRQ((IRQn_Type)i) )
-		{
-		p = __NVIC_GetPriority((IRQn_Type)i);
-		space = sizeof(txbuf) - j;
-		if	( space > 0 )
-			j += snprintf( txbuf+j, space, "i #%2d, p %d\n", i, p );
-		}
-	}
-txindex = 0; UART2_TX_INT_enable();
 }
 
 void cmd_handler( char c )
@@ -222,8 +177,8 @@ switch	( c )
 	{
 	#ifdef USE_ADC
 	case 'a' :
-		snprintf( txbuf, sizeof(txbuf), "adc %d\n", adc_raw );
-		txindex = 0;
+		snprintf( txbuf2, sizeof(txbuf2), "adc %d\n", adc_raw );
+		txindex2 = 0;
 		UART2_TX_INT_enable();
 		break;
 	#endif
@@ -249,17 +204,17 @@ switch	( c )
 		} break;
 	case 'v' : {
 		unsigned int nokcfg = *((unsigned int *)LAST_FLASH_PAGE);
-		snprintf( txbuf, sizeof(txbuf), "nokcfg=%08x\n", nokcfg );
-		txindex = 0; UART2_TX_INT_enable();
+		snprintf( txbuf2, sizeof(txbuf2), "nokcfg=%08x\n", nokcfg );
+		txindex2 = 0; UART2_TX_INT_enable();
 		} break;
 	case 'V' : {
 		unsigned short nokcfg1, nokcfg2;
 		nokcfg1 = ((__IO uint16_t*)LAST_FLASH_PAGE)[0];
 		nokcfg2 = ((__IO uint16_t*)LAST_FLASH_PAGE)[1];
 		if	( nokcfg2 == ( ~nokcfg1 & 0xFFFF ) )
-			snprintf( txbuf, sizeof(txbuf), "verif n=%d V=%03d\n",LCDbias, LCDcontrast );
-		else	snprintf( txbuf, sizeof(txbuf), "err %04x %04x\n", ~nokcfg1, nokcfg2 );
-		txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "verif n=%d V=%03d\n",LCDbias, LCDcontrast );
+		else	snprintf( txbuf2, sizeof(txbuf2), "err %04x %04x\n", ~nokcfg1, nokcfg2 );
+		txindex2 = 0; UART2_TX_INT_enable();
 		} break;
 	#endif
 	case 'n' : LcdNegativeImage(1); break;
@@ -281,8 +236,8 @@ switch	( c )
 if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 	{
 	#ifdef USE_NOKIA
-	snprintf( txbuf, sizeof(txbuf), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
-	txindex = 0; UART2_TX_INT_enable();
+	snprintf( txbuf2, sizeof(txbuf2), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
+	txindex2 = 0; UART2_TX_INT_enable();
 	#else
 	switch	( c )
 		{
@@ -317,54 +272,57 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 		#endif
 		#ifdef USE_ADC_4CH
 		case 'x' :
-			snprintf( txbuf, sizeof(txbuf), "NPVHdd %d %d %d %d %d %d\n", adc1_res0, adc2_res0, adc1_res1, adc2_res1,
+			snprintf( txbuf2, sizeof(txbuf2), "NPVHdd %d %d %d %d %d %d\n", adc1_res0, adc2_res0, adc1_res1, adc2_res1,
 				  (int)adc2_res0 - (int)adc1_res0, (int)adc2_res1 - (int)adc2_res0 );
-			txindex = 0; UART2_TX_INT_enable();
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'y' :
-			snprintf( txbuf, sizeof(txbuf), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
+			snprintf( txbuf2, sizeof(txbuf2), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
 				  ( (int)adc2_res0 - (int)adc1_res0 )/CHANFIR, ( (int)adc2_res1 - (int)adc2_res0 )/CHANFIR );
-			txindex = 0; UART2_TX_INT_enable();
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'h' :
 			adc_timer_stop();
-			snprintf( txbuf, sizeof(txbuf), "ADC interrupt halted\n" );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "ADC interrupt halted\n" );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'c' :
 			adc_calib();
-			snprintf( txbuf, sizeof(txbuf), "calib. done\n" );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "calib. done\n" );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'u' :
 			adc_uncalib();
-			snprintf( txbuf, sizeof(txbuf), "calib. erased\n" );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "calib. erased\n" );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'r' :
 			adc_timer_init( SystemCoreClock / 2000 );	// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR );
-			snprintf( txbuf, sizeof(txbuf), "ADC interrupt restarted\n" );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "ADC interrupt restarted\n" );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 't' :
 			adc_start_conv();
-			snprintf( txbuf, sizeof(txbuf), "test conversion started\n" );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "test conversion started\n" );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'd' :
-			snprintf( txbuf, sizeof(txbuf), "test conversion %lu %lu\n", ADC1->DR, ADC2->DR );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "test conversion %lu %lu\n", ADC1->DR, ADC2->DR );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		#endif
-		case '$' : report_interrupts();
+		case '$' :
+			report_interrupts( txbuf2, sizeof(txbuf2) );
+			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		default:	// simple echo
-			snprintf( txbuf, sizeof(txbuf), "%c\n", ((c>=' ')?(c):('?')) );
-			txindex = 0; UART2_TX_INT_enable();
+			snprintf( txbuf2, sizeof(txbuf2), "%c\n", ((c>=' ')?(c):('?')) );
+			txindex2 = 0; UART2_TX_INT_enable();
 		}
 	#endif
 	}
 }
+#endif
 
 int main(void)
 {
@@ -374,24 +332,14 @@ SystemClock_Config();
 // config LED
 gpio_init();
 
-
 // config systick @ 100Hz
+systick_init( 100 );
 
-  // periode
-  SysTick->LOAD  = (SystemCoreClock / 100) - 1;
-  // priorite
-  NVIC_SetPriority( SysTick_IRQn, 7 );
-  // init counter
-  SysTick->VAL = 0;
-  // prescale (0 ===> %8)
-  SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk;
-  // enable timer, enable interrupt
-  SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
-
-
+#ifdef USE_CDC
 // config UART (interrupt handler doit etre pret!!)
 gpio_uart2_init();
 UART2_init( 9600 );
+#endif
 
 #ifdef USE_UART3_FM
 UART3_init( 9600 );
@@ -485,9 +433,14 @@ set_cursor( 6, 1 ); lcd_print("vrai!");
 while (1)
  	{
 	#ifdef GREEN_CPU
-	SCB->SCR = 0;				// avoid deep sleep
-	PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
-	__WFI();				// Wait for Interrupt
+	if	( cnt100Hz > 3000 )
+		{
+		LED_OFF();
+		SCB->SCR = 0;				// avoid deep sleep
+		PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
+		__WFI();	// Wait for Interrupt
+		}
+	else	LED_ON();
 	#endif
 	#ifdef PROF_PB12_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
@@ -502,7 +455,9 @@ while (1)
 			{
 			if	( sz == 4 )
 				{
-				snprintf( txbuf, sizeof(txbuf), "bin Ok %02X%02X%02X%02X ", rxbuf3[4], rxbuf3[3], rxbuf3[2], rxbuf3[1] );
+				#ifdef USE_CDC
+				snprintf( txbuf2, sizeof(txbuf2), "bin Ok %02X%02X%02X%02X ", rxbuf3[4], rxbuf3[3], rxbuf3[2], rxbuf3[1] );
+				#endif
 				#ifdef USE_LCD2x16
 				  char lcdbuf[20];
 				  snprintf( lcdbuf, sizeof(lcdbuf), "bin Ok %02X%02X%02X%02X", rxbuf3[4], rxbuf3[3], rxbuf3[2], rxbuf3[1] );
@@ -510,30 +465,44 @@ while (1)
 				  set_cursor( 0, 0 ); lcd_print( lcdbuf );
 				#endif
 				}
-			else	snprintf( txbuf, sizeof(txbuf), "opcode 0x%02X, ?", rxbuf3[0] );
+			else	{
+				#ifdef USE_CDC
+				snprintf( txbuf2, sizeof(txbuf2), "opcode 0x%02X, ?", rxbuf3[0] );
+				#endif
+				}
 			}
 		else if	( op == OP_ASC )
 			{
 			if	( sz > 14 )	// taille limitee a 14 en ascii pour pouvoir AJOUTER le null terminator
 				sz = 14;	// c'est juste pour la commodite de l'affichage
 			rxbuf3[sz+1] = 0;	// rxbuf3 contient l'opcode suivi de la payload
-			snprintf( txbuf, sizeof(txbuf), "asc Ok %d %s\n", rxbuf3[0] & 0x0F, rxbuf3+1 ); // size puis payload, sans l'opcode
+			#ifdef USE_CDC
+			snprintf( txbuf2, sizeof(txbuf2), "asc Ok %d %s\n", rxbuf3[0] & 0x0F, rxbuf3+1 ); // size puis payload, sans l'opcode
+			#endif
 			#ifdef USE_LCD2x16
 			  set_cursor( 0, 1 ); lcd_print("----------------");
 			  set_cursor( 0, 1 ); lcd_print( rxbuf3+1 );
 			#endif
 			}
-		else	snprintf( txbuf, sizeof(txbuf), "opcode 0x%02X, ?", rxbuf3[0] );
-		txindex = 0; UART2_TX_INT_enable();
+		else	{
+			#ifdef USE_CDC
+			snprintf( txbuf2, sizeof(txbuf2), "opcode 0x%02X, ?", rxbuf3[0] );
+			#endif
+			}
+			#ifdef USE_CDC
+			txindex2 = 0; UART2_TX_INT_enable();
+			#endif
 		rx_status = 0;
 		}
 	else if	( ( rx_status == 20 ) || ( rx_status == 21 ) || ( rx_status == 22 ) )
 		{
-		snprintf( txbuf, sizeof(txbuf), "Bad %d\n", rx_status );
-		txindex = 0; UART2_TX_INT_enable();
+		#ifdef USE_CDC
+		snprintf( txbuf2, sizeof(txbuf2), "Bad %d\n", rx_status );
+		txindex2 = 0; UART2_TX_INT_enable();
+		#endif
 		#ifdef USE_LCD2x16
 		  set_cursor( 0, 0 ); lcd_print("::::::::::::::::");
-		  set_cursor( 2, 0 ); lcd_print( txbuf );
+		  set_cursor( 2, 0 ); lcd_print( txbuf2 );
 		#endif
 		rx_status = 0;
 		}
@@ -541,79 +510,3 @@ while (1)
  	}
 }
 
-/**
-  * @brief  System Clock Configuration
-  *         The system Clock is configured as follow :
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 72000000 or 64000000
-  *            HCLK(Hz)                       = 72000000 or 64000000
-  *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 2
-  *            APB2 Prescaler                 = 1
-  *            HSE Frequency(Hz)              = 8000000
-  *            PLLMUL                         = 9
-  *            Flash Latency(WS)              = 2
-  * @param  None
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-
-#ifdef HSE_EXT
-#define HSE
-#endif
-
-LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
-
-#ifdef HSE
-/* Enable HSE oscillator or bypass */
-#ifdef HSE_EXT
-LL_RCC_HSE_EnableBypass();	// pas de quartz ==> MCO du ST-Link
-#endif
-LL_RCC_HSE_Enable();
-while(LL_RCC_HSE_IsReady() != 1)
-  { }
-#else
-LL_RCC_HSI_Enable();
-while(LL_RCC_HSI_IsReady() != 1)
-  { }
-#endif
-
-#ifdef USE_PLL
-  /* Set FLASH latency : 2 for HCLK > 48 MHz  */
-  LL_FLASH_SetLatency(LL_FLASH_LATENCY_2);
-  /* Main PLL configuration and activation */
-  #ifdef HSE
-  LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE_DIV_1, LL_RCC_PLL_MUL_9);
-  #else
-  // HSI est obligatoirement %2, donc avec MUL_16 qui est le max on a 64 MHz
-  LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSI_DIV_2, LL_RCC_PLL_MUL_16);
-  #endif
-
-  LL_RCC_PLL_Enable();
-  while(LL_RCC_PLL_IsReady() != 1)
-    { }
-
-  /* Sysclk activation on the main PLL */
-  LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
-  while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL)
-    { }
-  /* Set APB1 prescaler : max 36 MHz */
-  LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
-#else
-  #ifdef HSE
-  LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_HSE);
-  while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_HSE)
-    { }
-  #endif
-  /* Set FLASH latency : 0 for HCLK <= 24 MHz */
-  LL_FLASH_SetLatency(LL_FLASH_LATENCY_0);
-  /* Set APB1 prescaler : max 36 MHz */
-  LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
-#endif
-  /* Set APB12 prescaler : max 72 MHz */
-LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
-
-    /* Update SystemCoreClock variable */
-  SystemCoreClockUpdate();
-}
