@@ -1,4 +1,4 @@
-/* prog pour emettre ou recevoir des messages en FM 433 MHz, taille variable, pas de delimiteur, contenu arbitraire
+/* prog OBSOLETE pour emettre ou recevoir des messages en FM 433 MHz, taille variable, pas de delimiteur, contenu arbitraire
 - emission :
 	- payload de test : op 0x00 : 32 bit en binaire, op 0x10 : 32 bits hex en ascii (0 a 8 digits) ou texte <= 14 char
 	- emission periodique (3s) si autoTx = 1, ou emission manuelle via CDC
@@ -8,8 +8,9 @@
 	  ==> relecture possible (works ok)
 	- message transfere vers CDC (ascii) et LCD2x16 si existe
  */
-/* Includes ------------------------------------------------------------------*/
 #include "options.h"
+#ifdef MAIN_GENERIC
+/* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_system.h"
@@ -509,4 +510,4 @@ while (1)
 	#endif
  	}
 }
-
+#endif	// main

@@ -56,7 +56,7 @@ if	(
 	//	14 : transmitter to be switched off
 	switch	( tx_status )
 		{
-		case 1:	Tx_cmd(1);
+		case 1:	Tx_cmd(1); Rx_cmd(0);
 			LL_USART_TransmitData8( USART3, 0xFF ); tx_status++; break;
 		case 2:	LL_USART_TransmitData8( USART3, 0xFF ); tx_status++; break;
 		case 3:	LL_USART_TransmitData8( USART3, 0xFF ); tx_status++; break;
@@ -88,7 +88,7 @@ if	(
 		case 13: LL_USART_TransmitData8( USART3, ' ' );
 			tx_status++;
 			break;
-		case 14: UART3_TX_INT_disable(); Tx_cmd(0);
+		case 14: UART3_TX_INT_disable(); Tx_cmd(0); Rx_cmd(1);
 			tx_status = 0;
 			break;
 		}
@@ -165,6 +165,7 @@ if	(
 
 
 // message formatage for FM 433MHz
+// message general
 void FM_send( unsigned int opcode, const unsigned char * payload )
 {
 unsigned int i=0, paycnt;
@@ -181,3 +182,21 @@ tx_status = 1;
 UART3_TX_INT_enable();
 }
 
+// message avec un byte t.q. numero de variable
+void FM_send2( unsigned int opcode, unsigned int num, const unsigned char * data )
+{
+unsigned int i=0, paycnt;
+txbuf3[i++] = opcode;
+paycnt = opcode & 0x0F;			// taille = 4 LSB
+while	( paycnt )
+	{
+	if	( i == 1 )
+		txbuf3[i++] = (unsigned char)num;
+	else	txbuf3[i++] = *(data++);
+	paycnt--;
+	if	( i >= sizeof(txbuf3) )
+		break;
+	}
+tx_status = 1;
+UART3_TX_INT_enable();
+}

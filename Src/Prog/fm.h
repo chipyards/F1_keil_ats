@@ -22,8 +22,15 @@
  */
 
 // opcodes (les 4 MSBs)
-#define OP_BIN 0x00
-#define OP_ASC 0x10
+#define OP_TEST		0x00
+#define OP_ECHO		0x10
+#define OP_GET		0x20	// le 1er byte est un index de variable
+#define OP_SET		0x30	// 	"	"
+#define OP_REPORT	0x40	//	"	"
+
+// variables pour GET-SET-REPORT
+#define VAR_AUTO1	1
+#define VAR_AMP		2
 
 // Tx data
 extern char txbuf3[16];	// opcode plus 0 to 15 bytes payload
@@ -40,3 +47,5 @@ extern volatile unsigned int rx_crc;
 extern volatile int rx_status;
 
 void FM_send( unsigned int opcode, const unsigned char * payload );
+// message avec un byte t.q. numero de variable
+void FM_send2( unsigned int opcode, unsigned int num, const unsigned char * data );

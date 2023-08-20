@@ -1,0 +1,352 @@
+/* prog pour afficher des reports recus en FM 433 MHz,
+	donnees transferees vers CDC (ascii) et LCD2x16 si existe
+ */
+#include "options.h"
+#ifdef MAIN_TERMINAL
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f1xx_ll_bus.h"
+#include "stm32f1xx_ll_rcc.h"
+#include "stm32f1xx_ll_system.h"
+#include "stm32f1xx_ll_gpio.h"
+#include "stm32f1xx_ll_usart.h"
+#include "stm32f1xx_ll_adc.h"
+
+#include "sys.h"
+#include "gpio.h"
+#include "flashy.h"
+#include "uarts.h"
+#include <stdio.h>	// pour snprintf
+
+#ifdef USE_LCD2x16
+#include "LCD2x16.h"
+#endif
+
+#ifdef USE_UART3_FM
+#include "fm.h"
+#endif
+
+void SystemClock_Config(void);
+void cmd_handler( char c );
+
+// contexte global -----------------------------------------------------------
+
+unsigned int cnt100Hz = 0;
+
+#ifdef USE_NOKIA
+#include "nokia.h"
+volatile int LCDcontrast = 59;	// 40-60 is usually a pretty good range.
+volatile int LCDbias = 3;	// theoretical is 4
+char LCDbuf[64];
+#endif
+
+#ifdef USE_CDC
+// emission sur CDC : par message
+char txbuf2[64];
+volatile int txindex2;
+// reception CDC : fifo circulaire
+#ifdef RX_FIFO
+#define QRX 32		// a power of 2 !!!
+char rxbuf2[QRX];
+volatile unsigned int rxwi2=0;	// write index
+volatile unsigned int rxri2=0;	// read index
+// exemple de lecture du fifo  :
+// 	while	( rxwi2 - rxri2 )
+//		{
+//		int c = rxbuf2[(rxri2++)&(QRX-1)];
+//		... }
+#else
+volatile char rxbyte2;
+#endif
+#endif
+
+
+// systick interrupt handler
+void SysTick_Handler()
+{
+++cnt100Hz;
+	{
+	switch	( cnt100Hz % 100 )
+		{
+		case 0 :
+			LED_ON();
+			break;
+		case 5 :
+			LED_OFF();
+			break;
+		}
+	}
+}
+
+
+#ifdef USE_CDC
+// UART2 (CDC) interrupt handler
+void USART2_IRQHandler( void )
+{
+if	(
+	( LL_USART_IsActiveFlag_TXE( USART2 ) ) &&
+	( LL_USART_IsEnabledIT_TXE( USART2 ) )
+	)
+	{	// messages de taille variable
+	if	( txbuf2[txindex2] == 0 )
+		UART2_TX_INT_disable();
+	else	LL_USART_TransmitData8( USART2, txbuf2[txindex2++] );
+	}
+if	(
+	( LL_USART_IsActiveFlag_RXNE( USART2 ) ) &&
+	( LL_USART_IsEnabledIT_RXNE( USART2 ) )
+	)
+	{
+	#ifdef RX_FIFO
+	rxbuf2[(rxwi2++)&(QRX-1)] = LL_USART_ReceiveData8( USART2 );
+	#else
+	rxbyte2 = LL_USART_ReceiveData8( USART2 );
+	cmd_handler( rxbyte2 );
+	#endif
+	}
+}
+
+void cmd_handler( char c )
+{
+#ifdef USE_NOKIA
+static int x = 0, y = 0;
+#endif
+switch	( c )
+	{
+	#ifdef USE_NOKIA
+	case 'R' : NOKIA_RST_LO(); break;
+	case 'r' : LcdInitialize(); break;
+	case 'x' : x += 1; if ( x > 83 ) x = 0; break;
+	case 'y' : y += 1; if ( y > 5 )  y = 0; break;
+	case 'g' : LcdGotoXY( x, y ); break;
+	case 'c' : LcdClear( 0 ); break;
+	case 'z' : LcdClear( 0x54 ); break;
+	case '>' : LcdSetContrast( ++LCDcontrast ); break;
+	case '<' : LcdSetContrast( --LCDcontrast ); break;
+	#ifdef USE_FLASHY
+	case 'W' : {
+		unsigned short nokcfg1;
+		nokcfg1 = LCDcontrast | ( LCDbias << 8 );
+		flashy_unlock();
+		flashy_page_erase( LAST_FLASH_PAGE );	// derniere page
+		flashy_write_short( LAST_FLASH_PAGE,    nokcfg1 );
+		flashy_write_short( LAST_FLASH_PAGE+2, ~nokcfg1 );
+		flashy_relock();
+		} break;
+	case 'v' : {
+		unsigned int nokcfg = *((unsigned int *)LAST_FLASH_PAGE);
+		snprintf( txbuf2, sizeof(txbuf2), "nokcfg=%08x\n", nokcfg );
+		txindex2 = 0; UART2_TX_INT_enable();
+		} break;
+	case 'V' : {
+		unsigned short nokcfg1, nokcfg2;
+		nokcfg1 = ((__IO uint16_t*)LAST_FLASH_PAGE)[0];
+		nokcfg2 = ((__IO uint16_t*)LAST_FLASH_PAGE)[1];
+		if	( nokcfg2 == ( ~nokcfg1 & 0xFFFF ) )
+			snprintf( txbuf2, sizeof(txbuf2), "verif n=%d V=%03d\n",LCDbias, LCDcontrast );
+		else	snprintf( txbuf2, sizeof(txbuf2), "err %04x %04x\n", ~nokcfg1, nokcfg2 );
+		txindex2 = 0; UART2_TX_INT_enable();
+		} break;
+	#endif
+	case 'n' : LcdNegativeImage(1); break;
+	case 'p' : LcdNegativeImage(0); break;
+	case '0' : LcdWrite( LCD_D, 0 ); break;
+	case '|' : LcdWrite( LCD_D, 0xFF ); break;
+	case '!' :
+		snprintf( LCDbuf, sizeof(LCDbuf), "n=%d V=%03d   ", LCDbias, LCDcontrast );
+		LcdString( LCDbuf, 1 );
+		break;
+	default :
+	if	( ( c >= '1' ) && ( c <= '7' ) )
+		{
+		LCDbias = c - '0';
+		LcdSetBias( LCDbias );
+		}
+	#endif
+	}
+if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
+	{
+	#ifdef USE_NOKIA
+	snprintf( txbuf2, sizeof(txbuf2), "%c n=%d V=%03d [%2d:%d]\n", ((c>=' ')?(c):('?')), LCDbias, LCDcontrast, x, y );
+	txindex2 = 0; UART2_TX_INT_enable();
+	#else
+	switch	( c )
+		{
+		#ifdef USE_LCD2x16
+		case '1' :
+			LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
+			lcd_init();
+			break;
+		case '2' :
+			lcd_clear();
+			break;
+		case '3' :
+			set_cursor( 1, 1 );
+			lcd_print("hello ");
+			break;
+		#endif
+		#ifdef USE_UART3_FM
+		case 'T' : Rx_cmd(0); Tx_cmd(1); break;
+		case 'R' : Tx_cmd(0); Rx_cmd(1); break;
+		case 'S' : Rx_cmd(0); Tx_cmd(0); break;
+		case 'e' : {
+			   char tbuf[20];			//   123456789012345
+			   int size = snprintf( tbuf, sizeof(tbuf), "C'est imposant" );
+			   FM_send( OP_TEST | size, (unsigned char *)tbuf );
+			   } break;
+		case 'f' : {
+			   char tbuf[20];			//   123456789012345
+			   int size = snprintf( tbuf, sizeof(tbuf), "C'est imposant!" );
+			   FM_send( OP_TEST | size, (unsigned char *)tbuf );
+			   } break;
+		case 'A' : break;
+		#endif
+		case '$' :
+			report_interrupts( txbuf2, sizeof(txbuf2) );
+			txindex2 = 0; UART2_TX_INT_enable();
+			break;
+		default:	// simple echo
+			snprintf( txbuf2, sizeof(txbuf2), "%c\n", ((c>=' ')?(c):('?')) );
+			txindex2 = 0; UART2_TX_INT_enable();
+		}
+	#endif
+	}
+}
+#endif
+
+int main(void)
+{
+// Configure the system clock to 64 or 72 MHz according to HSE_EXT
+SystemClock_Config();
+
+// config LED
+gpio_init();
+
+// config systick @ 100Hz
+systick_init( 100 );
+
+#ifdef USE_CDC
+// config UART (interrupt handler doit etre pret!!)
+gpio_uart2_init();
+UART2_init( 9600 );
+#endif
+
+#ifdef USE_UART3_FM
+UART3_init( 9600 );
+gpio_uart3_init();
+Rx_cmd(1);
+#endif
+
+#ifdef USE_PWM
+#include "stm32f1xx_ll_tim.h"
+// #include "pwm.h"
+gpio_timer3_init();
+TIM3_PWM_init( PWM_PERIOD );
+#endif
+
+
+#ifdef USE_NOKIA
+gpio_nokia_init();
+LcdInitialize();
+LcdClear( 0x55 );
+#ifdef USE_FLASHY
+unsigned short nokcfg1, nokcfg2;
+nokcfg1 = ((__IO uint16_t*)LAST_FLASH_PAGE)[0];
+nokcfg2 = ((__IO uint16_t*)LAST_FLASH_PAGE)[1];
+if	( nokcfg2 == ( ~nokcfg1 & 0xFFFF ) )
+	{
+	LCDcontrast = nokcfg1 & 0x7F;	// 40-60 is usually a pretty good range.
+	LCDbias     = nokcfg1 >> 8;
+	}
+#else
+LCDcontrast = 59;	// 40-60 is usually a pretty good range.
+LCDbias = 3;
+#endif
+LcdSetContrast( LCDcontrast );
+LcdSetBias( LCDbias );
+LcdGotoXY( 0, 0 );		// 123456789abc123456789abc
+snprintf( LCDbuf, sizeof(LCDbuf), "C'est ...   imposant !!!" );
+LcdString( LCDbuf, 1 );		// 123456789abcde
+snprintf( LCDbuf, sizeof(LCDbuf), "C'est imposant" );
+LcdString( LCDbuf, 0 );
+LcdGotoXY( 4 * 12, 5 ); LcdString( "1527", 1 );
+LcdString2( 0, 4, "1527" );
+#endif
+
+#ifdef USE_LCD2x16
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
+lcd_init();	// init ne clear pas !
+lcd_clear();
+set_cursor( 0, 0 ); lcd_print("C'est IMPOSANT");
+set_cursor( 6, 1 ); lcd_print("vrai!");
+#endif
+
+// LA GROSSE BOUCLE MAIN LOOP
+while (1)
+ 	{
+	#ifdef GREEN_CPU
+	if	( cnt100Hz > 3000 )
+		{
+		LED_OFF();
+		SCB->SCR = 0;				// avoid deep sleep
+		PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
+		__WFI();	// Wait for Interrupt
+		}
+	else	LED_ON();
+	#endif
+	#ifdef PROF_PB12_EOS
+	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();
+	else					  PB12_PROFIL_1();
+	#endif
+	#ifdef USE_UART3_FM
+	if	( rx_status == 10 )
+		{
+		int op = rxbuf3[0] & 0xF0;
+		int sz = rxbuf3[0] & 0x0F;
+		switch	(op)
+			{
+			case OP_REPORT :
+				if	( sz >= 5 )
+					{
+					int val;
+					switch	( rxbuf3[1] )
+						{
+						case VAR_AMP :
+							val = rxbuf3[2] | ( rxbuf3[3] << 8 ) | ( rxbuf3[4] << 16 ) | ( rxbuf3[4] << 24 );
+							#ifdef USE_CDC
+							snprintf( txbuf2, sizeof(txbuf2), "%d mA\n", val );
+							txindex2 = 0; UART2_TX_INT_enable();
+							#endif
+							#ifdef USE_LCD2x16
+				  			char lcdbuf[16];
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%d mA\n", val );
+				 			set_cursor( 0, 0 ); lcd_print("----------------");
+				  			set_cursor( 0, 0 ); lcd_print( lcdbuf );
+							#endif
+						break;
+						}
+					}
+				break;
+			default:
+				#ifdef USE_CDC
+				snprintf( txbuf2, sizeof(txbuf2), "opcode 0x%02X, ?", rxbuf3[0] );
+				#endif
+				break;
+			}
+		rx_status = 0;
+		}
+	else if	( ( rx_status == 20 ) || ( rx_status == 21 ) || ( rx_status == 22 ) )
+		{
+		#ifdef USE_CDC
+		snprintf( txbuf2, sizeof(txbuf2), "Bad %d\n", rx_status );
+		txindex2 = 0; UART2_TX_INT_enable();
+		#endif
+		#ifdef USE_LCD2x16
+		  set_cursor( 0, 0 ); lcd_print("::::::::::::::::");
+		  set_cursor( 2, 0 ); lcd_print( txbuf2 );
+		#endif
+		rx_status = 0;
+		}
+	#endif
+ 	}
+}
+#endif	// main

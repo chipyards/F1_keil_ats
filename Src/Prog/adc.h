@@ -9,7 +9,7 @@ extern "C" {
 #define ADC1_CH1	LL_ADC_CHANNEL_17	// Vrefint (1.20V +- 4%)
 #define ADC2_CH1	LL_ADC_CHANNEL_8	// PB0 Hall
 
-#define CHANFIR		512		// ordre du FIR de chaque canal
+#define CHANFIR		2000		// ordre du FIR de chaque canal
 #define TOTFIR		(2*CHANFIR)	// cycle complet
 
 // shared global storage
