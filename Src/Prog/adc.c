@@ -264,7 +264,7 @@ while	( !LL_ADC_IsActiveFlag_EOS(ADC1) )
 // --> 17 + 15 = 32 bits pour le num
 // on enleve 4 bits au denom pour un resultat en mA
 int shunt_offset = 0;
-int shunt_iref = 25800; // 4 * 6450
+int shunt_iref = 25313; // theor. 25800; // 4 * 6450
 
 int adc_shunt_mA(void)
 {
@@ -293,7 +293,7 @@ return num / denom;
 // on decide d'enlever 6 bits a diff, et enlever 2 a iref
 // --> 17 + 15 = 32 bits pour le num
 // on enleve 8 bits au denom pour un resultat en mA
-int hall_offset = 2047 * CHANFIR;
+int hall_offset = 2029 * CHANFIR; // theor. 2047 * CHANFIR;
 int hall_iref = 24000; // 96000 / 4
 
 int adc_hall_mA(void)
