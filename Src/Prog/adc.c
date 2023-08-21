@@ -8,6 +8,7 @@
 #include "stm32f1xx_ll_adc.h"
 #include "stm32f1xx_ll_tim.h"
 #include "options.h"
+#include "sys.h"
 
 #include "adc.h"
 
@@ -123,6 +124,8 @@ LL_TIM_EnableIT_UPDATE( TIM3 );
 void adc_timer_stop()
 {
 LL_TIM_DisableIT_UPDATE( TIM3 );
+// tempo 1ms @ 72 MHz
+tickdelay( 72 * 1000 );
 }
 
 
@@ -185,21 +188,6 @@ LL_ADC_REG_SetSequencerRanks( ADC2, LL_ADC_REG_RANK_1, ADC2_CH0 );
 // enable
 LL_ADC_Enable( ADC1 );
 LL_ADC_Enable( ADC2 );
-
-/*
-// reset calibration register 
-ADC_ResetCalibration( ADC1 );
-ADC_ResetCalibration( ADC2 );
-// Check the end of calibration reset
-while ( ADC_GetResetCalibrationStatus(ADC1) ) {}
-while ( ADC_GetResetCalibrationStatus(ADC2) ) {}
-// Start calibration
-ADC_StartCalibration(ADC1);
-ADC_StartCalibration(ADC2);
-// Check the end of ADC calibration
-while ( ADC_GetCalibrationStatus(ADC1) ) {}
-while ( ADC_GetCalibrationStatus(ADC2) ) {}
-*/
 }
 
 // Run calibration on 2 ADCs
@@ -207,14 +195,31 @@ void adc_calib(void)
 {
 // en theorie il faut un delai de 2 ADC clock periods avant et apres la calib
 // Certaines comments disent que l'ADC doit etre disabled avant de calibrer, d'autres disent le contraire !
+  #ifdef PROF_PB12
+  PB12_PROFIL_1();
+  #endif
+// tempo 10 us @ 72 MHz
+tickdelay( 72 * 10 );
+  #ifdef PROF_PB12
+  PB12_PROFIL_0();
+  #endif
+// la calibration
 LL_ADC_StartCalibration(ADC1);
 LL_ADC_StartCalibration(ADC2);
 // la boucle d'attente plante si cette fonction est appelee depuis une interrupt t.q. UART
 while	( ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) || ( LL_ADC_IsCalibrationOnGoing(ADC1) != 0 ) )
 	{ }
+  #ifdef PROF_PB12
+  PB12_PROFIL_1();
+  #endif
+// tempo min 2 cycles
+tickdelay( 8 * 3 );	// 3 cycles ADC ne durent pas plus que 8 Tck puisque le diviseur max est 8
+  #ifdef PROF_PB12
+  PB12_PROFIL_0();
+  #endif
 }
 
-// reset calibration on 2 ADCs N.B. ceci n'est pas supporte par LL !
+// reset calibration on 2 ADCs N.B. ceci est pour tests seulrment, n'est pas supporte par LL !
 void adc_uncalib(void)
 {
 ADC1->CR2 |= ADC_CR2_RSTCAL;
@@ -238,5 +243,65 @@ LL_ADC_REG_StartConversionSWStart(ADC2);
 while	( !LL_ADC_IsActiveFlag_EOS(ADC1) )
 	{}
 //*/
+}
+
+// calcul intensite instantanee selon shunt
+//
+//	i = iref * (shuntP-shuntN)/Vrefint
+//
+//	iref = Vref / ( gain * Rshunt )
+//
+// note 1 : CHANFIR n'a pas d'effet direct sur le resultat (mais sur le risque de debordement, oui),
+// c'est grace a la division par la mesure de VREFINT
+// mais la var. shunt_offset contient l'offset en LSBs multiplie par CHANFIR
+// note 2 : risque de debordement sur numerateur :
+//	- hyp : CHANFIR = 2000 prend 11 bits
+//	  ==> adcx_resy prend 11 + 12 bits signes = 23 bits
+//	- hyp : diff ne prend (quasi) pas plus car une des 2 mesures est calee sur 1/2 echelle
+//	- hyp : iref = 1.2 / ( 220 * 0.845 mOhms ) = 6.45 A soit 6450 mA, prend 13 bits non signes
+// alors le numerateur aurait 36 bits ! il faut en enlever 4
+// on decide d'enlever 6 bits a diff, ajouter 2 a iref pour plus de finesse de calibration
+// --> 17 + 15 = 32 bits pour le num
+// on enleve 4 bits au denom pour un resultat en mA
+int shunt_offset = 0;
+int shunt_iref = 25800; // 4 * 6450
+
+int adc_shunt_mA(void)
+{
+int num = adc2_res0 - adc1_res0 - shunt_offset;
+num >>= 6;			// shuntP-shuntN avec correction offset
+num *= shunt_iref;
+int denom = adc1_res1 >> 4;	// mesure VREFINT
+return num / denom;
+}
+
+// calcul intensite instantanee selon Hall
+//
+//	i = iref * ( Hall - hall_offset )/Vrefint
+//
+//	iref = Vref / Rhall )
+//
+// note 1 : CHANFIR n'a pas d'effet direct sur le resultat (mais sur le risque de debordement, oui),
+// c'est grace a la division par la mesure de VREFINT
+// mais la var. hall_offset contient l'offset en LSBs multiplie par CHANFIR
+// note 2 : risque de debordement sur numerateur :
+//	- hyp : CHANFIR = 2000 prend 11 bits
+//	  ==> adcx_resy prend 11 + 12 bits non signes = 23 bits
+//	- hyp : diff ne prend (quasi) pas plus car hall_offset est cale sur 1/2 echelle
+//	- hyp : iref = 1.2 / ( 12.5 mOhms ) = 96 A soit 96000 mA, prend 17 bits non signes
+// alors le numerateur aurait 40 bits ! il faut en enlever 8
+// on decide d'enlever 6 bits a diff, et enlever 2 a iref
+// --> 17 + 15 = 32 bits pour le num
+// on enleve 8 bits au denom pour un resultat en mA
+int hall_offset = 2047 * CHANFIR;
+int hall_iref = 24000; // 96000 / 4
+
+int adc_hall_mA(void)
+{
+int num = adc2_res1 - hall_offset;
+num >>= 6;			// Hall - hall_offset
+num *= hall_iref;
+int denom = adc1_res1 >> 8;	// mesure VREFINT
+return num / denom;
 }
 

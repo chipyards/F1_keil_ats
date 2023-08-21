@@ -116,6 +116,13 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			snprintf( txbuf2, sizeof(txbuf2), "ADC interrupt halted\n" );
 			txindex2 = 0; UART2_TX_INT_enable();
 			break;
+		case 'C' :
+			adc_timer_stop();
+			adc_calib();
+			adc_timer_init( SystemCoreClock / ADCFREQ );
+			snprintf( txbuf2, sizeof(txbuf2), "Calib. Done\n" );
+			txindex2 = 0; UART2_TX_INT_enable();
+			break;
 		case 'c' :
 			adc_calib();
 			snprintf( txbuf2, sizeof(txbuf2), "calib. done\n" );
@@ -127,7 +134,7 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		case 'r' :
-			adc_timer_init( SystemCoreClock / 2000 );	// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR );
+			adc_timer_init( SystemCoreClock / ADCFREQ );
 			snprintf( txbuf2, sizeof(txbuf2), "ADC interrupt restarted\n" );
 			txindex2 = 0; UART2_TX_INT_enable();
 			break;
@@ -179,34 +186,11 @@ Rx_cmd(1);
 #ifdef USE_ADC_4CH
 // 2 ADCs
 adc_init();
-
-  #ifdef PROF_PB12
-  PB12_PROFIL_1();
-  #endif
-
-// tempo 10 us @ 72 MHz
-tickdelay( 72 * 10 );
-
-  #ifdef PROF_PB12
-  PB12_PROFIL_0();
-  #endif
-
 // la calibration
 adc_calib();
 
-  #ifdef PROF_PB12
-  PB12_PROFIL_1();
-  #endif
-
-// tempo min 2 cycles
-tickdelay( 8 * 3 );	// 3 cycles ADC ne durent pas plus que 8 Tck puisque le diviseur max est 8
-
-  #ifdef PROF_PB12
-  PB12_PROFIL_0();
-  #endif
-
 // configurer le timer TIM3 en timebase (pour interrupts seulement)
-adc_timer_init( SystemCoreClock / 2000 );	// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR
+adc_timer_init( SystemCoreClock / ADCFREQ );	// ADCFREQ/2 samp/s pour chaque canal avant FIR
 #endif	// ADC
 
 // LA GROSSE BOUCLE MAIN LOOP
@@ -230,14 +214,16 @@ while	(1)
 	// emission periodique
 	if	( ( auto_tx_1 ) && ( adc_res_ready == 2 ) )
 		{
+		int val[2];
+		val[0] = adc_shunt_mA();
+		val[1] = adc_hall_mA();
 		#ifdef USE_CDC
-		snprintf( txbuf2, sizeof(txbuf2), "npvhdd %d %d %d %d %d %d\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
-			  ( (int)adc2_res0 - (int)adc1_res0 )/CHANFIR, ( (int)adc2_res1 - (int)adc2_res0 )/CHANFIR );
+		snprintf( txbuf2, sizeof(txbuf2), "npvhdd %d %d %d %d %dmA %dmA\n", adc1_res0/CHANFIR, adc2_res0/CHANFIR, adc1_res1/CHANFIR, adc2_res1/CHANFIR,
+			  val[0], val[1] );
 		txindex2 = 0; UART2_TX_INT_enable();
 		#endif
 		#ifdef USE_UART3_FM
-		unsigned int val = adc2_res1/CHANFIR;
-		FM_send2( OP_REPORT | 5, VAR_AMP, (unsigned char *)&val );
+		FM_send2( OP_REPORT | 9, VAR_AMP, (unsigned char *)val );
 		#endif
 		adc_res_ready = 0;	// acknowledge
 		}
@@ -254,23 +240,32 @@ while	(1)
 					switch	( rxbuf3[1] )
 						{
 						case VAR_AUTO1 :
-							auto_tx_1 = rxbuf3[2];
-							#ifdef USE_CDC
-							snprintf( txbuf2, sizeof(txbuf2), "auto_tx_1 = %d\n", auto_tx_1 );
-							txindex2 = 0; UART2_TX_INT_enable();
-							#endif
+							if	( rxbuf3[2] != auto_tx_1 )	// anti-repeat
+								{
+								auto_tx_1 = rxbuf3[2];
+								if	( auto_tx_1 )
+									{
+									adc_timer_stop();
+									adc_calib();
+									adc_timer_init( SystemCoreClock / ADCFREQ );
+									}
+								#ifdef USE_CDC
+								snprintf( txbuf2, sizeof(txbuf2), "auto_tx_1 = %d\n", auto_tx_1 );
+								txindex2 = 0; UART2_TX_INT_enable();
+								#endif
+								}
 							break;
-						}
-					}
+						} // switch
+					} // if
 				break;
 			default:
 				#ifdef USE_CDC
 				snprintf( txbuf2, sizeof(txbuf2), "opcode 0x%02X, ?", rxbuf3[0] );
 				#endif
 				break;
-			}
+			} // switch
 		rx_status = 0;	// acknowledge
-		}
+		} // if
 	else if	( ( rx_status == 20 ) || ( rx_status == 21 ) || ( rx_status == 22 ) )
 		{
 		#ifdef USE_CDC

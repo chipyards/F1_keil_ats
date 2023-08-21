@@ -9,8 +9,9 @@ extern "C" {
 #define ADC1_CH1	LL_ADC_CHANNEL_17	// Vrefint (1.20V +- 4%)
 #define ADC2_CH1	LL_ADC_CHANNEL_8	// PB0 Hall
 
-#define CHANFIR		2000		// ordre du FIR de chaque canal
+#define CHANFIR		2000		// ordre du FIR de chaque canal, determine la periodicite des resultats
 #define TOTFIR		(2*CHANFIR)	// cycle complet
+#define ADCFREQ		2000		// 2 kHz ==> 1 ksamp/s pour chaque canal avant FIR
 
 // shared global storage
 extern volatile unsigned int fircnt;	// dont 1 lsb pour le canal
@@ -19,6 +20,11 @@ extern volatile unsigned int adc1_res1;	// Vrefint
 extern volatile unsigned int adc2_res0;	// shunt P
 extern volatile unsigned int adc2_res1;	// Hall
 extern volatile int adc_res_ready;	// handshake
+
+extern int shunt_offset;
+extern int shunt_iref;
+extern int hall_offset;
+extern int hall_iref;
 
 // configurer le timer TIM3 en timebase (pour interrupts seulement)
 void adc_timer_init( unsigned int period );
@@ -38,6 +44,9 @@ void adc_uncalib(void);
 // demarrer une conversion de test sur ADC1_CH0 et ADC2_CH0
 void adc_start_conv(void);
 
+// fonctions pour extraire des resultats des adcx_resy
+int adc_shunt_mA(void);
+int adc_hall_mA(void);
 
 #ifdef __cplusplus
 }

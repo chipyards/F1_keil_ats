@@ -307,22 +307,26 @@ while (1)
 			case OP_REPORT :
 				if	( sz >= 5 )
 					{
-					int val;
+					int vals, valh;
 					static unsigned int cnt = 0;
 					switch	( rxbuf3[1] )
 						{
 						case VAR_AMP :
-							val = rxbuf3[2] | ( rxbuf3[3] << 8 ) | ( rxbuf3[4] << 16 ) | ( rxbuf3[4] << 24 );
+							vals = rxbuf3[2] | ( rxbuf3[3] << 8 ) | ( rxbuf3[4] << 16 ) | ( rxbuf3[5] << 24 );
+							valh = rxbuf3[6] | ( rxbuf3[7] << 8 ) | ( rxbuf3[8] << 16 ) | ( rxbuf3[9] << 24 );
 							#ifdef USE_CDC
-							snprintf( txbuf2, sizeof(txbuf2), "%d mA\n", val );
+							snprintf( txbuf2, sizeof(txbuf2), "%d %d mA [%u]\n", vals, valh, cnt );
 							txindex2 = 0; UART2_TX_INT_enable();
 							#endif
 							#ifdef USE_LCD2x16
 				  			char lcdbuf[16];
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "%d mA @%u", val, cnt++ );
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%5d %6d mA", vals, valh );
 				 			set_cursor( 0, 0 ); lcd_print("----------------");
 				  			set_cursor( 0, 0 ); lcd_print( lcdbuf );
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%u  ", cnt );
+				  			set_cursor( 0, 1 ); lcd_print( lcdbuf );
 							#endif
+							cnt++;
 						break;
 						}
 					}
