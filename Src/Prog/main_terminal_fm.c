@@ -308,6 +308,7 @@ while (1)
 				if	( sz >= 5 )
 					{
 					int val;
+					static unsigned int cnt = 0;
 					switch	( rxbuf3[1] )
 						{
 						case VAR_AMP :
@@ -318,7 +319,7 @@ while (1)
 							#endif
 							#ifdef USE_LCD2x16
 				  			char lcdbuf[16];
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "%d mA\n", val );
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%d mA @%u", val, cnt++ );
 				 			set_cursor( 0, 0 ); lcd_print("----------------");
 				  			set_cursor( 0, 0 ); lcd_print( lcdbuf );
 							#endif
@@ -346,7 +347,35 @@ while (1)
 		#endif
 		rx_status = 0;
 		}
-	#endif
+	if	( K1_PRESS() )
+		{
+		#ifdef USE_LCD2x16
+		  set_cursor( 13, 1 ); lcd_print(" K1");
+		#endif
+		if	( ( rx_status < 3 ) && ( tx_status == 0 ) )
+			{
+			unsigned char auto_tx_1 = 0;
+			FM_send2( OP_SET | 2, VAR_AUTO1, &auto_tx_1 );
+			#ifdef USE_LCD2x16
+			set_cursor( 13, 1 ); lcd_print("-K1");
+			#endif
+			}
+		}
+	if	( BLUE_PRESS() )
+		{
+		#ifdef USE_LCD2x16
+		  set_cursor( 13, 1 ); lcd_print(" K2");
+		#endif
+		if	( ( rx_status < 3 ) && ( tx_status == 0 ) )
+			{
+			unsigned char auto_tx_1 = 1;
+			FM_send2( OP_SET | 2, VAR_AUTO1, &auto_tx_1 );
+			#ifdef USE_LCD2x16
+			set_cursor( 13, 1 ); lcd_print("+K2");
+			#endif
+			}
+		}
+	#endif		// UART3_FM
  	}
 }
 #endif	// main

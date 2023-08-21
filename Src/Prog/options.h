@@ -13,8 +13,8 @@
 
 
 // choix du main
-#define MAIN_COULOMB
-//#define MAIN_TERMINAL
+// #define MAIN_COULOMB
+#define MAIN_TERMINAL
 
 // presets
 #ifdef MAIN_COULOMB

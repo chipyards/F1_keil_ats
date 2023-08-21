@@ -7,6 +7,15 @@
 // N.B. LL_GPIO_MODE_FLOATING <==> pas de pull
 //      LL_GPIO_MODE_INPUT    <==> pull up ou down selon ODR
 
+/* N.B. l'option USE_LCD2x16 configure les pins suivantes, en bare metal
+   - DB4 = PC3
+   - DB5 = PC2
+   - DB6 = PC1
+   - DB7 = PC0
+   - E   = PC10
+   - RW  = PC11
+   - RS  = PC12
+*/
 
 void gpio_init(void)
 {
@@ -49,6 +58,12 @@ LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_0, LL_GPIO_MODE_ANALOG );
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_1, LL_GPIO_MODE_ANALOG );
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
 LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_0, LL_GPIO_MODE_ANALOG );
+#else
+#ifdef USE_LCD2x16
+// K1 button act. lo
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_0, LL_GPIO_MODE_INPUT );
+#endif
 #endif
 }
 
