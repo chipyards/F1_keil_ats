@@ -31,6 +31,8 @@ void cmd_handler( char c );
 // contexte global -----------------------------------------------------------
 
 unsigned int cnt100Hz = 0;
+unsigned int amp_timout100Hz;
+
 
 #ifdef USE_NOKIA
 #include "nokia.h"
@@ -75,6 +77,7 @@ void SysTick_Handler()
 			break;
 		}
 	}
+amp_timout100Hz++;
 }
 
 
@@ -277,7 +280,6 @@ LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
 lcd_init();	// init ne clear pas !
 lcd_clear();
 set_cursor( 0, 0 ); lcd_print("C'est IMPOSANT");
-set_cursor( 6, 1 ); lcd_print("vrai!");
 #endif
 
 // LA GROSSE BOUCLE MAIN LOOP
@@ -314,19 +316,26 @@ while (1)
 						case VAR_AMP :
 							vals = rxbuf3[2] | ( rxbuf3[3] << 8 ) | ( rxbuf3[4] << 16 ) | ( rxbuf3[5] << 24 );
 							valh = rxbuf3[6] | ( rxbuf3[7] << 8 ) | ( rxbuf3[8] << 16 ) | ( rxbuf3[9] << 24 );
+							// arrondi de valh a 100 mA
+							int valhabs = ((valh<0)?(-valh):(valh));
+							valhabs +=50;
+							valhabs /= 100;
+							int valhA = valhabs / 10;	// amperes
+							int valhD = valhabs % 10;	// dixiemes
+							if ( valh < 0 ) valhA = -valhA;
 							#ifdef USE_CDC
-							snprintf( txbuf2, sizeof(txbuf2), "%d %d mA [%u]\n", vals, valh, cnt );
+							snprintf( txbuf2, sizeof(txbuf2), "%d %d.%d [%u]\n", vals, valhA, valhD, cnt );
 							txindex2 = 0; UART2_TX_INT_enable();
 							#endif
 							#ifdef USE_LCD2x16
 				  			char lcdbuf[16];
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "%5d %6d mA", vals, valh );
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%5d %d.%d ", vals, valhA, valhD );
 				 			set_cursor( 0, 0 ); lcd_print("----------------");
 				  			set_cursor( 0, 0 ); lcd_print( lcdbuf );
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "%u  ", cnt );
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%u        ", cnt );
 				  			set_cursor( 0, 1 ); lcd_print( lcdbuf );
 							#endif
-							cnt++;
+							cnt++; amp_timout100Hz = 0;
 						break;
 						}
 					}
@@ -350,6 +359,15 @@ while (1)
 		  set_cursor( 2, 0 ); lcd_print( txbuf2 );
 		#endif
 		rx_status = 0;
+		}
+	if	( amp_timout100Hz > 250 )
+		{
+		#ifdef USE_LCD2x16
+		char lcdbuf[16];
+		snprintf( lcdbuf, sizeof(lcdbuf), "no signal " );
+		set_cursor( 0, 1 ); lcd_print( lcdbuf );
+		#endif
+		amp_timout100Hz = 0;
 		}
 	if	( K1_PRESS() )
 		{
