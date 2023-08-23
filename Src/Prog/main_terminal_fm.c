@@ -61,11 +61,22 @@ volatile char rxbyte2;
 #endif
 #endif
 
+#ifdef USE_UART1
+#define QRX1 1024		// a power of 2 !!!
+char rxbuf1[QRX1];
+volatile unsigned int rxwi1=0;	// write index
+volatile unsigned int rxri1=0;	// read index
+// exemple de lecture du fifo  :
+// 	while	( rxwi1 - rxri1 )
+//		{
+//		int c = rxbuf1[(rxri1++)&(QRX-1)];
+//		... }
+#endif
+
 #ifdef USE_GPS
 #include "nmea.h"
 nmea_ctx gps_ctx;		// we allocate the context here, it will have a pointer to the variables
 #define NMEA_CTX (&gps_ctx)
-volatile int GPS_ready = 0;
 #endif
 
 // systick interrupt handler
@@ -235,20 +246,7 @@ if	(
 	( LL_USART_IsEnabledIT_RXNE( USART1 ) )
 	)
 	{
-	#ifdef USE_GPS
-	nmea_proc( NMEA_CTX, LL_USART_ReceiveData8( USART1 ) );
-	if	( NMEA_CTX->status == 42 )
-		{
-		new_sentence( NMEA_CTX );	// remet a zero le parseur mais les variables sont persistantes
-		if	( NMEA_CTX->fourcc == NGGA )
-			GPS_ready = 1;
-		}
-	else if	( NMEA_CTX->status == 43 )
-		{
-		invalidate_sentence( NMEA_CTX );
-		new_sentence( NMEA_CTX );
-		}
-	#endif
+	rxbuf1[(rxwi1++)&(QRX1-1)] = LL_USART_ReceiveData8( USART1 );
 	}
 }
 #endif
@@ -330,7 +328,7 @@ LcdString2( 0, 4, "1527" );
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
 lcd_init();	// init ne clear pas !
 lcd_clear();
-set_cursor( 0, 0 ); lcd_print("C'est IMPOSANT");
+set_cursor( 0, 0 ); lcd_print("C'est imposant");
 #endif
 
 /* test statique *
@@ -407,8 +405,8 @@ while (1)
 							txindex2 = 0; UART2_TX_INT_enable();
 							#endif
 							#ifdef USE_LCD2x16
-				  			char lcdbuf[16];
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "--------------%02d", cnt % 100 );
+				  			char lcdbuf[20];
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "------------- %02d", cnt % 100 );
 				  			set_cursor( 0, 0 ); lcd_print( lcdbuf );
 				  			snprintf( lcdbuf, sizeof(lcdbuf), "%5d %d.%d ", vals, valhA, valhD );
 				 			set_cursor( 0, 0 ); lcd_print( lcdbuf );
@@ -442,7 +440,7 @@ while (1)
 		{
 		#ifdef USE_LCD2x16
 		char lcdbuf[4];
-		snprintf( lcdbuf, sizeof(lcdbuf), "no" );	// no signal !
+		snprintf( lcdbuf, sizeof(lcdbuf), "NS" );	// no signal !
 		set_cursor( 14, 0 ); lcd_print( lcdbuf );
 		#endif
 		amp_timout100Hz = 0;
@@ -477,29 +475,42 @@ while (1)
 		}
 	#endif		// UART3_FM
 	#ifdef USE_GPS
-	if	( GPS_ready )
+	while	( rxwi1 - rxri1 )
 		{
-		int gps_cnt;
-		if	( NMEA_CTX->data[16].stat == 0 )
-			gps_cnt = NMEA_CTX->data[16].val & 63;
-		else	gps_cnt = 0;
-		int raw_knots;
-		if	( NMEA_CTX->data[10].stat == 0 )
-			raw_knots = NMEA_CTX->data[10].val;
-		else	raw_knots = 0;
-		int h,mn,ss;
-		if	( ( NMEA_CTX->data[0].stat == 0 ) && ( NMEA_CTX->data[1].stat == 0 ) && ( NMEA_CTX->data[2].stat == 0 ) )
+		nmea_proc( NMEA_CTX, rxbuf1[(rxri1++)&(QRX1-1)] );
+		if	( NMEA_CTX->status == 43 )
 			{
-			h = NMEA_CTX->data[0].val; mn = NMEA_CTX->data[1].val; ss = NMEA_CTX->data[2].val;
+			invalidate_sentence( NMEA_CTX );
+			new_sentence( NMEA_CTX );
 			}
-		else	h = mn = ss = 0;
-		#ifdef USE_LCD2x16
-		char lcdbuf[16];
-		snprintf( lcdbuf, sizeof(lcdbuf), "%02uh%02umn%d", h, mn, ss  );
-		// snprintf( lcdbuf, sizeof(lcdbuf), "%8d  %02d", raw_knots, gps_cnt );	// number of sats
-		set_cursor( 0, 1 ); lcd_print( lcdbuf );
-		#endif
-		GPS_ready = 0;
+		else if	( NMEA_CTX->status == 42 )
+			{
+			new_sentence( NMEA_CTX );	// remet a zero le parseur mais les variables sont persistantes
+			if	( NMEA_CTX->fourcc == NGGA )
+				{
+				int gps_cnt;
+				if	( NMEA_CTX->data[16].stat == 0 )
+					gps_cnt = NMEA_CTX->data[16].val & 63;
+				else	gps_cnt = 0;
+				int raw_knots;
+				if	( NMEA_CTX->data[10].stat == 0 )
+					raw_knots = NMEA_CTX->data[10].val;
+					else	raw_knots = 0;
+				int h,mn,ss;
+				if	( ( NMEA_CTX->data[0].stat == 0 ) && ( NMEA_CTX->data[1].stat == 0 ) && ( NMEA_CTX->data[2].stat == 0 ) )
+					{
+					h = NMEA_CTX->data[0].val; mn = NMEA_CTX->data[1].val; ss = NMEA_CTX->data[2].val;
+					}
+				else	h = mn = ss = 0;
+				#ifdef USE_LCD2x16
+				char lcdbuf[16];
+				if	( gps_cnt == 0 )
+					snprintf( lcdbuf, sizeof(lcdbuf), "%02uh%02umn%04d", h, mn, ss  );
+				else	snprintf( lcdbuf, sizeof(lcdbuf), "%8d  %02d", raw_knots, gps_cnt );	// number of sats
+				set_cursor( 0, 1 ); lcd_print( lcdbuf );
+				#endif
+				}
+			}
 		}
 	#endif		// GPS
  	}
