@@ -61,6 +61,12 @@ volatile char rxbyte2;
 #endif
 #endif
 
+#ifdef USE_GPS
+#include "nmea.h"
+nmea_ctx gps_ctx;		// we allocate the context here, it will have a pointer to the variables
+#define NMEA_CTX (&gps_ctx)
+volatile int GPS_ready = 0;
+#endif
 
 // systick interrupt handler
 void SysTick_Handler()
@@ -216,6 +222,37 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 }
 #endif
 
+#ifdef USE_UART1
+void USART1_IRQHandler( void )
+{
+if	(
+	( LL_USART_IsActiveFlag_TXE( USART1 ) ) &&
+	( LL_USART_IsEnabledIT_TXE( USART1 ) )
+	)
+	UART1_TX_INT_disable();
+if	(
+	( LL_USART_IsActiveFlag_RXNE( USART1 ) ) &&
+	( LL_USART_IsEnabledIT_RXNE( USART1 ) )
+	)
+	{
+	#ifdef USE_GPS
+	nmea_proc( NMEA_CTX, LL_USART_ReceiveData8( USART1 ) );
+	if	( NMEA_CTX->status == 42 )
+		{
+		new_sentence( NMEA_CTX );	// remet a zero le parseur mais les variables sont persistantes
+		if	( NMEA_CTX->fourcc == NGGA )
+			GPS_ready = 1;
+		}
+	else if	( NMEA_CTX->status == 43 )
+		{
+		invalidate_sentence( NMEA_CTX );
+		new_sentence( NMEA_CTX );
+		}
+	#endif
+	}
+}
+#endif
+
 int main(void)
 {
 // Configure the system clock to 64 or 72 MHz according to HSE_EXT
@@ -237,6 +274,20 @@ UART2_init( 9600 );
 UART3_init( 9600 );
 gpio_uart3_init();
 Rx_cmd(1);
+#endif
+
+#ifdef USE_GPS
+nmea_ctx gps_ctx;		// we allocate the context here, it has a pointer to the variables
+#define NMEA_CTX (&gps_ctx)
+//gps_var gps_vars[QVAR];	// we allocate the variables here
+//NMEA_CTX->data = gps_vars; 	// then we make the context aware of it
+gps_var_init( NMEA_CTX );	// we initialize the variables we are interested in
+new_sentence( NMEA_CTX);
+#endif
+
+#ifdef USE_UART1
+UART1_init( 9600 );
+gpio_uart1_init();
 #endif
 
 #ifdef USE_PWM
@@ -282,6 +333,34 @@ lcd_clear();
 set_cursor( 0, 0 ); lcd_print("C'est IMPOSANT");
 #endif
 
+/* test statique *
+#include <string.h>
+const char * testbuf = "$GNGGA,184941.00,4332.71767,N,00129.26376,E,1,05,5.02,135.7,M,48.6,M,,*41";
+new_sentence(NMEA_CTX);
+for	( unsigned int i = 0; i < strlen(testbuf); i++ )
+	{
+	nmea_proc( NMEA_CTX, testbuf[i] );
+	if	( NMEA_CTX->status == 42 )
+		{
+		int h,mn,ss;
+		if	( ( NMEA_CTX->data[0].stat == 0 ) && ( NMEA_CTX->data[1].stat == 0 ) && ( NMEA_CTX->data[2].stat == 0 ) )
+			{
+			h = NMEA_CTX->data[0].val; mn = NMEA_CTX->data[1].val; ss = NMEA_CTX->data[2].val;
+			}
+		else	h = mn = ss = 0;
+		int gps_cnt;
+		if	( NMEA_CTX->data[16].stat == 0 )
+			gps_cnt = NMEA_CTX->data[16].val & 63;
+		else	gps_cnt = 0;
+		#ifdef USE_LCD2x16
+		char lcdbuf[16];
+		snprintf( lcdbuf, sizeof(lcdbuf), "%02uh%02umn%d, %02d", h, mn, ss, gps_cnt  );
+		// snprintf( lcdbuf, sizeof(lcdbuf), "%8d  %02d", raw_knots, gps_cnt );	// number of sats
+		set_cursor( 0, 1 ); lcd_print( lcdbuf );
+		#endif
+		}
+	}
+//*/
 // LA GROSSE BOUCLE MAIN LOOP
 while (1)
  	{
@@ -329,11 +408,10 @@ while (1)
 							#endif
 							#ifdef USE_LCD2x16
 				  			char lcdbuf[16];
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "%5d %d.%d ", vals, valhA, valhD );
-				 			set_cursor( 0, 0 ); lcd_print("----------------");
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "--------------%02d", cnt % 100 );
 				  			set_cursor( 0, 0 ); lcd_print( lcdbuf );
-				  			snprintf( lcdbuf, sizeof(lcdbuf), "%u        ", cnt );
-				  			set_cursor( 0, 1 ); lcd_print( lcdbuf );
+				  			snprintf( lcdbuf, sizeof(lcdbuf), "%5d %d.%d ", vals, valhA, valhD );
+				 			set_cursor( 0, 0 ); lcd_print( lcdbuf );
 							#endif
 							cnt++; amp_timout100Hz = 0;
 						break;
@@ -363,9 +441,9 @@ while (1)
 	if	( amp_timout100Hz > 250 )
 		{
 		#ifdef USE_LCD2x16
-		char lcdbuf[16];
-		snprintf( lcdbuf, sizeof(lcdbuf), "no signal " );
-		set_cursor( 0, 1 ); lcd_print( lcdbuf );
+		char lcdbuf[4];
+		snprintf( lcdbuf, sizeof(lcdbuf), "no" );	// no signal !
+		set_cursor( 14, 0 ); lcd_print( lcdbuf );
 		#endif
 		amp_timout100Hz = 0;
 		}
@@ -398,6 +476,32 @@ while (1)
 			}
 		}
 	#endif		// UART3_FM
+	#ifdef USE_GPS
+	if	( GPS_ready )
+		{
+		int gps_cnt;
+		if	( NMEA_CTX->data[16].stat == 0 )
+			gps_cnt = NMEA_CTX->data[16].val & 63;
+		else	gps_cnt = 0;
+		int raw_knots;
+		if	( NMEA_CTX->data[10].stat == 0 )
+			raw_knots = NMEA_CTX->data[10].val;
+		else	raw_knots = 0;
+		int h,mn,ss;
+		if	( ( NMEA_CTX->data[0].stat == 0 ) && ( NMEA_CTX->data[1].stat == 0 ) && ( NMEA_CTX->data[2].stat == 0 ) )
+			{
+			h = NMEA_CTX->data[0].val; mn = NMEA_CTX->data[1].val; ss = NMEA_CTX->data[2].val;
+			}
+		else	h = mn = ss = 0;
+		#ifdef USE_LCD2x16
+		char lcdbuf[16];
+		snprintf( lcdbuf, sizeof(lcdbuf), "%02uh%02umn%d", h, mn, ss  );
+		// snprintf( lcdbuf, sizeof(lcdbuf), "%8d  %02d", raw_knots, gps_cnt );	// number of sats
+		set_cursor( 0, 1 ); lcd_print( lcdbuf );
+		#endif
+		GPS_ready = 0;
+		}
+	#endif		// GPS
  	}
 }
 #endif	// main

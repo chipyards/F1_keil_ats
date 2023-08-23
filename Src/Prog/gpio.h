@@ -16,7 +16,7 @@
 void gpio_init(void);
 void gpio_timer3_init(void);
 
-// void gpio_uart1_init(void);
+void gpio_uart1_init(void);
 void gpio_uart2_init(void);
 void gpio_uart3_init(void);
 void Tx_cmd( int on );

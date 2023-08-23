@@ -120,7 +120,7 @@ LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_MEDIUM);
 }
 #endif
 
-/* initialiser GPIO pour UART1 *
+/* initialiser GPIO pour UART1 */
 void gpio_uart1_init(void)
 {
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );

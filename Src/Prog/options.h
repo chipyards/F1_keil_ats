@@ -13,8 +13,8 @@
 
 
 // choix du main
-#define MAIN_COULOMB
-// #define MAIN_TERMINAL
+// #define MAIN_COULOMB
+#define MAIN_TERMINAL
 
 // presets
 #ifdef MAIN_COULOMB
@@ -54,6 +54,9 @@
 // #define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)
 #define USE_UART3_FM
 #define USE_LCD2x16
+
+#define USE_UART1
+#define USE_GPS
 
 #endif
 

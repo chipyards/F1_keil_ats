@@ -1,3 +1,6 @@
+#include "options.h"
+#ifdef USE_UART3_FM
+
 #include "stm32f1xx_ll_usart.h"
 #include "gpio.h"
 #include "uarts.h"
@@ -200,3 +203,4 @@ while	( paycnt )
 tx_status = 1;
 UART3_TX_INT_enable();
 }
+#endif
