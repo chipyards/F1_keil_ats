@@ -14,7 +14,28 @@
 
 // choix du main
 // #define MAIN_COULOMB
-#define MAIN_TERMINAL
+// #define MAIN_TERMINAL
+#define MAIN_GENERIC
+
+#ifdef MAIN_GENERIC
+
+// nous sommes dans la branche blue_pill, c'est blue pill par defaut
+#define NUCLEO
+// #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
+
+// pour eviter brick, SLEEP n'est effectif qu'apres 10s depuis reset
+#define GREEN_CPU
+
+// modules optionnels
+#define USE_CDC
+// #define USE_ADC_4CH	// uses TIM3
+// #define USE_PWM	// uses TIM3, retired for the moment
+// #define USE_NOKIA	// implies SPI1 remap or AF 5
+// #define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)
+// #define USE_UART3_FM
+// #define USE_LCD2x16
+
+#endif
 
 // presets
 #ifdef MAIN_COULOMB

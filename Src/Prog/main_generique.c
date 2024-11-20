@@ -1,13 +1,6 @@
-/* prog OBSOLETE pour emettre ou recevoir des messages en FM 433 MHz, taille variable, pas de delimiteur, contenu arbitraire
-- emission :
-	- payload de test : op 0x00 : 32 bit en binaire, op 0x10 : 32 bits hex en ascii (0 a 8 digits) ou texte <= 14 char
-	- emission periodique (3s) si autoTx = 1, ou emission manuelle via CDC
-	  compiler sans USE_LCD2x16 demarre avec autoTx = 1 pour tester un emetteur autonome
-- reception :
-	- reset avec bouton bleu ou compiler avec USE_LCD2x16 : reception permanente meme pendant emission
-	  ==> relecture possible (works ok)
-	- message transfere vers CDC (ascii) et LCD2x16 si existe
+/* prog pour evaluer Qfplib-M3 : soft float maths
  */
+
 #include "options.h"
 #ifdef MAIN_GENERIC
 /* Includes ------------------------------------------------------------------*/
@@ -16,7 +9,8 @@
 #include "stm32f1xx_ll_system.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_usart.h"
-#include "stm32f1xx_ll_adc.h"
+
+#include "qfplib-m3.h"
 
 #include "sys.h"
 #include "gpio.h"
@@ -29,6 +23,7 @@
 #endif
 
 #ifdef USE_ADC_4CH
+#include "stm32f1xx_ll_adc.h"
 #include "adc.h"
 #endif
 
@@ -41,7 +36,7 @@ void cmd_handler( char c );
 
 // contexte global -----------------------------------------------------------
 
-unsigned int cnt100Hz = 0;
+volatile unsigned int cnt100Hz = 0;
 
 #ifdef USE_NOKIA
 #include "nokia.h"
@@ -82,7 +77,7 @@ int autoTx = 1;
 void SysTick_Handler()
 {
 ++cnt100Hz;
-/* LED blinks
+/* LED blinks */
 	{
 	switch	( cnt100Hz % 100 )
 		{
@@ -94,7 +89,7 @@ void SysTick_Handler()
 			break;
 		}
 	}
-*/
+//*/
 // log periodique
 #ifdef USE_UART3_FM
 if	( autoTx )
@@ -312,6 +307,16 @@ if	( !LL_USART_IsEnabledIT_TXE( USART2 ) )
 			txindex2 = 0; UART2_TX_INT_enable();
 			break;
 		#endif
+		case 'a' : {
+			float a = 1.0; float b = 0.001;
+			float c = qfp_fadd( a, b );
+			float d = qfp_fmul( c, 1000000.0 );
+			d = qfp_fln( d );
+			d = qfp_fmul( d, 100000000.0 );
+			int id = (int)d;	// 138165100
+			snprintf( txbuf2, sizeof(txbuf2), "%g + %g = %.6f, %d\n", a, b, c, id );
+			txindex2 = 0; UART2_TX_INT_enable();
+			} break;
 		case '$' :
 			report_interrupts( txbuf2, sizeof(txbuf2) );
 			txindex2 = 0; UART2_TX_INT_enable();
@@ -434,14 +439,14 @@ set_cursor( 6, 1 ); lcd_print("vrai!");
 while (1)
  	{
 	#ifdef GREEN_CPU
-	if	( cnt100Hz > 3000 )
-		{
-		LED_OFF();
+	if	( cnt100Hz < (10*100) )
+		LED_ON();	// continuous light indicating safe to debug
+	else	{
+		// LED_OFF(); 	// LED blinks indicating green mode
 		SCB->SCR = 0;				// avoid deep sleep
 		PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
 		__WFI();	// Wait for Interrupt
 		}
-	else	LED_ON();
 	#endif
 	#ifdef PROF_PB12_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();

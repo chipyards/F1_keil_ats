@@ -328,7 +328,7 @@ LcdString2( 0, 4, "1527" );
 LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
 lcd_init();	// init ne clear pas !
 lcd_clear();
-set_cursor( 0, 0 ); lcd_print("C'est imposant");
+set_cursor( 0, 0 ); lcd_print("Ready");
 #endif
 
 /* test statique *
@@ -505,8 +505,8 @@ while (1)
 				#ifdef USE_LCD2x16
 				char lcdbuf[16];
 				if	( gps_cnt == 0 )
-					snprintf( lcdbuf, sizeof(lcdbuf), "%02uh%02umn%04d", h, mn, ss  );
-				else	snprintf( lcdbuf, sizeof(lcdbuf), "%8d  %02d", raw_knots, gps_cnt );	// number of sats
+					snprintf( lcdbuf, sizeof(lcdbuf), "%02uh%02u\"%04d ", h, mn, ss  );
+				else	snprintf( lcdbuf, sizeof(lcdbuf), "%05dk %02dsat", raw_knots, gps_cnt );	// number of sats
 				set_cursor( 0, 1 ); lcd_print( lcdbuf );
 				#endif
 				}
