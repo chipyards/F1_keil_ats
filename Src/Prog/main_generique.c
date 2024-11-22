@@ -18,6 +18,7 @@
 #include "uarts.h"
 #include "CDC.h"
 #include <stdio.h>	// pour snprintf
+#include "skysplit.h"
 
 #ifdef USE_LCD2x16
 #include "LCD2x16.h"
@@ -248,33 +249,9 @@ switch	( c )
 		break;
 	#endif
 	case 'a' : {
-		float a = 1.0; float b = 0.001;
-		float c = qfp_fadd( a, b );
-		CDC_printf("%g + %g = %.6f\n", a, b, c );
-		float d = qfp_fmul( c, 1000000.0 );
-		d = qfp_fln( d );
-		CDC_printf("%g %.8f\n", d, d );
-		float e = qfp_fexp( d );
-		CDC_printf("%g %.8f\n", e, e );
-		d = qfp_fmul( d, 100000000.0 );
-		int id = (int)d;	// 138165100
-		CDC_printf("%d\n", id );
-
+		test_unitaire();
 		} break;
 	case 'b' : {
-		float a45 = qfp_fatan2( -0.5, 0.5 );
-		float lepi = qfp_fmul( a45, 4.0 );
-		CDC_printf("%g %.8f\n", a45, lepi );
-		float s = qfp_fsin( a45 );
-		float c = qfp_fcos( a45 );
-		CDC_printf("%.8f %.8f\n", s, c );
-		s = qfp_fsqrt(0.75);
-		// on veut asin( s ), on haque
-		c = qfp_fsqrt( qfp_fadd( 1.0, -qfp_fmul( s, s ) ) );
-		CDC_printf("%.8f %.8f\n", s, c );
-		float a = qfp_fatan2( s, c );
-		lepi = qfp_fmul( a, 3.0 );
-		CDC_printf("%.8f %.8f\n", a, lepi );
 		} break;
 	case '$' :
 		report_interrupts();
