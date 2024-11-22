@@ -10,7 +10,7 @@ void tickdelay( unsigned int tickd );
 // creer un report dans le buffer
 // N.B. pour avoir la correspondance numero <--> perif , voir IRQn_Type
 // F103 : UARTS 1,2,3 : 37, 38, 39; TIM 2, 3, 4 : 28, 29, 30
-void report_interrupts( char * tbuf, int size );
+void report_interrupts();
 
 // System Clock Configuration selon options
 void SystemClock_Config(void);

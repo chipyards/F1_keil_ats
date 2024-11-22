@@ -3,7 +3,7 @@
 #include "stm32f1xx_ll_system.h"
 #include "options.h"
 #include "sys.h"
-#include <stdio.h>	// pour snprintf
+#include "CDC.h"	// pour snprintf
 
 // systick avec interrupt
 // ATTENTION SysTick_Handler() doit etre defini quelque part
@@ -42,22 +42,20 @@ do	{				// diff c'est le temps restant a attendre
 	} while ( diff > 0 );
 }
 
-// creer un report dans le buffer
+// creer un report
 // N.B. pour avoir la correspondance numero <--> perif , voir IRQn_Type
 // F103 : UARTS 1,2,3 : 37, 38, 39; TIM 2, 3, 4 : 28, 29, 30
-void report_interrupts( char * tbuf, int size )
+void report_interrupts()
 {
-int i, p, space, j;
+int i, p;
 p = __NVIC_GetPriorityGrouping();
-j = snprintf( tbuf, size, "P.G. %d\n", p );
+CDC_printf("P.G. %d\n", p );
 // special systick (#-1)
 i = -1;
 if	(  SysTick->CTRL & SysTick_CTRL_TICKINT_Msk )
 	{
 	p = __NVIC_GetPriority((IRQn_Type)i);
-	space = size - j;
-	if	( space > 0 )
-		j += snprintf( tbuf+j, space, "i #%2d, p %d\n", i, p );
+	CDC_printf("i #%2d, p %d\n", i, p );
 	}
 // tous les autres
 for	( i = 0; i <=  97; ++i )
@@ -65,9 +63,7 @@ for	( i = 0; i <=  97; ++i )
 	if	( __NVIC_GetEnableIRQ((IRQn_Type)i) )
 		{
 		p = __NVIC_GetPriority((IRQn_Type)i);
-		space = size - j;
-		if	( space > 0 )
-			j += snprintf( tbuf+j, space, "i #%2d, p %d\n", i, p );
+		CDC_printf("i #%2d, p %d\n", i, p );
 		}
 	}
 }
