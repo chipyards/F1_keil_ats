@@ -75,50 +75,79 @@ float cap2head( float c ) {
 	return h;
 	}
 
-/*
+void autopilot_init( autopilot *AP ) {
+	AP->x = 0.0f;
+        AP->y = 0.0f;
+        AP->v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots
+        AP->vx = AP->v;
+        AP->vy = 0.0;
+        AP->cap = 0.0;		// radian, repere trigo
+        AP->w = 0.0;			// taux de virage en rad/s, signed
+        AP->w3 = qfp_fmul( ToRadians, 3 );	// 3 deg/s
+        AP->r3 = qfp_fdiv( AP->v, AP->w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+	}
+
 // route depuis le point courant et le cap courant: virage puis segment
-float angletoXY( autopilot AP, float xb, float yb ) {
+float angletoXY( autopilot *AP, float xb, float yb ) {
 // decider de quel cote tourner : cap approximatif
 	//float capro = Math.atan2( yb - y, xb - x );
-	float capro = qfp_fatan2( qfp_fsub( yb, AP.y ), qfp_fsub( xb, AP.x ) );
+	float capro = qfp_fatan2( qfp_fsub( yb, AP->y ), qfp_fsub( xb, AP->x ) );
 	//float dcapro = limit_cap( capro - cap );
-	float dcapro = limit_cap( qfp_fsub( capro, cap ) );
+	float dcapro = limit_cap( qfp_fsub( capro, AP->cap ) );
 	//System.out.println( "capro=" + cap2head( capro ) + ", dcapro=" + cap2head( dcapro ) );
-	CDCprintf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
+	CDC_printf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
 	// ici le signe de dcapro indique le sens du virage
 	// chercher le centre C de l'arc de cercle
 	float xc, yc;
 	if	( dcapro > 0 )
 		{	// C a gauche
 	//	xc = x - r3 * Math.sin(cap);
+		xc = qfp_fsub( AP->x, qfp_fmul( AP->r3, qfp_fsin( AP->cap ) ) );
 	//	yc = y + r3 * Math.cos(cap);
-		w = w3;
+		yc = qfp_fadd( AP->y, qfp_fmul( AP->r3, qfp_fcos( AP->cap ) ) );
+		AP->w = AP->w3;
 		}
 	else	{	// C a droite
 	//	xc = x + r3 * Math.sin(cap);
+		xc = qfp_fadd( AP->x, qfp_fmul( AP->r3, qfp_fsin( AP->cap ) ) );
 	//	yc = y - r3 * Math.cos(cap);
-		w = -w3;
+		yc = qfp_fsub( AP->y, qfp_fmul( AP->r3, qfp_fcos( AP->cap ) ) );
+		AP->w = -AP->w3;
 		}
-	System.out.println( "C " + xc + " " + yc );
+	// System.out.println( "C " + xc + " " + yc );
+	CDC_printf( "C %.5f %.5f\n", xc, yc );
 	// distance de C a B (B = destination finale)
 	float dx, dy;
 	//dx = xb - xc; dy = yb - yc;
+	dx = qfp_fsub( xb, xc ); dy = qfp_fsub( yb, yc );
 	//float modcb = Math.sqrt( dx * dx + dy * dy );
-	System.out.println( "|CB| " + modcb );
-	//if	( modcb < r3 )	// si D est dans le cercle, on ne sait pas faire
-		{ System.out.println("too close, giving up"); return; }
+	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) ); 
+	//System.out.println( "|CB| " + modcb );
+	CDC_printf( "|CB| %.5f\n", modcb );
+	if	( modcb < AP->r3 )	// si D est dans le cercle, on ne sait pas faire
+	//	{ System.out.println("too close, giving up"); return; }
+		{ CDC_printf("too close, giving up\n"); return AP->cap; }
 	// angle CBD (D = fin virage), non signé et aigu
 	//float cbd = Math.asin( r3 / modcb );
-	System.out.println( "CBD " + Math.toDegrees(cbd) );
+	float lesin = qfp_fdiv( AP->r3, modcb );
+	float lecos = qfp_fsqrt( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) );
+	float cbd = qfp_fatan2( lesin, lecos );
+	//System.out.println( "CBD " + Math.toDegrees(cbd) );
+	CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
 	// argument de CB
 	//float argcb = Math.atan2( yb - yc, xb - xc );
-	System.out.println( "arg CB " + cap2head(argcb) );
+	float argcb = qfp_fatan2( qfp_fsub( yb, yc ), qfp_fsub( xb, xc ) );
+	//System.out.println( "arg CB " + cap2head(argcb) );
+	CDC_printf( "arg CB %.5f\n", cap2head(argcb) );
 	// cap exact
-	//float cape;
-	//if	( dcapro > 0 )
+	float cape;
+	if	( dcapro > 0 )
 	//	cape = argcb + cbd;
+		cape = qfp_fadd( argcb, cbd );
 	//else	cape = argcb - cbd;
-	System.out.println( "cap exact " + cap2head(cape) );
+	else	cape = qfp_fsub( argcb, cbd );
+	//System.out.println( "cap exact " + cap2head(cape) );
+	CDC_printf( "cap exact %.5f\n", cap2head(cape) );
 	return cape;
 	}
-*/
+

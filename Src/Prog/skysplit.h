@@ -4,14 +4,14 @@
 
 typedef struct {
 	double x;
-	double y0;
-	double v;		// vitesse en Nm/s 0.1 <==> 360 knots
+	double y;
+	double v;	// vitesse en Nm/s 0.1 <==> 360 knots
 	double vx;
 	double vy;
 	double cap;	// radian, repere trigo
-	double w;		// taux de virage en rad/s, signed
-//	double w3 = Math.toRadians(3);	// 3 deg/s
-//	double r3 = v / w3;	// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+	double w;	// taux de virage en rad/s, signed
+	double w3;	// 3 deg/s
+	double r3;	// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
 } autopilot;
 
 
@@ -25,3 +25,6 @@ float limit_cap( float c );
 //	cap en radian dans ] -PI/2, +PI/2 ]
 float head2cap( float h );
 float cap2head( float c );
+
+void autopilot_init( autopilot *AP );
+float angletoXY( autopilot *AP, float xb, float yb );
