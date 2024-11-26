@@ -3,19 +3,20 @@
 #define ToDegrees ((float)(180.0/PI))
 
 typedef struct {
-	double x;
-	double y;
-	double v;	// vitesse en Nm/s 0.1 <==> 360 knots
-	double vx;
-	double vy;
-	double cap;	// radian, repere trigo
-	double w;	// taux de virage en rad/s, signed
-	double w3;	// 3 deg/s
-	double r3;	// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+	float x;
+	float y;
+	float v;	// vitesse en Nm/s 0.1 <==> 360 knots
+	float vx;
+	float vy;
+	float cap;	// radian, repere trigo
+	float w;	// taux de virage en rad/s, signed
+	float w3;	// 3 deg/s
+	float r3;	// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
 } autopilot;
 
 
-void test_unitaire();
+void test_a();
+void test_b();
 
 // ramener cap dans ] -PI/2, +PI/2 ]
 float limit_cap( float c );

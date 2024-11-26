@@ -22,6 +22,11 @@ NVIC_SetPriority( SysTick_IRQn, 7 );
 SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_ENABLE_Msk;
 }
 
+// disable systick interrupt
+void systick_no_interrupt()
+{
+SysTick->CTRL &= (~SysTick_CTRL_TICKINT_Msk);
+}
 
 // temporisation base sur systick
 // unites en periodes d'horloge du timer ( HCLK ou HCLK/8 )

@@ -21,7 +21,7 @@
 
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
 #define NUCLEO
-// #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
+#define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
 // pour eviter brick, SLEEP n'est effectif qu'apres 10s depuis reset
 #define GREEN_CPU

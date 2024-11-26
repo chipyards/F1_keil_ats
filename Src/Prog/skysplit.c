@@ -2,8 +2,11 @@
 #include "qfplib-m3.h"
 #include "skysplit.h"
 #include "CDC.h"
+#include "prof_tick.h"
 
-void test_unitaire() {
+DTICK_VARS
+
+void test_a() {
 /*
 float a = qfp_fadd( 1.0f, PI );
 float b = -a;
@@ -89,13 +92,14 @@ void autopilot_init( autopilot *AP ) {
 
 // route depuis le point courant et le cap courant: virage puis segment
 float angletoXY( autopilot *AP, float xb, float yb ) {
-// decider de quel cote tourner : cap approximatif
+	DTICK_BEGIN();
+	// decider de quel cote tourner : cap approximatif
 	//float capro = Math.atan2( yb - y, xb - x );
 	float capro = qfp_fatan2( qfp_fsub( yb, AP->y ), qfp_fsub( xb, AP->x ) );
 	//float dcapro = limit_cap( capro - cap );
 	float dcapro = limit_cap( qfp_fsub( capro, AP->cap ) );
 	//System.out.println( "capro=" + cap2head( capro ) + ", dcapro=" + cap2head( dcapro ) );
-	CDC_printf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
+	// CDC_printf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
 	// ici le signe de dcapro indique le sens du virage
 	// chercher le centre C de l'arc de cercle
 	float xc, yc;
@@ -115,7 +119,7 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 		AP->w = -AP->w3;
 		}
 	// System.out.println( "C " + xc + " " + yc );
-	CDC_printf( "C %.5f %.5f\n", xc, yc );
+	// CDC_printf( "C %.5f %.5f\n", xc, yc );
 	// distance de C a B (B = destination finale)
 	float dx, dy;
 	//dx = xb - xc; dy = yb - yc;
@@ -123,7 +127,7 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 	//float modcb = Math.sqrt( dx * dx + dy * dy );
 	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) ); 
 	//System.out.println( "|CB| " + modcb );
-	CDC_printf( "|CB| %.5f\n", modcb );
+	// CDC_printf( "|CB| %.5f\n", modcb );
 	if	( modcb < AP->r3 )	// si D est dans le cercle, on ne sait pas faire
 	//	{ System.out.println("too close, giving up"); return; }
 		{ CDC_printf("too close, giving up\n"); return AP->cap; }
@@ -133,12 +137,12 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 	float lecos = qfp_fsqrt( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) );
 	float cbd = qfp_fatan2( lesin, lecos );
 	//System.out.println( "CBD " + Math.toDegrees(cbd) );
-	CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
+	// CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
 	// argument de CB
 	//float argcb = Math.atan2( yb - yc, xb - xc );
 	float argcb = qfp_fatan2( qfp_fsub( yb, yc ), qfp_fsub( xb, xc ) );
 	//System.out.println( "arg CB " + cap2head(argcb) );
-	CDC_printf( "arg CB %.5f\n", cap2head(argcb) );
+	// CDC_printf( "arg CB %.5f\n", cap2head(argcb) );
 	// cap exact
 	float cape;
 	if	( dcapro > 0 )
@@ -147,7 +151,36 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 	//else	cape = argcb - cbd;
 	else	cape = qfp_fsub( argcb, cbd );
 	//System.out.println( "cap exact " + cap2head(cape) );
-	CDC_printf( "cap exact %.5f\n", cap2head(cape) );
+	// CDC_printf( "cap exact %.5f\n", cap2head(cape) );
+	DTICK_END();
 	return cape;
+	}
+
+void test_b() {
+	autopilot APilot;
+	autopilot_init( &APilot );
+
+	APilot.x = 5.0f; APilot.y = 0.0f;		// cycles	// @ 8 MHz	@ 72 MHz
+
+	APilot.cap = angletoXY( &APilot, -5.0f, -1.0f );		// 1495		2279
+	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
+	APilot.x = -5.0f; APilot.y = -1.0f;
+
+	APilot.cap = angletoXY( &APilot, 10.0f, -6.0f );		// 1855		2811
+	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
+	APilot.x = 10.0f; APilot.y = -6.0f;
+
+	APilot.cap = angletoXY( &APilot, 10.0f, 5.0f );			// 1640		2462
+	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
+	APilot.x = 10.0f; APilot.y = 5.0f;
+
+	APilot.cap = angletoXY( &APilot, 0.0f, 5.0f );			// 1618		2435
+	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
+	APilot.x = 0.0f; APilot.y = 5.0f;
+
+	APilot.cap = angletoXY( &APilot, -30.0f, 0.0f );		// 1721		2621
+	// attendu cap 260.53827
+	CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
+	CDC_printf( "dtick = %d\n", dtick );
 	}
 

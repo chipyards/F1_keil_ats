@@ -249,27 +249,13 @@ switch	( c )
 		break;
 	#endif
 	case 'a' : {
-		test_unitaire();
+		test_a();
 		} break;
 	case 'b' : {
-		autopilot APilot;
-		autopilot_init( &APilot );
-
-		APilot.x = 5.0f; APilot.y = 0.0f;
-
-		APilot.cap = angletoXY( &APilot, -5.0f, -1.0f );
-		APilot.x = -5.0f; APilot.y = -1.0f;
-
-		APilot.cap = angletoXY( &APilot, 10.0f, -6.0f );
-		APilot.x = 10.0f; APilot.y = -6.0f;
-
-		APilot.cap = angletoXY( &APilot, 10.0f, 5.0f );
-		APilot.x = 10.0f; APilot.y = 5.0f;
-
-		APilot.cap = angletoXY( &APilot, 0.0f, 5.0f );
-		APilot.x = 0.0f; APilot.y = 5.0f;
-
-		APilot.cap = angletoXY( &APilot, -30.0f, 0.0f );
+		test_b();
+		} break;
+	case 'B' : {
+		systick_no_interrupt(); test_b();
 		} break;
 	case '$' :
 		report_interrupts();
