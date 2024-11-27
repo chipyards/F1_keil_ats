@@ -12,6 +12,11 @@
 
 #include "adc.h"
 
+#ifdef PROF_PB12
+#include "stm32f1xx_ll_gpio.h"
+#include "gpio.h"
+#endif
+
 // shared global storage
 volatile unsigned int fircnt = 0;		// dont 1 lsb pour selection du canal
 volatile unsigned int adc1_res0 = 0;

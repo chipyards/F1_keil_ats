@@ -34,6 +34,10 @@
 .global qfp_ftan
 .global qfp_fatan2
 
+@JLN stuff
+.global jfp_fabs
+.global jfp_fsgn
+
 
 @ This macro loads a 32-bit constant n into register rx.
 
@@ -2574,5 +2578,18 @@ qfp_fatan2:
  add r0,r1,r0,lsl#2       @ add pi/2
  atan_s1 0x17e
 
+.section .text.jfp.fsgnfabs,"ax",%progbits
+
+.balign 4
 .thumb_func
+jfp_fsgn:
+ lsr r0,r0,#31
+ bx r14
+
+.balign 4
+.thumb_func
+jfp_fabs:
+ and r0,r0,#0x7fffffff
+ bx r14
+
 qfplib_end:

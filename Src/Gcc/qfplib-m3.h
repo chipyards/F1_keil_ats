@@ -34,6 +34,9 @@ extern float qfp_fsin(float x);
 extern float qfp_fcos(float x);
 extern float qfp_ftan(float x);
 extern float qfp_fatan2(float y,float x);
+// JLN stuff
+extern float jfp_fabs(float x);
+extern int   jfp_fsgn(float x);
 
 #ifdef __cplusplus
   } // extern "C"

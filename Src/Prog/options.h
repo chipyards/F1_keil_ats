@@ -1,6 +1,6 @@
 
 // profilage
-#define PROF_PB12
+// #define PROF_PB12
 // #define PROF_PB12_EOS	// ADC End Of Sequence
 
 // osc. modes :
