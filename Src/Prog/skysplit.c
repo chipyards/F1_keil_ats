@@ -1,10 +1,17 @@
 // simulation du pilote automatique: calcul de trajectoire
 #include "qfplib-m3.h"
+#include "options.h"
 #include "skysplit.h"
 #include "CDC.h"
 #include "prof_tick.h"
 
+// 2 outils de profilage
+#ifdef PROF_PB12
+#include "stm32f1xx_ll_gpio.h"
+#include "gpio.h"
+#else
 DTICK_VARS
+#endif
 
 void test_a() {
 /*
@@ -92,7 +99,11 @@ void autopilot_init( autopilot *AP ) {
 
 // route depuis le point courant et le cap courant: virage puis segment
 float angletoXY( autopilot *AP, float xb, float yb ) {
+	#ifdef PROF_PB12
+	PB12_PROFIL_1();
+	#else
 	DTICK_BEGIN();
+	#endif
 	// decider de quel cote tourner : cap approximatif
 	//float capro = Math.atan2( yb - y, xb - x );
 	float capro = qfp_fatan2( qfp_fsub( yb, AP->y ), qfp_fsub( xb, AP->x ) );
@@ -152,7 +163,11 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 	else	cape = qfp_fsub( argcb, cbd );
 	//System.out.println( "cap exact " + cap2head(cape) );
 	// CDC_printf( "cap exact %.5f\n", cap2head(cape) );
+	#ifdef PROF_PB12
+	PB12_PROFIL_0();
+	#else
 	DTICK_END();
+	#endif
 	return cape;
 	}
 
@@ -160,27 +175,29 @@ void test_b() {
 	autopilot APilot;
 	autopilot_init( &APilot );
 
-	APilot.x = 5.0f; APilot.y = 0.0f;		// cycles	// @ 8 MHz	@ 72 MHz
+	APilot.x = 5.0f; APilot.y = 0.0f;				// @ 8 MHz	@ 72 MHz
 
-	APilot.cap = angletoXY( &APilot, -5.0f, -1.0f );		// 1495		2279
+	APilot.cap = angletoXY( &APilot, -5.0f, -1.0f );		// 1495cy 186u	2279cy 31.2u
 	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
 	APilot.x = -5.0f; APilot.y = -1.0f;
 
-	APilot.cap = angletoXY( &APilot, 10.0f, -6.0f );		// 1855		2811
+	APilot.cap = angletoXY( &APilot, 10.0f, -6.0f );		// 1855cy 230u	2811cy 38.6u
 	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
 	APilot.x = 10.0f; APilot.y = -6.0f;
 
-	APilot.cap = angletoXY( &APilot, 10.0f, 5.0f );			// 1640		2462
+	APilot.cap = angletoXY( &APilot, 10.0f, 5.0f );			// 1640cy 204u	2462cy 33.8u
 	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
 	APilot.x = 10.0f; APilot.y = 5.0f;
 
-	APilot.cap = angletoXY( &APilot, 0.0f, 5.0f );			// 1618		2435
+	APilot.cap = angletoXY( &APilot, 0.0f, 5.0f );			// 1618cy 201u	2435cy 33.4u
 	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
 	APilot.x = 0.0f; APilot.y = 5.0f;
 
-	APilot.cap = angletoXY( &APilot, -30.0f, 0.0f );		// 1721		2621
+	APilot.cap = angletoXY( &APilot, -30.0f, 0.0f );		// 1721cy 213u	2621cy 36.0u
 	// attendu cap 260.53827
 	CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
+	#ifndef PROF_PB12
 	CDC_printf( "dtick = %d\n", dtick );
+	#endif
 	}
 
