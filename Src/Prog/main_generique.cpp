@@ -33,7 +33,6 @@
 #include "fm.h"
 #endif
 
-void SystemClock_Config(void);
 void cmd_handler( char c );
 
 // contexte global -----------------------------------------------------------
@@ -57,6 +56,9 @@ int autoTx = 0;
 int autoTx = 1;
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 // systick interrupt handler
 void SysTick_Handler()
 {
@@ -117,6 +119,9 @@ if	( ( autoTx ) && ( ( cnt100Hz % 100 ) == 10 ) )
 #endif
 #endif
 }
+#ifdef __cplusplus
+}
+#endif
 
 
 #ifdef USE_CDC

@@ -46,6 +46,14 @@ extern volatile unsigned int rx_paycnt;
 extern volatile unsigned int rx_crc;
 extern volatile int rx_status;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void FM_send( unsigned int opcode, const unsigned char * payload );
 // message avec un byte t.q. numero de variable
 void FM_send2( unsigned int opcode, unsigned int num, const unsigned char * data );
+
+#ifdef __cplusplus
+}
+#endif

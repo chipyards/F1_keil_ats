@@ -7,6 +7,10 @@
 #define LCD_X     84	// soit 14 chars de 6 pix de large ou 12 chars de 7 pix
 #define LCD_Y     48	// 6 lignes de 8 pix de haut
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // inclut l'initialisation du SPI du STM32 (mais pas le GPIO)
 void LcdInitialize(void);
 
@@ -40,3 +44,7 @@ void LcdCharacter2( int x, int y, char character );
 
 // 7 car par ligne, auto wrap ( 7 * 12 = 84 )
 void LcdString2(  int x, int y, const char *characters );
+
+#ifdef __cplusplus
+}
+#endif

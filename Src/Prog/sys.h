@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // systick avec interrupt
 // ATTENTION SysTick_Handler() doit etre defini quelque part
 void systick_init( unsigned int freq );
@@ -17,3 +21,7 @@ void SystemClock_Config(void);
 
 // disable systick interrupt
 void systick_no_interrupt();
+
+#ifdef __cplusplus
+}
+#endif

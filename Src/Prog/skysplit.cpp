@@ -33,7 +33,7 @@ c = ( b == a );
 CDC_printf("%d \n", c );
 c = ( b > a );
 CDC_printf("%d \n", c );
-*/
+
 float h;
 h = 0.0; CDC_printf("%.7f rad -> head = %.7f deg\n", h, cap2head(h) );
 h = 0.5 * PI; CDC_printf("%.7f rad -> head = %.7f deg\n", h, cap2head(h) );
@@ -64,10 +64,27 @@ CDC_printf("racine de %.7f = %.7f\n", z, x );
 // float __ieee754_sqrtf( float );
 // x = __ieee754_sqrtf( z );			// runtime gcc, rend nan si arg negatif
 // CDC_printf("racine de %.7f = %.7f\n", z, x );
+*/
+
+float z; int i;
+// rounding positive float
+z = 1.0f;     i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = 0.51f;    i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = 0.49f;    i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = 20.99f;   i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = 777.501f; i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = 66.499f;  i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = 1111.0f;  i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+// rounding negative float
+z = -3.1f;    i = (int)qfp_fsub( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+z = -5.51f;   i = (int)qfp_fsub( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
+
 }
 
+
+// // methodes de calcul
 // ramener cap dans ] -PI/2, +PI/2 ]
-float limit_cap( float c ) {
+float Apilot::limit_cap( float c ) {
 	//while	( jfp_fsgn( qfp_fsub( PI, c ) ) )	// faster, inaccurate
 	while	( c > PI )
 		c = qfp_fsub( c, ( 2.0f * PI ) );
@@ -79,53 +96,36 @@ float limit_cap( float c ) {
 // notre convention:
 //	head = cap en degres dans [ 0, 360 [
 //	cap en radian dans ] -PI/2, +PI/2 ]
-float head2cap( float h ) {
+float Apilot::head2cap( float h ) {
 	return limit_cap( qfp_fmul( ToRadians, qfp_fsub( 90.0f, h ) ) );
 	}
-float cap2head( float c ) {
+float Apilot::cap2head( float c ) {
 	float h = qfp_fsub( 90.0f, qfp_fmul( ToDegrees, c ) );
 	//if	( jfp_fsgn(h) )				// faster, inaccurate
 	if	( h < 0.0f )
 		h = qfp_fadd( h, 360.0f );
 	return h;
 	}
-
-void autopilot_init( autopilot *AP ) {
-	AP->x = 0.0f;
-        AP->y = 0.0f;
-        AP->v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots
-        AP->vx = AP->v;
-        AP->vy = 0.0;
-        AP->cap = 0.0;		// radian, repere trigo
-        AP->w = 0.0;			// taux de virage en rad/s, signed
-        AP->w3 = qfp_fmul( ToRadians, 3 );	// 3 deg/s
-        AP->r3 = qfp_fdiv( AP->v, AP->w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
-	}
-
-// route depuis le point courant et le cap courant: virage puis segment
-float angletoXY( autopilot *AP, float xb, float yb ) {
-	#ifdef PROF_PB12
-	PB12_PROFIL_1();
-	#else
-	DTICK_BEGIN();
-	#endif
+// preparation de la route depuis le point courant et le cap courant: virage puis segment
+// cette methode calcule le cap destination de ce virage
+float Apilot::angletoXY( float xb, float yb ) {
 	// decider de quel cote tourner : cap approximatif
-	float capro = qfp_fatan2( qfp_fsub( yb, AP->y ), qfp_fsub( xb, AP->x ) );
-	float dcapro = limit_cap( qfp_fsub( capro, AP->cap ) );
+	float capro = qfp_fatan2( qfp_fsub( yb, y ), qfp_fsub( xb, x ) );
+	float dcapro = limit_cap( qfp_fsub( capro, cap ) );
 	//CDC_printf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
 	// ici le signe de dcapro indique le sens du virage
 	// chercher le centre C de l'arc de cercle
 	float xc, yc;
 	if	( jfp_fsgn(dcapro) )
 		{	// C a droite
-		xc = qfp_fadd( AP->x, qfp_fmul( AP->r3, qfp_fsin( AP->cap ) ) );
-		yc = qfp_fsub( AP->y, qfp_fmul( AP->r3, qfp_fcos( AP->cap ) ) );
-		AP->w = -AP->w3;
+		xc = qfp_fadd( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
+		yc = qfp_fsub( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
+		w = -w3;
 		}
 	else	{	// C a gauche
-		xc = qfp_fsub( AP->x, qfp_fmul( AP->r3, qfp_fsin( AP->cap ) ) );
-		yc = qfp_fadd( AP->y, qfp_fmul( AP->r3, qfp_fcos( AP->cap ) ) );
-		AP->w = AP->w3;
+		xc = qfp_fsub( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
+		yc = qfp_fadd( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
+		w = w3;
 		}
 	//CDC_printf( "C %.5f %.5f\n", xc, yc );
 	// distance de C a B (B = destination finale)
@@ -133,10 +133,10 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 	dx = qfp_fsub( xb, xc ); dy = qfp_fsub( yb, yc );
 	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) ); 
 	//CDC_printf( "|CB| %.5f\n", modcb );
-	if	( jfp_fsgn( qfp_fsub( modcb, AP->r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
-		{ CDC_printf("too close, giving up\n"); return AP->cap; }
+	if	( jfp_fsgn( qfp_fsub( modcb, r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
+		{ CDC_printf("too close, too close, going beyond\n"); return 99.0f; }
 	// angle CBD (D = fin virage), non signé et aigu
-	float lesin = qfp_fdiv( AP->r3, modcb );
+	float lesin = qfp_fdiv( r3, modcb );
 	float lecos = qfp_fsqrt( jfp_fabs( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) ) );
 	float cbd = qfp_fatan2( lesin, lecos );
 	//CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
@@ -149,41 +149,95 @@ float angletoXY( autopilot *AP, float xb, float yb ) {
 		cape = qfp_fsub( argcb, cbd );
 	else	cape = qfp_fadd( argcb, cbd );
 	//CDC_printf( "cap exact %.5f\n", cap2head(cape) );
-	#ifdef PROF_PB12
-	PB12_PROFIL_0();
-	#else
-	DTICK_END();
-	#endif
 	return cape;
+	}
+/*
+// // methodes de simulation, iterent step()
+// step d'une seconde (pour le moment)
+void step() {
+	if	( w != 0.0f )
+		{
+		//cap += w;
+		cap = qfp_fadd( cap, w );
+		//vx = v * Math.cos(cap);
+		vx = qfp_fmul( v, qfp_fcos(cap) );
+		//vy = v * Math.sin(cap);
+		vy = qfp_fmul( v, qfp_fsin(cap) );
+		}
+	//x += vx;
+	x = qfp_fadd( x, vx );
+	//y += vy;
+	y = qfp_fadd( y, vy );
+	// track.add( new Punkt( x, y ) );
+	}
+// simple segment de droite de longueur d depuis le point courant x, y
+// au cap courant
+void gotoD( double d ) {
+	w = 0.0;	// ligne droite
+	//int cnt = (int)Math.round( d / v );
+	int cnt = (int)qfp_fadd( 0.5, qfp_fdiv( d, v ) );
+	//vx = v * Math.cos(cap);
+	vx = qfp_fmul( v, qfp_fcos(cap) );	
+	//vy = v * Math.sin(cap);
+	vy = qfp_fmul( v, qfp_fsin(cap) );
+	for	( int i = 0; i < cnt; i++ )
+		step();
+	}
+// simple segment de droite depuis le point courant x, y (recalcule le cap)
+void gotoXY( double xd, double yd ) {
+	w = 0.0;	// ligne droite
+	double dx = xd - x;
+	double dy = yd - y;
+	double d = Math.sqrt( dx * dx + dy * dy );
+	int cnt = (int)Math.round( d / v );
+	cap = Math.atan2( dy, dx );
+	vx = v * Math.cos(cap);
+	vy = v * Math.sin(cap);
+	for	( int i = 0; i < cnt; i++ )
+		step();
+	}
+// arc de cercle depuis le point courant x, y et le cap courant
+// sens automatique (virage < 180 deg)
+void turnTo( double cap2 ) {
+	w = w3;
+	double dc = limit_cap( cap2 - cap );
+	if	( dc < 0.0 )
+		w = -w;
+	int cnt = (int)Math.round( dc / w );
+	for	( int i = 0; i < cnt; i++ )
+		step();
+	}
+*/
+
+
+
+void Apilot::demo() {
+
+	x = 5.0f; y = 0.0f;				// previous code	this code (both @ 8MHz)
+
+	cap = angletoXY( -5.0f, -1.0f );		// 1495cy 186u		1264cy 156u
+	//CDC_printf( "cap exact %.5f\n", cap2head(cap) );
+	x = -5.0f; y = -1.0f;
+
+	cap = angletoXY( 10.0f, -6.0f );		// 1855cy 230u		1588cy 197u
+	//CDC_printf( "cap exact %.5f\n", cap2head(cap) );
+	x = 10.0f; y = -6.0f;
+
+	cap = angletoXY( 10.0f, 5.0f );			// 1640cy 204u		1436cy 179u
+	//CDC_printf( "cap exact %.5f\n", cap2head(cap) );
+	x = 10.0f; y = 5.0f;
+
+	cap = angletoXY( 0.0f, 5.0f );			// 1618cy 201u		1410cy 175u
+	//CDC_printf( "cap exact %.5f\n", cap2head(cap) );
+	x = 0.0f; y = 5.0f;
+
+	cap = angletoXY( -30.0f, 0.0f );		// 1721cy 213u		1461cy 181u
+	// attendu cap 260.53827
+	CDC_printf( "cap exact %.5f\n", cap2head(cap) );
 	}
 
 void test_b() {
-	autopilot APilot;
-	autopilot_init( &APilot );
+Apilot lepilot;
 
-	APilot.x = 5.0f; APilot.y = 0.0f;				// previous code	this code (both @ 8MHz)
-
-	APilot.cap = angletoXY( &APilot, -5.0f, -1.0f );		// 1495cy 186u		1264cy 156u
-	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
-	APilot.x = -5.0f; APilot.y = -1.0f;
-
-	APilot.cap = angletoXY( &APilot, 10.0f, -6.0f );		// 1855cy 230u		1588cy 197u
-	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
-	APilot.x = 10.0f; APilot.y = -6.0f;
-
-	APilot.cap = angletoXY( &APilot, 10.0f, 5.0f );			// 1640cy 204u		1436cy 179u
-	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
-	APilot.x = 10.0f; APilot.y = 5.0f;
-
-	APilot.cap = angletoXY( &APilot, 0.0f, 5.0f );			// 1618cy 201u		1410cy 175u
-	//CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
-	APilot.x = 0.0f; APilot.y = 5.0f;
-
-	APilot.cap = angletoXY( &APilot, -30.0f, 0.0f );		// 1721cy 213u		1461cy 181u
-	// attendu cap 260.53827
-	CDC_printf( "cap exact %.5f\n", cap2head(APilot.cap) );
-	#ifndef PROF_PB12
-	CDC_printf( "dtick = %d\n", dtick );
-	#endif
-	}
-
+lepilot.demo();
+}
