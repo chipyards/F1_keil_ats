@@ -38,7 +38,25 @@ float limit_cap( float c );
 //	cap en radian dans ] -PI/2, +PI/2 ]
 float head2cap( float h );
 float cap2head( float c );
+void dump_loc();
 float angletoXY( float xb, float yb );
+// // methodes de simulation, iterent step()
+// step d'une seconde (pour le moment)
+void step();
+// simple segment de droite de longueur d depuis le point courant x, y
+// au cap courant
+void gotoD( float d );
+// simple segment de droite depuis le point courant x, y (recalcule le cap)
+void gotoXY( float xd, float yd );
+// arc de cercle depuis le point courant x, y et le cap courant
+// sens automatique (virage < 180 deg)
+void turnTo( float cap2 );
+// arc de cercle depuis le point courant x, y et le cap courant
+// en imposant le taux (w) et le sens de rotation (signe de w)
+void turnTo( float cap2, float w );
+// route depuis le point courant et le cap courant: virage puis segment, ou si trop pres,
+// segment puis virage puis segment
+void routetoXY( float xb, float yb );
 
 void demo();
 };
