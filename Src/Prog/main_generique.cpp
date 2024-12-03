@@ -39,6 +39,8 @@ void cmd_handler( char c );
 
 volatile unsigned int cnt100Hz = 0;
 volatile unsigned int cnt1Hz = 0;
+unsigned int next_step = 0;
+unsigned int step_period = 0x7FFFFFFF;
 
 #ifdef USE_NOKIA
 #include "nokia.h"
@@ -256,18 +258,25 @@ switch	( c )
 	#endif
 	case 'a' : {
 		test_a();
+		CDC_printf("rom %p\n", lepilot.beacons );
 		} break;
-	case 'b' : {
-		test_b();
-		} break;
+//	case 'b' : {
+//		test_b();
+//		} break;
 	case 'F' : {
-		lepilot.ds = 0;
+		step_period = 0; next_step = cnt100Hz;
 		} break;
-	case 'f' : {
-		lepilot.ds = 25;
+	case 'f' : {	// fast
+		step_period = 25; next_step = cnt100Hz;
 		} break;
-	case 's' : {
-		lepilot.ds = 100;
+	case 's' : {	// slow
+		step_period = 100; next_step = cnt100Hz;
+		} break;
+	case 'p' : {	// pause
+		step_period = 0x7FFFFFFF; next_step = cnt100Hz + step_period;
+		} break;
+	case 'r' : {
+		lepilot.iplan = 0; lepilot.cnt = 1;
 		} break;
 //	case 'B' : {
 //		systick_no_interrupt(); test_b();
@@ -398,6 +407,11 @@ while (1)
 			CDC_printf("%d", cnt1Hz % 10 );		// test UART Rx du PC
 		else	test_b();
 		old1Hz = cnt1Hz;
+		}
+	if	( cnt100Hz > next_step )
+		{
+		next_step += step_period;
+		lepilot.step();
 		}
 	#ifdef GREEN_CPU
 	if	( cnt100Hz < (10*100) )
