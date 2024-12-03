@@ -2,19 +2,25 @@
 #define ToRadians ((float)(PI/180.0))
 #define ToDegrees ((float)(180.0/PI))
 
+extern volatile unsigned int cnt100Hz;
+extern volatile unsigned int cnt1Hz;
+
 class Apilot {
 public:
 float x;
 float y;
-float v;	// vitesse en Nm/s 0.1 <==> 360 knots
+float v;	// vitesse en Nm/step 0.1 <==> 360 knots
 float vx;
 float vy;
 float cap;	// radian, repere trigo
 float w;	// taux de virage en rad/s, signed
 float w3;	// 3 deg/s
 float r3;	// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+unsigned int ds;	// duree du step en sys ticks (0.01s)
+unsigned int next_step; // timestamp du next step en ticks abs
 
-Apilot() {
+
+Apilot() {	// constructeur
 	init();
 	};
 
@@ -28,6 +34,8 @@ void init() {
         w = 0.0;			// taux de virage en rad/s, signed
         w3 = qfp_fmul( ToRadians, 3 );	// 3 deg/s
         r3 = qfp_fdiv( v, w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+        ds = 25;
+        next_step = 0;
 	};
 
 // // methodes de calcul
@@ -59,8 +67,9 @@ void turnTo( float cap2, float w );
 void routetoXY( float xb, float yb );
 
 void demo();
-};
+}; // class Apilot
 
+extern Apilot lepilot;
 
 void test_a();
 void test_b();

@@ -38,6 +38,7 @@ void cmd_handler( char c );
 // contexte global -----------------------------------------------------------
 
 volatile unsigned int cnt100Hz = 0;
+volatile unsigned int cnt1Hz = 0;
 
 #ifdef USE_NOKIA
 #include "nokia.h"
@@ -68,7 +69,7 @@ void SysTick_Handler()
 	switch	( cnt100Hz % 100 )
 		{
 		case 0 :
-			LED_ON();
+			++cnt1Hz; LED_ON();
 			break;
 		case 5 :
 			LED_OFF();
@@ -259,9 +260,18 @@ switch	( c )
 	case 'b' : {
 		test_b();
 		} break;
-	case 'B' : {
-		systick_no_interrupt(); test_b();
+	case 'F' : {
+		lepilot.ds = 0;
 		} break;
+	case 'f' : {
+		lepilot.ds = 25;
+		} break;
+	case 's' : {
+		lepilot.ds = 100;
+		} break;
+//	case 'B' : {
+//		systick_no_interrupt(); test_b();
+//		} break;
 	case '$' :
 		report_interrupts();
 		break;
@@ -381,6 +391,14 @@ set_cursor( 6, 1 ); lcd_print("vrai!");
 // LA GROSSE BOUCLE MAIN LOOP
 while (1)
  	{
+ 	static unsigned int old1Hz = 0;
+ 	if	( ( BLUE_PRESS() ) && ( old1Hz != cnt1Hz ) )
+ 		{
+		if	( cnt100Hz > (10*100) )
+			CDC_printf("%d", cnt1Hz % 10 );		// test UART Rx du PC
+		else	test_b();
+		old1Hz = cnt1Hz;
+		}
 	#ifdef GREEN_CPU
 	if	( cnt100Hz < (10*100) )
 		LED_ON();	// continuous light indicating safe to debug

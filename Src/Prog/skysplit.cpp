@@ -14,6 +14,8 @@
 DTICK_VARS
 #endif
 
+Apilot lepilot;
+
 void test_a() {
 /*
 float a = qfp_fadd( 1.0f, PI );
@@ -108,7 +110,7 @@ float Apilot::cap2head( float c ) {
 	return h;
 	}
 void Apilot::dump_loc() {
-	CDC_printf( "here %.5f %.5f, head=%.5f\n", x, y, cap2head(cap) );
+	CDC_printf( "L %.3f %.3f %.3f\n", x, y, cap2head(cap) );
 	}
 // preparation de la route depuis le point courant et le cap courant: virage puis segment
 // cette methode calcule le cap destination de ce virage
@@ -138,7 +140,10 @@ float Apilot::angletoXY( float xb, float yb ) {
 	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) ); 
 	//CDC_printf( "|CB| %.5f\n", modcb );
 	if	( jfp_fsgn( qfp_fsub( modcb, r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
-		{ CDC_printf("too close, too close, going beyond\n"); return 99.0f; }
+		{
+		//CDC_printf("too close, too close, going beyond\n");
+		return 99.0f;
+		}
 	// angle CBD (D = fin virage), non signé et aigu
 	float lesin = qfp_fdiv( r3, modcb );
 	float lecos = qfp_fsqrt( jfp_fabs( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) ) );
@@ -156,8 +161,14 @@ float Apilot::angletoXY( float xb, float yb ) {
 	return cape;
 	}
 // // methodes de simulation, iterent step()
-// step d'une seconde (pour le moment)
+// step nominalement d'une seconde (pour le moment)
 void Apilot::step() {
+	if	( ds )
+		{
+		while	( cnt100Hz < next_step )
+			{ }
+		next_step += ds;
+		}
 	if	( w != 0.0f )
 		{
 		//cap += w;
@@ -172,6 +183,7 @@ void Apilot::step() {
 	//y += vy;
 	y = qfp_fadd( y, vy );
 	// track.add( new Punkt( x, y ) );
+	dump_loc();
 	}
 // simple segment de droite de longueur d depuis le point courant x, y
 // au cap courant
@@ -245,15 +257,15 @@ void Apilot::routetoXY( float xb, float yb ) {
 		{	// on va s'eloigner en ligne droite car le point vise est trop proche
 		//gotoD( 2.0 * r3 );
 		gotoD( qfp_fmul( 2.0f, r3 ) );	// avec 2r on est sur (mais c'est trop dans la plupart des cas)
-		CDC_printf( "diverted to "); dump_loc();
+		// CDC_printf( "diverted to "); dump_loc();
 		// "nouveau calcul"
 		cape = angletoXY( xb, yb );
 		}
-	CDC_printf( "cap exact %.5f\n", cap2head(cape) );
+	// CDC_printf( "cap exact %.5f\n", cap2head(cape) );
 	turnTo( cape, w );
-	dump_loc();
+	// dump_loc();
 	gotoXY( xb, yb );
-	dump_loc();
+	// dump_loc();
 	}
 
 
@@ -261,7 +273,8 @@ void Apilot::routetoXY( float xb, float yb ) {
 // cette demo est le portage du commit a69e2f6 de FXsim.java (https://gitlab.com/chipyards/ivy-rejeu.git)
 // elle doit donner les memes resultats, avec une precicion degradee due au remplacement de float64 par float32
 void Apilot::demo() {
-	CDC_printf( "rayon virage %.5f NM\n", r3 );
+	// CDC_printf( "rayon virage %.5f NM\n", r3 );
+	next_step = cnt100Hz;
 	gotoXY( 5.0, 0.0 );
 	routetoXY( -5, -1 );
 	routetoXY( 10, -6 );
@@ -290,6 +303,5 @@ void Apilot::demo() {
 	}
 
 void test_b() {
-Apilot lepilot;
 lepilot.demo();
 }
