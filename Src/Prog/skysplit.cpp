@@ -27,8 +27,8 @@ const float rom_beacons[] = {
 	-15, 10,	// 6  B
 	-10, 20,	// 7  C
 	-10, 10,	// 8  D
-	10, 20,		// 9  E
-	10, 10		// 10 F
+	10, 20,		// 9  F
+	10, 10		// 10 G
 	};
 
 void test_a() {
@@ -72,7 +72,7 @@ float Apilot::cap2head( float c ) {
 	return h;
 	}
 void Apilot::dump_loc() {
-	CDC_printf( "L %.3f %.3f %.3f\n", x, y, cap2head(cap) );
+	CDC_printf( "L %.2f %.2f %.2f %d %d %d\n", x, y, cap2head(cap), segtype, target_waypoint, iplan );
 	}
 // preparation de la route depuis le point courant et le cap courant: virage puis segment
 // cette methode calcule le cap destination de ce virage
@@ -144,6 +144,7 @@ void Apilot::step() {
 	if	( diversion >= 0 )
 		{				// diversion vers un autre waypoint
 		target_waypoint = diversion;
+		iplan = -2;			// abandon du plan
 		const Beacon *b = get_beacon( target_waypoint );
 		if	( b )
 			routetoXY( b->x, b->y );

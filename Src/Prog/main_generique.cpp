@@ -263,11 +263,11 @@ switch	( c )
 //	case 'b' : {
 //		test_b();
 //		} break;
-	case 'F' : {
+	case 'h' : {
 		step_period = 0; next_step = cnt100Hz;
 		} break;
 	case 'f' : {	// fast
-		step_period = 25; next_step = cnt100Hz;
+		step_period = 20; next_step = cnt100Hz;
 		} break;
 	case 's' : {	// slow
 		step_period = 100; next_step = cnt100Hz;
@@ -276,11 +276,29 @@ switch	( c )
 		step_period = 0x7FFFFFFF; next_step = cnt100Hz + step_period;
 		} break;
 	case 'r' : {
-		lepilot.iplan = 0; lepilot.cnt = 1;
+		lepilot.iplan = 0; lepilot.cnt = 1; next_step = cnt100Hz;
 		} break;
-//	case 'B' : {
-//		systick_no_interrupt(); test_b();
-//		} break;
+	case 'Z' : { lepilot.diversion = 0; } break;
+	case 'N' : { lepilot.diversion = 1; } break;
+	case 'E' : { lepilot.diversion = 2; } break;
+	case 'S' : { lepilot.diversion = 3; } break;
+	case 'O' : { lepilot.diversion = 4; } break;
+	case 'A' : { lepilot.diversion = 5; } break;
+	case 'B' : { lepilot.diversion = 6; } break;
+	case 'C' : { lepilot.diversion = 7; } break;
+	case 'D' : { lepilot.diversion = 8; } break;
+	case 'F' : { lepilot.diversion = 9; } break;
+	case 'G' : { lepilot.diversion = 10; } break;
+
+	case '0' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(0.0f); } break;
+	case '1' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(45.0f); } break;
+	case '2' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(90.0f); } break;
+	case '3' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(135.0f); } break;
+	case '4' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(180.0f); } break;
+	case '5' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(225.0f); } break;
+	case '6' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(270.0f); } break;
+	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
+
 	case '$' :
 		report_interrupts();
 		break;
@@ -405,7 +423,7 @@ while (1)
  		{
 		if	( cnt100Hz > (10*100) )
 			CDC_printf("%d", cnt1Hz % 10 );		// test UART Rx du PC
-		else	test_b();
+		else	{ lepilot.iplan = 0; lepilot.cnt = 1; next_step = cnt100Hz; }
 		old1Hz = cnt1Hz;
 		}
 	if	( cnt100Hz > next_step )
