@@ -120,6 +120,33 @@ LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_10, LL_GPIO_SPEED_FREQ_MEDIUM);
 }
 #endif
 
+#ifdef USE_CC1101
+void gpio_spi1_init(void)	// SPI 1
+{
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOB );
+// SPI.SCK connected to PA5 (D13)
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_ALTERNATE);
+LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_5, LL_GPIO_OUTPUT_PUSHPULL );
+LL_GPIO_SetPinSpeed(      GPIOA, LL_GPIO_PIN_5, LL_GPIO_SPEED_FREQ_HIGH);
+// SPI1.MISO connected to PA6 (D12)
+LL_GPIO_ResetOutputPin(   GPIOA, LL_GPIO_PIN_6 );	// pulldown
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_6, LL_GPIO_MODE_INPUT );
+// SPI1.MOSI connected to PA7 (D11)
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_7, LL_GPIO_MODE_ALTERNATE);
+LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_7, LL_GPIO_OUTPUT_PUSHPULL );
+LL_GPIO_SetPinSpeed(      GPIOA, LL_GPIO_PIN_7, LL_GPIO_SPEED_FREQ_HIGH);
+// SPI1.NSS (soft) connected to PB6 (D10)
+LL_GPIO_SetOutputPin(     GPIOB, LL_GPIO_PIN_6 );	// act lo
+LL_GPIO_SetPinMode(       GPIOB, LL_GPIO_PIN_6, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinOutputType( GPIOB, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL );
+LL_GPIO_SetPinSpeed(      GPIOB, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH);
+// GDO0 connected to PA10 (D2)
+LL_GPIO_ResetOutputPin(   GPIOA, LL_GPIO_PIN_10 );	// pulldown
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_INPUT );
+}
+#endif
+
 /* initialiser GPIO pour UART1 */
 void gpio_uart1_init(void)
 {

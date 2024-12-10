@@ -19,7 +19,7 @@ extern "C" {
 
 void gpio_init(void);
 void gpio_timer3_init(void);
-
+void gpio_spi1_init(void);
 void gpio_uart1_init(void);
 void gpio_uart2_init(void);
 void gpio_uart3_init(void);
@@ -35,6 +35,10 @@ void Rx_cmd( int on );
 // SPI1.NSS (soft) connected to PB4 (CN10.27 aka D5)
 #define NOKIA_CE_LO()	LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_4 )
 #define NOKIA_CE_HI()	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_4 )
+
+// SPI1.NSS (soft) connected to PB6 (D10)
+#define NSS1_LO()	LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_6 )
+#define NSS1_HI()	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_6 )
 
 void gpio_nokia_init(void);
 

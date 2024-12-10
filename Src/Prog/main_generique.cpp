@@ -19,6 +19,7 @@
 #include "CDC.h"
 #include <stdio.h>	// pour snprintf
 #include "skysplit.h"
+#include "CC1101.h"
 
 #ifdef USE_LCD2x16
 #include "LCD2x16.h"
@@ -303,7 +304,15 @@ switch	( c )
 		report_interrupts();
 		break;
 	default:	// simple echo
+		#ifdef USE_CC1101
+		{
+		unsigned char echo;
+		SPI1_multi_byte( (unsigned char *)&c, &echo, 1 );
+		CDC_printf("%02x -> %02x\n", c, echo );
+		}
+		#else
 		CDC_printf("%c\n", ((c>=' ')?(c):('?')) );
+		#endif
 	#endif
 	}
 }
@@ -325,6 +334,11 @@ systick_init( 100 );
 gpio_uart2_init();
 UART2_init( 9600 );
 CDC_init();
+#endif
+
+#ifdef USE_CC1101
+gpio_spi1_init();
+SPI1_init();
 #endif
 
 #ifdef USE_UART3_FM
