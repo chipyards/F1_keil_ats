@@ -39,6 +39,7 @@ void Rx_cmd( int on );
 // SPI1.NSS (soft) connected to PB6 (D10)
 #define NSS1_LO()	LL_GPIO_ResetOutputPin( GPIOB, LL_GPIO_PIN_6 )
 #define NSS1_HI()	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_6 )
+#define IS_MISO_SET()	LL_GPIO_IsInputPinSet(  GPIOA, LL_GPIO_PIN_6 )
 
 void gpio_nokia_init(void);
 

@@ -60,7 +60,7 @@ LL_SPI_SetClockPolarity( SPI1, LL_SPI_POLARITY_LOW );	// idle low
 LL_SPI_SetClockPhase( SPI1, LL_SPI_PHASE_1EDGE );	// 1st edge samples incoming data
 LL_SPI_SetNSSMode( SPI1, LL_SPI_NSS_SOFT );
 LL_SPI_SetTransferBitOrder( SPI1, LL_SPI_MSB_FIRST );
-if	( SystemCoreClock > 10000100 )
+if	( SystemCoreClock < 10000100 )
 	LL_SPI_SetBaudRatePrescaler( SPI1, LL_SPI_BAUDRATEPRESCALER_DIV32 );	// 250 kHz @ 8 MHz, 312.5 kHz @ 10 MHz
 else	LL_SPI_SetBaudRatePrescaler( SPI1, LL_SPI_BAUDRATEPRESCALER_DIV256 );	// 281.25 kHz @ 72 MHz
 LL_SPI_Enable(SPI1);

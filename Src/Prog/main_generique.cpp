@@ -303,14 +303,10 @@ switch	( c )
 	case '$' :
 		report_interrupts();
 		break;
-	default:	// simple echo
+	default:	// ijklmn tuvwxyz
 		#ifdef USE_CC1101
-		{
-		unsigned char echo;
-		SPI1_multi_byte( (unsigned char *)&c, &echo, 1 );
-		CDC_printf("%02x -> %02x\n", c, echo );
-		}
-		#else
+		CC.demo(c);
+		#else	// simple echo
 		CDC_printf("%c\n", ((c>=' ')?(c):('?')) );
 		#endif
 	#endif
