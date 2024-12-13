@@ -1,49 +1,57 @@
 ///
 /// CC1101 constants
 ///
-
+//						valeur par defaut commentee
 // configuration registers
-#define CC1101_IOCFG2            0x00        // GDO2 Output Pin Configuration
-#define CC1101_IOCFG1            0x01        // GDO1 Output Pin Configuration
-#define CC1101_IOCFG0            0x02        // GDO0 Output Pin Configuration
-#define CC1101_FIFOTHR           0x03        // RX FIFO and TX FIFO Thresholds
-#define CC1101_SYNC1             0x04        // Sync Word, High Byte
-#define CC1101_SYNC0             0x05        // Sync Word, Low Byte
-#define CC1101_PKTLEN            0x06        // Packet Length
-#define CC1101_PKTCTRL1          0x07        // Packet Automation Control
-#define CC1101_PKTCTRL0          0x08        // Packet Automation Control
-#define CC1101_ADDR              0x09        // Device Address
-#define CC1101_CHANNR            0x0A        // Channel Number
-#define CC1101_FSCTRL1           0x0B        // Frequency Synthesizer Control
-#define CC1101_FSCTRL0           0x0C        // Frequency Synthesizer Control
-#define CC1101_FREQ2             0x0D        // Frequency Control Word, High Byte
-#define CC1101_FREQ1             0x0E        // Frequency Control Word, Middle Byte
-#define CC1101_FREQ0             0x0F        // Frequency Control Word, Low Byte
-#define CC1101_MDMCFG4           0x10        // Modem Configuration
-#define CC1101_MDMCFG3           0x11        // Modem Configuration
-#define CC1101_MDMCFG2           0x12        // Modem Configuration
-#define CC1101_MDMCFG1           0x13        // Modem Configuration
-#define CC1101_MDMCFG0           0x14        // Modem Configuration
-#define CC1101_DEVIATN           0x15        // Modem Deviation Setting
-#define CC1101_MCSM2             0x16        // Main Radio Control State Machine Configuration
-#define CC1101_MCSM1             0x17        // Main Radio Control State Machine Configuration
-#define CC1101_MCSM0             0x18        // Main Radio Control State Machine Configuration
-#define CC1101_FOCCFG            0x19        // Frequency Offset Compensation Configuration
-#define CC1101_BSCFG             0x1A        // Bit Synchronization Configuration
-#define CC1101_AGCCTRL2          0x1B        // AGC Control
-#define CC1101_AGCCTRL1          0x1C        // AGC Control
-#define CC1101_AGCCTRL0          0x1D        // AGC Control
-#define CC1101_WOREVT1           0x1E        // High Byte Event0 Timeout
-#define CC1101_WOREVT0           0x1F        // Low Byte Event0 Timeout
-#define CC1101_WORCTRL           0x20        // Wake On Radio Control
-#define CC1101_FREND1            0x21        // Front End RX Configuration
-#define CC1101_FREND0            0x22        // Front End TX Configuration
-#define CC1101_FSCAL3            0x23        // Frequency Synthesizer Calibration
-#define CC1101_FSCAL2            0x24        // Frequency Synthesizer Calibration
-#define CC1101_FSCAL1            0x25        // Frequency Synthesizer Calibration
-#define CC1101_FSCAL0            0x26        // Frequency Synthesizer Calibration
-#define CC1101_RCCTRL1           0x27        // RC Oscillator Configuration
-#define CC1101_RCCTRL0           0x28        // RC Oscillator Configuration
+
+//			adr   dump doc	<-- dump = valeurs observees au reset, doc = valeurs par defaut selon  CC1101.pdf
+#define CC1101_IOCFG2   0x00 // 29 29 GDO2 - mettre 2F ou 6F pour test JLN's LED
+#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - laisser 2E = tristate
+#define CC1101_IOCFG0   0x02 // 3f 3F GDO0 - default 3F=135.4kHz a remplacer pour interrupt
+#define CC1101_FIFOTHR  0x03 // 07 07 FIFO Threshold & RX attenuator 07 = half fifo, 0dB att
+#define CC1101_SYNC1    0x04 // d3 D3 Sync Word, High Byte 11010011
+#define CC1101_SYNC0    0x05 // 91 91 Sync Word, Low Byte  10010001
+#define CC1101_PKTLEN   0x06 // ff FF Packet Length (ou max length si variable)
+#define CC1101_PKTCTRL1 0x07 // 04 04 Packet Preamble Qual. Estim.=0(laxiste), CRC autoflush=0(laxiste), Append Status=1(RSSI,LQI),Address=0(off)
+#define CC1101_PKTCTRL0 0x08 // 45 45 Packet Whiten=on, mode normal(packet use FIFOs), CRC=on, length=variable
+#define CC1101_ADDR     0x09 // 00 00 Device Address
+#define CC1101_CHANNR   0x0A // 00 00 Channel Number
+#define CC1101_FSCTRL1  0x0B // 0f 0F IF frequ 0F=381kHz, resolution Fxtal/(1<<10)
+#define CC1101_FSCTRL0  0x0C // 00 00 Permanent Frequency Offset compensation (inspiree par le reg. FREQEST, resolution Fxtal/(1<<14)
+#define CC1101_FREQ2    0x0D // 1e 1E Frequ Synth big endian, resolution Fxtal/(1<<16)
+#define CC1101_FREQ1    0x0E // c4 C4 Frequ Synth "
+#define CC1101_FREQ0    0x0F // ec EC Frequ Synth "	--> 800 MHz
+#define CC1101_MDMCFG4  0x10 // 8c 8C Chan. Bandwidth 80=203kHz, resolution Fxtal/(1<<10), Symbol Rate exponent 0C
+#define CC1101_MDMCFG3  0x11 // 22 22 Symbol Rate Mantissa M=22 E=0C ci-dessus --> 115.051 kBaud, resolution Fxtal/(1<<28)
+#define CC1101_MDMCFG2  0x12 // 02 02 DC Rx filter=on, modulation FSK, Manchester=off, sync detect=16/16
+#define CC1101_MDMCFG1  0x13 // 22 22 FEC=off, preamble=4bytes, Channel Spacing Exponent=2
+#define CC1101_MDMCFG0  0x14 // f8 F8 Channel Spacing Mantissa=F8 --> 199.951 kHz, resolution Fxtal/(1<<18)
+#define CC1101_DEVIATN  0x15 // 47 47 FM Deviation (on each side of base frequ.) -> 47.607 kHz, resolution Fxtal/(1<<17)
+#define CC1101_MCSM2    0x16 // 07 07 RX Timout=off (leave RX at end of packet) N.B. otherwise timer needs RC osc
+#define CC1101_MCSM1    0x17 // 30 30 CCA="low RSSI andnot receiving", RXOFF->IDLE, TXOFF->IDLE
+#define CC1101_MCSM0    0x18 // 04 04 FS_AUTOCAL=off, PowerOn timout=37us(recomm plus), 3-Pin Control(hack)=off, force XOSC=off
+#define CC1101_FOCCFG   0x19 // 76!36 Frequ Offset Compens: freeze until CS high=on, gain before sync=3K, after=K/2, saturation=on,+-BW/4
+#define CC1101_BSCFG    0x1A // 6c 6C Bit Synchronization Configuration: loop gain before sync i=2K, p=3k, after i=K/2, p=K, saturation=0(loop off)
+#define CC1101_AGCCTRL2 0x1B // 03 03 AGC: DVGA gain=max, LNA gain=max, target amplitude (consigne)=33dB (medium)
+#define CC1101_AGCCTRL1 0x1C // 40 40 AGC: LNA gain prority=1, CS relative change threshold=off, CS absolute threshold=target amplitude
+#define CC1101_AGCCTRL0 0x1D // 91 91 AGC: hysteresis=medium, delay=medium, freeze=off, FIR filter=16samples, OOK/ASK boundary=8dB
+#define CC1101_WOREVT1  0x1E // 87 87 WOR Event0 Timeout: big endian, sera affecte d'un exposant 5*WOR_RES
+#define CC1101_WOREVT0  0x1F // 6b 6B WOR Event0 Timeout: "   -> 1s
+#define CC1101_WORCTRL  0x20 // f8 F8 WOR Wake On Radio: RC osc powerdown=1, Event1 delay=1.333ms, RC osc calibration=on, WOR_RES resolution=28us
+#define CC1101_FREND1   0x21 // 56 56 Front End RX Config - undocumented
+#define CC1101_FREND0   0x22 // 10 10 Front End TX Config: PA buffer current (undocumented), PA_POWER=0 aka max index (inclusive) dans PATABLE
+#define CC1101_FSCAL3   0x23 // a9 A9 Frequency Synthesizer Calibration: VCO charge pump, calibration=on
+#define CC1101_FSCAL2   0x24 // 0a 0A Frequency Synthesizer Calibration: VCO current
+#define CC1101_FSCAL1   0x25 // 20 20 Frequency Synthesizer Calibration: VCO capacitor array
+#define CC1101_FSCAL0   0x26 // 0d 0D Frequency Synthesizer Calibration - undocumented
+#define CC1101_RCCTRL1  0x27 // 41 41 RC Oscillator Config - undocumented
+#define CC1101_RCCTRL0  0x28 // 00 00 RC Oscillator Config - undocumented
+//		FSTEST	0x29 // 59 59 - undocumented
+//		PTEST	0x2A // 7f 7F temperature sensor - write BF to enable in IDLE state
+//		AGCTEST	0x2B // 3f 3F - undocumented
+//		TEST2	0x2C // 88 88 - undocumented
+//		TEST1	0x2D // 31 31 - undocumented
+//		TEST0	0x2E // 0b 0B - undocumented
 
 // CC1101 Strobe commands
 #define CC1101_SRES         0x30        // Reset chip.
