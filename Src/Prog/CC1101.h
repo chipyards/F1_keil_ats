@@ -17,6 +17,12 @@ void write_strobe( int val ) {
 	SPI1_multi_byte( txbuf, rxbuf, 1 );
 	status = rxbuf[0];
 	};
+// read strobe performs the strobe action as well, the difference is the FIFO state reported in the status byte
+void read_strobe( int val ) {
+	txbuf[0] = 0x80 | ( val & 0x3f );
+	SPI1_multi_byte( txbuf, rxbuf, 1 );
+	status = rxbuf[0];
+	};
 
 void write_reg( int adr, int val ) {
 	txbuf[0] = adr & 0x3f;
@@ -83,6 +89,9 @@ void data_rate_from_float( unsigned int *M, unsigned int * E, float fK );	// kHz
 // experiments
 void dump_config();
 void dump_patable();
+// comparer les 47 registres de 00 a 2E, avec les valeurs de reference
+void compare_config( const unsigned char * ref_regs );
+void smarties();
 
 void demo( int c );
 }; // class

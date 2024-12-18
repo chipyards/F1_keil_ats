@@ -257,6 +257,7 @@ switch	( c )
 		CDC_printf("test conversion %lu %lu\n", ADC1->DR, ADC2->DR );
 		break;
 	#endif
+	#ifdef LEPILOT_TEST
 	case 'a' : {
 		test_a();
 		CDC_printf("rom %p\n", lepilot.beacons );
@@ -299,11 +300,11 @@ switch	( c )
 	case '5' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(225.0f); } break;
 	case '6' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(270.0f); } break;
 	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
-
+	#endif
 	case '$' :
 		report_interrupts();
 		break;
-	default:	// ijklmn tuvwxyz
+	default:
 		#ifdef USE_CC1101
 		CC.demo(c);
 		#else	// simple echo
@@ -436,11 +437,13 @@ while (1)
 		else	{ lepilot.iplan = 0; lepilot.cnt = 1; next_step = cnt100Hz; }
 		old1Hz = cnt1Hz;
 		}
+	#ifdef LEPILOT_TEST
 	if	( cnt100Hz > next_step )
 		{
 		next_step += step_period;
 		lepilot.step();
 		}
+	#endif
 	#ifdef GREEN_CPU
 	if	( cnt100Hz < (10*100) )
 		LED_ON();	// continuous light indicating safe to debug

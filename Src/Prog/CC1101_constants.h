@@ -46,12 +46,12 @@
 #define CC1101_FSCAL0   0x26 // 0d 0D Frequency Synthesizer Calibration - undocumented
 #define CC1101_RCCTRL1  0x27 // 41 41 RC Oscillator Config - undocumented
 #define CC1101_RCCTRL0  0x28 // 00 00 RC Oscillator Config - undocumented
-//		FSTEST	0x29 // 59 59 - undocumented
-//		PTEST	0x2A // 7f 7F temperature sensor - write BF to enable in IDLE state
-//		AGCTEST	0x2B // 3f 3F - undocumented
-//		TEST2	0x2C // 88 88 - undocumented
-//		TEST1	0x2D // 31 31 - undocumented
-//		TEST0	0x2E // 0b 0B - undocumented
+//#define CC1101_FSTEST	0x29 // 59 59 - undocumented
+//#define CC1101_PTEST	0x2A // 7f 7F temperature sensor - write BF to enable in IDLE state
+//#define CC1101_AGCTEST0x2B // 3f 3F - undocumented
+#define CC1101_TEST2	0x2C // 88 88 - undocumented
+#define CC1101_TEST1	0x2D // 31 31 - undocumented
+#define CC1101_TEST0	0x2E // 0b 0B - undocumented
 
 // CC1101 Strobe commands
 #define CC1101_SRES         0x30        // Reset chip.
@@ -63,7 +63,7 @@
 #define CC1101_STX          0x35        // In IDLE state: Enable TX. Perform calibration first if MCSM0.FS_AUTOCAL=1.
 					// If in RX state and CCA is enabled: Only go to TX if channel is clear.
 #define CC1101_SIDLE        0x36        // Exit RX / TX, turn off frequency synthesizer and exit Wake-On-Radio mode if applicable.
-#define CC1101_SAFC         0x37        // Perform AFC adjustment of the frequency synthesizer
+#define CC1101_SAFC         0x37        // Perform AFC adjustment of the frequency synthesizer UNDOCUMENTED
 #define CC1101_SWOR         0x38        // Start automatic RX polling sequence (Wake-on-Radio) if WORCTRL.RC_PD=0
 #define CC1101_SPWD         0x39        // Enter power down mode when CSn goes high.
 #define CC1101_SFRX         0x3A        // Flush the RX FIFO buffer.

@@ -52,7 +52,24 @@ NSS1_HI();
 //tickdelay(8);
 }
 
+///
+/// ROM data
+///
 
+const unsigned char reset_regs[] = {	// 47 registres au reset, selon doc CC1101.pdf
+0x29,0x2E,0x3F,0x07,0xD3,0x91,0xFF,0x04,0x45,0x00,0x00,0x0F,0x00,0x1E,0xC4,0xEC,0x8C,0x22,0x02,0x22,0xF8,0x47,
+0x07,0x30,0x04,0x36,0x6C,0x03,0x40,0x91,0x87,0x6B,0xF8,0x56,0x10,0xA9,0x0A,0x20,0x0D,0x41,0x00,0x59,0x7F,0x3F,0x88,0x31,0x0B
+};
+
+const char * fsm_states[] = { 		// noms des codes d'etats obtenus dans le status byte
+"IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
+};
+
+///
+///	C1101 class object and methods
+///
+
+// singleton
 CC1101 CC;
 
 // burst read, rend l'adresse d'un array de bytes
@@ -131,6 +148,7 @@ tmp = qfp_fadd( 0.5, qfp_fmul( fK, float(1<<(28-*E)) ) );
 //if	( *M >= 256 )
 //	{ *E += 1; *M = 0; }
 }
+
 ///
 /// experiences
 ///
@@ -143,12 +161,34 @@ for	( unsigned int i = 0; i < 0x2F; i++ )
 	CDC_printf("reg %02x : %02x\n", i, fbuf[i] );
 }
 
+// comparer les 47 registres de 00 a 2E, avec les valeurs de reference
+void CC1101::compare_config( const unsigned char * ref_regs )
+{
+CDC_printf("regs : (reset) -> now\n");
+unsigned char * fbuf = read_regs( 0, 0x2F );
+for	( unsigned int i = 0; i < 0x2F; i++ )
+	if	( fbuf[i] != ref_regs[i] )
+		CDC_printf("reg %02x : (%02x) -> %02x\n", i, ref_regs[i], fbuf[i] );
+}
+
 // lire PATABLE
 void CC1101::dump_patable()
 {
 unsigned char * fbuf = read_regs( 0x3E, 8 );
 for	( unsigned int i = 0; i < 8; i++ )
 	CDC_printf("PA %2d : %02x\n", i, fbuf[i] );
+}
+
+// quelques configs non documentees, intuitees par SmartRF
+void CC1101::smarties()
+{
+write_reg( CC1101_FSCAL3, 0xE0  ); // FSCAL config 11 inst of 10, charge pump calibration still 1
+write_reg( CC1101_FSCAL2, 0 );	  // automatic
+write_reg( CC1101_FSCAL1, 0 );	  // automatic
+write_reg( CC1101_FSCAL0, 0x1F );  // 1F instead of 0D, SmartRF said
+write_reg( CC1101_TEST2, 0x81 );  //
+write_reg( CC1101_TEST1, 0x35 );  //
+write_reg( CC1101_TEST0, 0x09 );  //
 }
 
 void CC1101::demo( int c )
@@ -162,73 +202,81 @@ void CC1101::demo( int c )
 */
 int adr;
 switch	( c ) {
-	case 'i':
-		adr = CC1101_IOCFG2;
-		CDC_printf("reg %02x : %02x\n", adr, read_reg( adr ) );
-		adr = CC1101_IOCFG0;
-		CDC_printf("reg %02x : %02x\n", adr, read_reg( adr ) );
-		break;
-	case 'j':
-		adr = CC1101_IOCFG2;
-		write_reg( adr, 0x2f );	// logic 0
-		CDC_printf("wrote reg %02x\n", adr  );
-		break;
-	case 'k':
-		adr = CC1101_IOCFG2;
-		write_reg( adr, 0x40 | 0x2f ); // logic 1
-		CDC_printf("wrote reg %02x\n", adr  );
-		break;
-	case 'l':
+	// minuscules : observation
+	case 'f':
 		{
 		unsigned int fu = get_synth_frequ();
 		float ff = synth_frequ_to_float( fu );
 		CDC_printf("got freq synth = %06x = %6f\n", fu, ff );
+		unsigned int E, M;
+		get_data_rate( &M, &E );
+		float fK = data_rate_to_float( M, E );
+		CDC_printf("got symbol rate M=%d, E=%d -> %.5f kHz\n", M, E, fK );
 		} break;
-	case 'm':
+	case 'c' : compare_config( reset_regs );
+		break;
+	case 'p' : dump_patable();
+		break;
+	case ' ' :
+		read_strobe( CC1101_SNOP );
+		CDC_printf("status FSM %s, FIFO %d\n", fsm_states[(status >> 4) & 7], status & 0x0F );
+		break;
+	// majuscules et chiffres : actions
+	case 'J':
+		adr = CC1101_IOCFG2;
+		write_reg( adr, 0x2f );	// test LED : logic 0
+		CDC_printf("wrote reg %02x\n", adr  );
+		break;
+	case 'K':
+		adr = CC1101_IOCFG2;
+		write_reg( adr, 0x40 | 0x2f ); //  test LED : logic 1
+		CDC_printf("wrote reg %02x\n", adr  );
+		break;
+	case '3':
 		{
 		float ff = 433.4f;
 		unsigned int fu = synth_frequ_from_float( ff );
 		CDC_printf("set freq synth = %06x = %6f\n", fu, ff );
 		set_synth_frequ( fu );
 		} break;
-	case 'n':
+	case '4':
 		{
 		float ff = 434.4f;
 		unsigned int fu = synth_frequ_from_float( ff );
 		CDC_printf("set freq synth = %06x = %6f\n", fu, ff );
 		set_synth_frequ( fu );
 		} break;
-	case 't' : dump_config();
-		break;
-	case 'u' : dump_patable();
-		break;
-	case 'v' :
-		{
-		unsigned int E, M;
-		get_data_rate( &M, &E );
-		float fK = data_rate_to_float( M, E );
-		CDC_printf("got data rate M=%d, E=%d -> %.5f kHz\n", M, E, fK );
-		} break;
-	case 'w' :
+	case '8' :
 		{
 		float fK = 4.8f;
 		unsigned int E, M;
 		data_rate_from_float( &M, &E, fK );
-		CDC_printf("set data rate %.5f kHz -> M=%d, E=%d\n", fK, M, E, fK );
+		CDC_printf("set symbol rate %.5f kHz -> M=%d, E=%d\n", fK, M, E, fK );
 		set_data_rate( M, E );
 		} break;
-	case 'x' :
-		write_strobe( CC1101_SFSTXON );
+	case 'A' :
+		smarties(); compare_config( reset_regs );
 		break;
-	case 'y' :
-		write_strobe( CC1101_SIDLE );
+	// les strobes
+	case 'Z' :
+		read_strobe( CC1101_SRES );
 		break;
-	case 'z' :
-		write_strobe( CC1101_SRES );
+	case 'I' :
+		read_strobe( CC1101_SIDLE );
 		break;
-	case ' ' :
-		CDC_printf("status %02x\n", status );
+	case 'C' :
+		read_strobe( CC1101_SCAL );
 		break;
+	case 'R' :
+		read_strobe( CC1101_SRX );
+		break;
+	case 'S' :
+		read_strobe( CC1101_SFSTXON );
+		break;
+	case 'T' :
+		read_strobe( CC1101_STX );
+		break;
+
 	default : CDC_printf("%c\n", ((c>=' ')?(c):('?')) );
 	}
 }
