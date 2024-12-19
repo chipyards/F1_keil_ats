@@ -41,6 +41,9 @@ void Rx_cmd( int on );
 #define NSS1_HI()	LL_GPIO_SetOutputPin(   GPIOB, LL_GPIO_PIN_6 )
 #define IS_MISO_SET()	LL_GPIO_IsInputPinSet(  GPIOA, LL_GPIO_PIN_6 )
 
+#define GDO0_LO()	LL_GPIO_ResetOutputPin( GPIOA, LL_GPIO_PIN_10 )	// pulldown
+#define GDO0_HI()	LL_GPIO_SetOutputPin( GPIOA, LL_GPIO_PIN_10 )	// pullup
+
 void gpio_nokia_init(void);
 
 #ifdef __cplusplus

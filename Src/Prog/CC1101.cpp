@@ -225,12 +225,14 @@ switch	( c ) {
 	case 'J':
 		adr = CC1101_IOCFG2;
 		write_reg( adr, 0x2f );	// test LED : logic 0
-		CDC_printf("wrote reg %02x\n", adr  );
+		GDO0_LO();
+		CDC_printf("wrote 0x2f to reg %02x, 0 to GDO0\n", adr  );
 		break;
 	case 'K':
 		adr = CC1101_IOCFG2;
 		write_reg( adr, 0x40 | 0x2f ); //  test LED : logic 1
-		CDC_printf("wrote reg %02x\n", adr  );
+		GDO0_HI();
+		CDC_printf("wrote 0x6f to reg %02x, 1 to GDO0\n", adr  );
 		break;
 	case '3':
 		{
@@ -255,7 +257,9 @@ switch	( c ) {
 		set_data_rate( M, E );
 		} break;
 	case 'A' :
-		smarties(); compare_config( reset_regs );
+		// smarties();
+		preset_async();
+		compare_config( reset_regs );
 		break;
 	// les strobes
 	case 'Z' :

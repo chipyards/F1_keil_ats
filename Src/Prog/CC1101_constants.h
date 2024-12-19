@@ -46,7 +46,7 @@
 #define CC1101_FSCAL0   0x26 // 0d 0D Frequency Synthesizer Calibration - undocumented
 #define CC1101_RCCTRL1  0x27 // 41 41 RC Oscillator Config - undocumented
 #define CC1101_RCCTRL0  0x28 // 00 00 RC Oscillator Config - undocumented
-//#define CC1101_FSTEST	0x29 // 59 59 - undocumented
+#define CC1101_FSTEST	0x29 // 59 59 - undocumented
 //#define CC1101_PTEST	0x2A // 7f 7F temperature sensor - write BF to enable in IDLE state
 //#define CC1101_AGCTEST0x2B // 3f 3F - undocumented
 #define CC1101_TEST2	0x2C // 88 88 - undocumented
