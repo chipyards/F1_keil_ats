@@ -147,6 +147,21 @@ LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_10, LL_GPIO_MODE_INPUT );
 }
 #endif
 
+#ifdef USE_TIM3_PC6
+void gpio_tim3_pc6_init(void)
+{
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOC );
+// UWAGA : il faut activer l'horloge AFIO pour faire du remap
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_AFIO );
+// Full remap     (CH1/PC6, CH2/PC7, CH3/PC8, CH4/PC9)
+LL_GPIO_AF_EnableRemap_TIM3();
+// pin PC6 = T3.1
+LL_GPIO_SetPinMode(       GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_ALTERNATE );
+LL_GPIO_SetPinSpeed(      GPIOC, LL_GPIO_PIN_6, LL_GPIO_SPEED_FREQ_HIGH );
+LL_GPIO_SetPinOutputType( GPIOC, LL_GPIO_PIN_6, LL_GPIO_OUTPUT_PUSHPULL );
+}
+#endif
+
 /* initialiser GPIO pour UART1 */
 void gpio_uart1_init(void)
 {

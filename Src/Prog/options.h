@@ -28,6 +28,7 @@
 // modules optionnels
 #define USE_CC1101
 #define USE_CDC
+#define USE_TIM3_PC6
 // #define USE_ADC_4CH	// uses TIM3
 // #define USE_PWM	// uses TIM3, retired for the moment
 // #define USE_NOKIA	// implies SPI1 remap or AF 5

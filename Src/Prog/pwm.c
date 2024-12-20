@@ -42,10 +42,10 @@ LL_TIM_GenerateEvent_UPDATE( TIM3 );
 LL_TIM_EnableCounter( TIM3 );
 
 // Interrupt
-NVIC_SetPriority( TIM3_IRQn, 2 );
-NVIC_EnableIRQ( TIM3_IRQn );
+// NVIC_SetPriority( TIM3_IRQn, 2 );
+// NVIC_EnableIRQ( TIM3_IRQn );
 
-LL_TIM_EnableIT_UPDATE( TIM3 );
+// LL_TIM_EnableIT_UPDATE( TIM3 );
 
 }
 

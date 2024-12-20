@@ -95,7 +95,8 @@ void smarties();
 
 void demo( int c );
 
-void preset_async() {
+// Async transparent mode, FSK modulation by GDO0
+void preset_P10AF() {
 // Product = CC1101
 // Chip version = A   (VERSION = 0x04)
 // X-tal frequency = 26 MHz
@@ -151,7 +152,7 @@ write_reg(CC1101_TEST2,    0x81); // 2C Various test settings.
 write_reg(CC1101_TEST1,    0x35); // 2D Various test settings.
 write_reg(CC1101_TEST0,    0x09); // 2E Various test settings.
 write_reg(CC1101_FIFOTHR,  0x47); // 03 RXFIFO and TXFIFO thresholds.
-write_reg(CC1101_IOCFG0,   0x0C); // 02 GDO0 output pin configuration. Refer to SmartRF® Studio User Manual for detailed pseudo register explanation.
+write_reg(CC1101_IOCFG0,   0x0C); // 02 GDO0 output pin configuration.
 write_reg(CC1101_PKTCTRL1, 0x04); // 07 Packet automation control.
 write_reg(CC1101_PKTCTRL0, 0x32); // 08 Packet automation control.
 write_reg(CC1101_ADDR,     0x00); // 09 Device address.

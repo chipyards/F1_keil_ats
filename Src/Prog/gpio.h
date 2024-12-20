@@ -19,6 +19,7 @@ extern "C" {
 
 void gpio_init(void);
 void gpio_timer3_init(void);
+void gpio_tim3_pc6_init(void);
 void gpio_spi1_init(void);
 void gpio_uart1_init(void);
 void gpio_uart2_init(void);

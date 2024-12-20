@@ -1,3 +1,4 @@
+#include "options.h"
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_spi.h"
@@ -7,6 +8,10 @@
 #include "sys.h"
 #include "CDC.h"
 #include "CC1101.h"
+
+#ifdef USE_TIM3_PC6
+#include "pwm.h"	// experience modulation CW en mode asynchrone : relier PC6 a PA10
+#endif
 
 
 
@@ -258,8 +263,13 @@ switch	( c ) {
 		} break;
 	case 'A' :
 		// smarties();
-		preset_async();
+		preset_P10AF();
+		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
 		compare_config( reset_regs );
+		#ifdef USE_TIM3_PC6
+		gpio_tim3_pc6_init();
+		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 a PA10
+		#endif
 		break;
 	// les strobes
 	case 'Z' :
