@@ -67,26 +67,49 @@ const unsigned char reset_regs[] = {	// 47 registres au reset, selon doc CC1101.
 };
 
 const char * fsm_states[] = { 		// noms des codes d'etats obtenus dans le status byte
-"IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
-};
+	"IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
+	};
+const char * mod_methods[] = { 		// noms des methodes de modulation
+	"2-FSK", "GFSK", "-", "ASK/OOK", "4-FSK", "-", "-", "MSK"
+	};
+const unsigned char full_patable[] = {
+//	-30   -20   -15   -10    0     5     7     10 dBm  (table 39 page 60)
+	0x12, 0x0E, 0x1D, 0x34, 0x60, 0x84, 0xC8, 0xC0
+	};
 
-// singleton
+///
+/// singleton
+///
 CC1101 CC;
 
-// burst read, rend l'adresse d'un array de bytes
+// burst read, rend l'adresse d'un array de bytes PRECAIRE a utiliser immediatement
+// ce buffer peut etre altere par un read_reg() interpose NOT THREAD SAFE
 unsigned char * CC1101::read_regs( int start_adr, int cnt ) {
 	txbuf[0] = 0xC0 | ( start_adr & 0x3f );
 	SPI1_multi_byte( txbuf, rxbuf, cnt+1 );
-	status = rxbuf[0];
 	return rxbuf+1;
 	}
-// burst write, prend l'adresse d'un array de bytes
-void CC1101::write_regs( int start_adr, unsigned char * src, int cnt ) {
+// burst write, prend l'adresse d'un array de bytes NOT THREAD SAFE
+void CC1101::write_regs( int start_adr, const unsigned char * src, int cnt ) {
 	txbuf[0] = 0x40 | ( start_adr & 0x3f );
 	memcpy( txbuf+1, src, cnt );
 	SPI1_multi_byte( txbuf, rxbuf, cnt+1 );
-	status = rxbuf[0];
 	}
+
+///
+/// get-set methods
+///
+void CC1101::get_patable( unsigned char *dest )
+{
+txbuf[0] = 0xC0 | 0x3E;
+SPI1_multi_byte( txbuf, dest, 9 );
+}
+
+void CC1101::set_patable( const unsigned char *src )
+{
+write_regs( 0x3E, src, 8 );
+}
+
 
 
 ///
@@ -201,14 +224,14 @@ for	( unsigned int i = 0; i < 0x2F; i++ )
 // dump PATABLE
 void CC1101::dump_patable()
 {
-unsigned char * fbuf = read_regs( 0x3E, 8 );
 CDC_printf("PATABLE : %d -> ", get_power() );
+unsigned char * fbuf = read_regs( 0x3E, 8 );
 for	( unsigned int i = 0; i < 8; i++ )
 	CDC_printf(" %02x", fbuf[i] );
 CDC_printf("\n");
 }
 
-void CC1101::quick_set()	// tester les float convs
+void CC1101::quick_set()	// valeurs bidon, pour tester les set methods, avec quick_view
 {
 unsigned int E, M, fu; float ff;
 ff = 433.333f;
@@ -236,6 +259,9 @@ bandwidth_from_float( &M, &E, ff );
 CDC_printf("set bandwidth %.2f kHz -> M=%d, E=%d\n", ff, M, E );
 set_bandwidth( M, E );
 
+set_modu( CC1101_AM );
+set_patable( full_patable );
+set_power( 5 );
 }
 
 void CC1101::quick_view()
@@ -264,6 +290,8 @@ get_bandwidth( &M, &E );
 ff = bandwidth_to_float( M, E );
 CDC_printf("bandwidth M=%d, E=%d -> %.2f kHz\n", M, E, ff );
 
+M = get_modu();
+CDC_printf("modulation : %s\n", mod_methods[M] );
 dump_patable();
 }
 
@@ -297,7 +325,7 @@ switch	( c ) {
 		break;
 	case ' ' :
 		read_strobe( CC1101_SNOP );
-		CDC_printf("status FSM %s, FIFO %d\n", fsm_states[(status >> 4) & 7], status & 0x0F );
+		CDC_printf("FSM state %s, FIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
 		break;
 	// majuscules et chiffres : actions
 	case 'J':
@@ -312,43 +340,39 @@ switch	( c ) {
 		GDO0_HI();
 		CDC_printf("wrote 0x6f to reg %02x, 1 to GDO0\n", adr  );
 		break;
-	case '3':
-		{
-		float ff = 433.4f;
-		unsigned int fu = synth_frequ_from_float( ff );
-		CDC_printf("set freq synth = %06x = %6f\n", fu, ff );
-		set_synth_frequ( fu );
-		} break;
-	case '4':
-		{
-		float ff = 434.4f;
-		unsigned int fu = synth_frequ_from_float( ff );
-		CDC_printf("set freq synth = %06x = %6f\n", fu, ff );
-		set_synth_frequ( fu );
-		} break;
-	case '8' :
-		{
-		float fK = 4.8f;
-		unsigned int E, M;
-		data_rate_from_float( &M, &E, fK );
-		CDC_printf("set symbol rate %.5f kHz -> M=%d, E=%d\n", fK, M, E );
-		set_data_rate( M, E );
-		} break;
-	case 'A' :		// FSK manuel, use JK
-		// smarties();
+	case 'F' :		// FSK manuel, use JK
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
-		compare_config( reset_regs );
+		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
-	case 'B' :		// apres A : FSK 5kHz - connect PC6 a PA10
+	case 'O' : {		// OOK manuel, use JK
+		preset_P10AF();
+		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
+		set_modu( CC1101_AM );
+		unsigned char patable[] = { 0x34, 0xC8, 0, 0, 0, 0, 0, 0 };	// levels -10 dBm and 7 dBm
+		set_patable( patable );
+		set_power( 1 );
+		quick_view();
+		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
+		} break;
+	case 'A' : {		// ASK manuel, use JK
+		preset_P10AF();
+		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
+		set_modu( CC1101_AM );
+		set_patable( full_patable );
+		set_power( 6 );
+		quick_view();
+		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
+		} break;
+	case 'B' :		// apres F, O ou A  : modulation 5kHz - please connect PC6 to PA10
 		#ifdef USE_TIM3_PC6
 		gpio_tim3_pc6_init();
-		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 a PA10
+		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 to PA10
 		#endif
 		break;
-	case 'U' :		// apres A : CW
-		set_deviation( 0, 0 );
+	case 'U' :		// apres O : CW
+		set_power( 0 );
 		break;
 	case 'Q' : quick_set();
 		break;

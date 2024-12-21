@@ -6,35 +6,32 @@ void SPI1_init(void);
 // ecrire et lire cnt bytes en une transaction
 void SPI1_multi_byte( unsigned char * txbuf, unsigned char * rxbuf, int cnt );
 
+#define STATUS (rxbuf[0])	// permet de recuperer les status apres toute operation
+
 class CC1101 {
 public:
-unsigned char txbuf[64];
-unsigned char rxbuf[64];
-unsigned int status;
+unsigned char txbuf[65];
+unsigned char rxbuf[65];
 
 void write_strobe( int val ) {
 	txbuf[0] = val & 0x3f;
 	SPI1_multi_byte( txbuf, rxbuf, 1 );
-	status = rxbuf[0];
 	};
 // read strobe performs the strobe action as well, the difference is the FIFO state reported in the status byte
 void read_strobe( int val ) {
 	txbuf[0] = 0x80 | ( val & 0x3f );
 	SPI1_multi_byte( txbuf, rxbuf, 1 );
-	status = rxbuf[0];
 	};
 
 void write_reg( int adr, int val ) {
 	txbuf[0] = adr & 0x3f;
 	txbuf[1] = val;
 	SPI1_multi_byte( txbuf, rxbuf, 2 );
-	status = rxbuf[0];
 	};
 unsigned int read_reg( int adr ) {
 	txbuf[0] = 0x80 | ( adr & 0x3f );
 	// txbuf[1] = 0;
 	SPI1_multi_byte( txbuf, rxbuf, 2 );
-	status = rxbuf[0];
 	return rxbuf[1];
 	};
 
@@ -42,7 +39,6 @@ unsigned int read_reg( int adr ) {
 unsigned int read_status_reg( int adr ) {
 	txbuf[0] = 0xC0 | ( adr & 0x3f );
 	SPI1_multi_byte( txbuf, rxbuf, 2 );
-	status = rxbuf[0];
 	return rxbuf[1];
 	};
 
@@ -50,7 +46,7 @@ unsigned int read_status_reg( int adr ) {
 unsigned char * read_regs( int start_adr, int cnt );
 
 // burst write, prend l'adresse d'un array de bytes
-void write_regs( int start_adr, unsigned char * src, int cnt );
+void write_regs( int start_adr, const unsigned char * src, int cnt );
 
 // set_gets specialises
 
@@ -101,13 +97,22 @@ void set_bandwidth( unsigned int M, unsigned int E ) {
 	write_reg( CC1101_MDMCFG4, tmp | ( ( E & 3 ) << 6 ) | ( ( M & 3 ) << 4 ) );
 	};
 // max index to use in PATABLE, aka PA_POWER
-void set_power( int power ) {
+void set_power( unsigned int power ) {
 	unsigned int tmp = read_reg( CC1101_FREND0 ) & 0xF8;	// preserver LODIV_BUF_CURRENT_TX
 	write_reg( CC1101_FREND0, tmp | ( power & 7 ) );
 	}
-int get_power() {
+unsigned int get_power() {
 	return( read_reg( CC1101_FREND0 ) & 7 );
 	};
+// modulation method
+void set_modu( unsigned int modulation ) {
+	unsigned int tmp = read_reg( CC1101_MDMCFG2 ) & 0x8F;	// preserver DEM_DCFILT_OFF,SYNC_MODE
+	write_reg( CC1101_MDMCFG2, tmp | ( ( modulation & 7 ) << 4 ) );
+	}
+unsigned int get_modu() {
+	return( ( read_reg( CC1101_MDMCFG2 ) >> 4 ) & 7 );
+	}
+
 
 // gets sans set
 
@@ -116,8 +121,8 @@ int get_RSSI_half_dB() {
 	return ( (int)((char)read_status_reg( CC1101_RSSI )) - (2*74) );
 	};
 
-void get_config( unsigned char dest );
-void get_patable( unsigned char dest );
+void get_patable( unsigned char * dest );
+void set_patable( const unsigned char * src );
 
 // float methods
 float synth_frequ_to_float( unsigned int fu );		// MHz

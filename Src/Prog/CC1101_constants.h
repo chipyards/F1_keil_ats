@@ -87,3 +87,10 @@
 #define CC1101_RCCTRL1_STATUS    0x3C        // Last RC Oscillator Calibration Result
 #define CC1101_RCCTRL0_STATUS    0x3D        // Last RC Oscillator Calibration Result
 
+// CC1101 modulation methods
+#define CC1101_2FSK	0
+#define CC1101_GFSK	1
+#define CC1101_ASKOOK	3
+#define CC1101_AM	3
+#define CC1101_4FSK	4
+#define CC1101_MSK	7
