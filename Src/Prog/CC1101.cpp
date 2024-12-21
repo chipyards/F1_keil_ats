@@ -70,10 +70,6 @@ const char * fsm_states[] = { 		// noms des codes d'etats obtenus dans le status
 "IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
 };
 
-///
-///	C1101 class object and methods
-///
-
 // singleton
 CC1101 CC;
 
@@ -91,31 +87,6 @@ void CC1101::write_regs( int start_adr, unsigned char * src, int cnt ) {
 	SPI1_multi_byte( txbuf, rxbuf, cnt+1 );
 	status = rxbuf[0];
 	}
-
-///
-/// get-sets specialises
-///
-
-// get 24 bits of synth frequ
-/* methode sans burst
-unsigned int CC1101::get_synth_frequ()
-{
-unsigned int f;
-f  = read_reg( 0x0D ) << 16;
-f |= read_reg( 0x0E ) << 8;
-f |= read_reg( 0x0F );
-return f;
-} */
-
-// set 24 bits of synth frequ
-/* methode sans burst
-void CC1101::set_synth_frequ( unsigned int fu )
-{
-write_reg( 0x0D, fu >> 16 );
-write_reg( 0x0E, fu >> 8 );
-write_reg( 0x0F, fu );
-*/
-
 
 
 ///
@@ -137,13 +108,13 @@ float CC1101::data_rate_to_float( unsigned int M, unsigned int E )
 M += 256;
 M *= 26000;	// on met Fosc en kHz pour avoir le resultat en kHz
 unsigned int D = 1 << ( 28 - E );
-return float(M) / float(D);
+return qfp_fdiv( float(M), float(D) );
 }
 
 void CC1101::data_rate_from_float( unsigned int *M, unsigned int *E, float fK  ) // fK en kHz
 {
 fK = qfp_fdiv( fK, 26000.0f );
-float tmp = qfp_fmul( fK, float(1<<20) );
+float tmp = qfp_fmul( fK, float(1<<20) );	// 20 = 28 - 8 car le min de (256+M) est 256
 // l'exposant exact pour M = 0
 tmp = qfp_fmul( qfp_fln( tmp ), 1.4426950408f );	// 1.443 = 1/ln(2)
 // arrondissons-le par defaut (floor) pour que M soit > 0
@@ -152,6 +123,57 @@ tmp = qfp_fadd( 0.5, qfp_fmul( fK, float(1<<(28-*E)) ) );
 *M = (unsigned int)tmp - 256;
 //if	( *M >= 256 )
 //	{ *E += 1; *M = 0; }
+}
+
+float CC1101::deviation_to_float( unsigned int M, unsigned int E )		// kHz
+{
+M += 8;
+M *= 26000;	// on met Fosc en kHz pour avoir le resultat en kHz
+unsigned int D = 1 << ( 17 - E );
+return qfp_fdiv( float(M), float(D) );
+}
+
+void CC1101::deviation_from_float( unsigned int *M, unsigned int* E, float fK )	// kHz
+{
+fK = qfp_fdiv( fK, 26000.0f );
+float tmp = qfp_fmul( fK, float(1<<14) );	// 14 = 17 - 3 car le min de (8+M) est 8
+// l'exposant exact pour M = 0
+tmp = qfp_fmul( qfp_fln( tmp ), 1.4426950408f );	// 1.443 = 1/ln(2)
+// arrondissons-le par defaut (floor) pour que M soit > 0
+*E = (unsigned int)tmp;
+tmp = qfp_fadd( 0.5, qfp_fmul( fK, float(1<<(17-*E)) ) );
+*M = (unsigned int)tmp - 8;
+}
+
+float CC1101::IF_to_float( unsigned int fu )			// kHz
+{
+fu *= 26000;
+return qfp_fdiv( (float)fu, (float)(1<<10) );
+}
+
+unsigned int CC1101::IF_from_float( float fk )			// kHz
+{
+return (unsigned int)qfp_fadd( 0.5, qfp_fmul( (float)(1<<10), qfp_fdiv( fk, 26000.0f ) ) );
+}
+
+float CC1101::bandwidth_to_float( unsigned int M, unsigned int E )		// kHz
+{
+M += 4;
+M *= ( 8 * (1 << E) );
+// on met Fosc en kHz pour avoir le resultat en kHz
+return qfp_fdiv( 26000.0f, float(M) );
+}
+
+void CC1101::bandwidth_from_float( unsigned int *M, unsigned int *E, float fK )	// kHz
+{
+fK = qfp_fdiv( 26000.0f, fK );
+float tmp = qfp_fdiv( fK, 32.0f );	// 32 = 8 * 4 car le min de (4+M) est 4
+// l'exposant exact pour M = 0
+tmp = qfp_fmul( qfp_fln( tmp ), 1.4426950408f );	// 1.443 = 1/ln(2)
+// arrondissons-le par defaut (floor) pour que M soit > 0
+*E = (unsigned int)tmp;
+tmp = qfp_fadd( 0.5, qfp_fdiv( fK, float(1<<(3+*E)) ) );
+*M = (unsigned int)tmp - 4;
 }
 
 ///
@@ -176,12 +198,73 @@ for	( unsigned int i = 0; i < 0x2F; i++ )
 		CDC_printf("reg %02x : (%02x) -> %02x\n", i, ref_regs[i], fbuf[i] );
 }
 
-// lire PATABLE
+// dump PATABLE
 void CC1101::dump_patable()
 {
 unsigned char * fbuf = read_regs( 0x3E, 8 );
+CDC_printf("PATABLE : %d -> ", get_power() );
 for	( unsigned int i = 0; i < 8; i++ )
-	CDC_printf("PA %2d : %02x\n", i, fbuf[i] );
+	CDC_printf(" %02x", fbuf[i] );
+CDC_printf("\n");
+}
+
+void CC1101::quick_set()	// tester les float convs
+{
+unsigned int E, M, fu; float ff;
+ff = 433.333f;
+fu= synth_frequ_from_float( ff );
+CDC_printf("set freq synth %.3f -> %06x\n", ff, fu );
+set_synth_frequ( fu );
+
+ff = 277.77f;
+fu = IF_from_float( ff );
+CDC_printf("set IF %.2f kHz -> %02x\n", ff, fu );
+set_IF( fu );
+
+ff = 22.22f;
+data_rate_from_float( &M, &E, ff );
+CDC_printf("set symbol rate %.2f kHz -> M=%d, E=%d\n", ff, M, E );
+set_data_rate( M, E );
+
+ff = 44.44f;
+deviation_from_float( &M, &E, ff );
+CDC_printf("set deviation %.2f kHz -> M=%d, E=%d\n", ff, M, E );
+set_deviation( M, E );
+
+ff = 333.33f;
+bandwidth_from_float( &M, &E, ff );
+CDC_printf("set bandwidth %.2f kHz -> M=%d, E=%d\n", ff, M, E );
+set_bandwidth( M, E );
+
+}
+
+void CC1101::quick_view()
+{
+unsigned int E, M, fu;
+float ff;
+CDC_printf("version %02x\n", read_status_reg( CC1101_VERSION ) );
+
+fu = get_synth_frequ();
+ff = synth_frequ_to_float( fu );
+CDC_printf("freq synth %06x -> %6f MHz\n", fu, ff );
+
+fu = get_IF();
+ff = IF_to_float( fu );
+CDC_printf("IF %02x -> %.2f kHz\n", fu, ff );
+
+get_data_rate( &M, &E );
+ff = data_rate_to_float( M, E );
+CDC_printf("symbol rate M=%d, E=%d -> %.5f kHz\n", M, E, ff );
+
+get_deviation( &M, &E );
+ff = deviation_to_float( M, E );
+CDC_printf("deviation M=%d, E=%d -> %.2f kHz\n", M, E, ff );
+
+get_bandwidth( &M, &E );
+ff = bandwidth_to_float( M, E );
+CDC_printf("bandwidth M=%d, E=%d -> %.2f kHz\n", M, E, ff );
+
+dump_patable();
 }
 
 // quelques configs non documentees, intuitees par SmartRF
@@ -208,19 +291,9 @@ void CC1101::demo( int c )
 int adr;
 switch	( c ) {
 	// minuscules : observation
-	case 'f':
-		{
-		unsigned int fu = get_synth_frequ();
-		float ff = synth_frequ_to_float( fu );
-		CDC_printf("got freq synth = %06x = %6f\n", fu, ff );
-		unsigned int E, M;
-		get_data_rate( &M, &E );
-		float fK = data_rate_to_float( M, E );
-		CDC_printf("got symbol rate M=%d, E=%d -> %.5f kHz\n", M, E, fK );
-		} break;
 	case 'c' : compare_config( reset_regs );
 		break;
-	case 'p' : dump_patable();
+	case 'q' : quick_view();
 		break;
 	case ' ' :
 		read_strobe( CC1101_SNOP );
@@ -258,19 +331,28 @@ switch	( c ) {
 		float fK = 4.8f;
 		unsigned int E, M;
 		data_rate_from_float( &M, &E, fK );
-		CDC_printf("set symbol rate %.5f kHz -> M=%d, E=%d\n", fK, M, E, fK );
+		CDC_printf("set symbol rate %.5f kHz -> M=%d, E=%d\n", fK, M, E );
 		set_data_rate( M, E );
 		} break;
-	case 'A' :
+	case 'A' :		// FSK manuel, use JK
 		// smarties();
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
 		compare_config( reset_regs );
+		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
+		break;
+	case 'B' :		// apres A : FSK 5kHz - connect PC6 a PA10
 		#ifdef USE_TIM3_PC6
 		gpio_tim3_pc6_init();
 		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 a PA10
 		#endif
 		break;
+	case 'U' :		// apres A : CW
+		set_deviation( 0, 0 );
+		break;
+	case 'Q' : quick_set();
+		break;
+
 	// les strobes
 	case 'Z' :
 		read_strobe( CC1101_SRES );

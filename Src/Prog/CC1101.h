@@ -37,6 +37,15 @@ unsigned int read_reg( int adr ) {
 	status = rxbuf[0];
 	return rxbuf[1];
 	};
+
+// les registres de status sont lus aux adresses >= 0x30, avec le bit B (burst)
+unsigned int read_status_reg( int adr ) {
+	txbuf[0] = 0xC0 | ( adr & 0x3f );
+	SPI1_multi_byte( txbuf, rxbuf, 2 );
+	status = rxbuf[0];
+	return rxbuf[1];
+	};
+
 // burst read, rend l'adresse d'un array de bytes
 unsigned char * read_regs( int start_adr, int cnt );
 
@@ -45,36 +54,66 @@ void write_regs( int start_adr, unsigned char * src, int cnt );
 
 // set_gets specialises
 
-// get 24 bits of synth frequ
+// synth frequ : 24 bits
 unsigned int get_synth_frequ() {
 	unsigned char * fbuf = read_regs( CC1101_FREQ2, 3 );
 	unsigned int f = ( fbuf[0] << 16 ) | ( fbuf[1] << 8 ) | ( fbuf[2] );
 	return f;
 	};
-// set 24 bits of synth frequ
 void set_synth_frequ( unsigned int fu ) {
 	unsigned char src[] = { (unsigned char)(fu>>16), (unsigned char)(fu>>8), (unsigned char)fu };
 	write_regs( CC1101_FREQ2, src, 3 );
 	};
-// get data rate
+// data rate aka symbol rate : 8 + 4 bits
 void get_data_rate( unsigned int *M, unsigned int *E ) {
 	*M = read_reg( CC1101_MDMCFG3 );
 	*E = read_reg( CC1101_MDMCFG4 ) & 0x0F;
 	};
-// set data rate
 void set_data_rate( unsigned int M, unsigned int E ) {
 	write_reg( CC1101_MDMCFG3, M );
 	unsigned int tmp = read_reg( CC1101_MDMCFG4 ) & 0xF0;	// preserver bandwidth
 	write_reg( CC1101_MDMCFG4, tmp | E );
 	};
-// get channel filter bandwidth ( E = 2 MSBs, M = 2 LSBs )
-unsigned int get_bandwidth() {
-	return read_reg( CC1101_MDMCFG4 ) >> 4;
+// FM deviation (for FSK) or smoothing fraction (MSK) 3 + 3 bits
+void get_deviation( unsigned int *M, unsigned int *E ) {
+	unsigned int r = read_reg( CC1101_DEVIATN );
+	*E =  ( r >> 4 ) & 7;
+	*M =    r        & 7;
 	};
-// set channel filter bandwidth ( E = 2 MSBs, M = 2 LSBs )
-void set_bandwidth( unsigned int EM ) {
+void set_deviation( unsigned int M, unsigned int E ) {
+	write_reg( CC1101_DEVIATN, ( ( E & 7 ) << 4 ) | ( M & 7 ) );
+	};
+// Intermediate frequency aka IF - 4 bits
+unsigned int get_IF() {
+	return read_reg( CC1101_FSCTRL1 ) & 0x0F;
+	};
+void set_IF( unsigned int f4 ) {
+	write_reg( CC1101_FSCTRL1, f4 & 0x0F );
+	};
+// bandwidth, aka channel filter bandwidth ( E = 2 MSBs, M = 2 LSBs )
+void get_bandwidth( unsigned int *M, unsigned int *E ) {
+	unsigned int r = read_reg( CC1101_MDMCFG4 );
+	*E =  ( r >> 6 ) & 3;
+	*M =  ( r >> 4 ) & 3;
+	};
+void set_bandwidth( unsigned int M, unsigned int E ) {
 	unsigned int tmp = read_reg( CC1101_MDMCFG4 ) & 0x0F;	// preserver data rate
-	write_reg( CC1101_MDMCFG4, tmp | ( EM << 4 ) );
+	write_reg( CC1101_MDMCFG4, tmp | ( ( E & 3 ) << 6 ) | ( ( M & 3 ) << 4 ) );
+	};
+// max index to use in PATABLE, aka PA_POWER
+void set_power( int power ) {
+	unsigned int tmp = read_reg( CC1101_FREND0 ) & 0xF8;	// preserver LODIV_BUF_CURRENT_TX
+	write_reg( CC1101_FREND0, tmp | ( power & 7 ) );
+	}
+int get_power() {
+	return( read_reg( CC1101_FREND0 ) & 7 );
+	};
+
+// gets sans set
+
+// RSSI aka Received Signal Strength Indication
+int get_RSSI_half_dB() {
+	return ( (int)((char)read_status_reg( CC1101_RSSI )) - (2*74) );
 	};
 
 void get_config( unsigned char dest );
@@ -83,16 +122,31 @@ void get_patable( unsigned char dest );
 // float methods
 float synth_frequ_to_float( unsigned int fu );		// MHz
 unsigned int synth_frequ_from_float( float ff );	// MHz
+
 float data_rate_to_float( unsigned int M, unsigned int E );			// kHz
-void data_rate_from_float( unsigned int *M, unsigned int * E, float fK );	// kHz
+void data_rate_from_float( unsigned int *M, unsigned int *E, float fK );	// kHz
+
+float deviation_to_float( unsigned int M, unsigned int E );			// kHz
+void deviation_from_float( unsigned int *M, unsigned int *E, float fK );	// kHz
+
+float IF_to_float( unsigned int fu );			// kHz
+unsigned int IF_from_float( float fk );			// kHz
+
+float bandwidth_to_float( unsigned int M, unsigned int E );			// kHz
+void bandwidth_from_float( unsigned int *M, unsigned int *E, float fk );	// kHz
+
+float RSSI_to_float( int hdB );		//dB
+
 
 // experiments
 void dump_config();
 void dump_patable();
 // comparer les 47 registres de 00 a 2E, avec les valeurs de reference
 void compare_config( const unsigned char * ref_regs );
-void smarties();
+void quick_view();
 
+void smarties();
+void quick_set();	// tester les float convs
 void demo( int c );
 
 // Async transparent mode, FSK modulation by GDO0
