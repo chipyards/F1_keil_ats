@@ -72,6 +72,25 @@ const char * fsm_states[] = { 		// noms des codes d'etats obtenus dans le status
 const char * mod_methods[] = { 		// noms des methodes de modulation
 	"2-FSK", "GFSK", "-", "ASK/OOK", "4-FSK", "-", "-", "MSK"
 	};
+const char * pack_format[] = { 		// noms des formats, packet ou non
+	"NORM", "SYNC", "RANDOM", "ASYNC"
+	};
+const char * pack_len_conf[] = { 		// noms des modes pour packet length
+	"FIXED", "VAR", "INFINITE", ""
+	};
+const char * sync_word_conf[] = { 		// noms des modes pour sync word matching
+	"NONE", "15/16", "16/16", "30/32", "CS", "15/16+CS", "16/16+CS", "30/32+CS"
+	};
+const int preamble_size[] = {		// nombre de bytes du preambule 10101010
+	2, 3, 4, 6, 8, 12, 16, 24
+	};
+const char * CCA_mode[] = {		// noms des modes de Clear Channel Assignment
+	"ALWAYS", "RSSI", "NO_RX_IN_PROGRESS", "RSSI & NO_RX_IN_PROGRESS"
+	};
+const char * FSM_next_state[] = {	// noms des etats futurs pour RXOFF et TXOFF
+	"IDLE", "FSTXON", "TX", "RX"
+	};
+
 const unsigned char full_patable[] = {
 //	-30   -20   -15   -10    0     5     7     10 dBm  (table 39 page 60)
 	0x12, 0x0E, 0x1D, 0x34, 0x60, 0x84, 0xC8, 0xC0
@@ -81,6 +100,10 @@ const unsigned char full_patable[] = {
 /// singleton
 ///
 CC1101 CC;
+
+///
+/// CC1101 methods
+///
 
 // burst read, rend l'adresse d'un array de bytes PRECAIRE a utiliser immediatement
 // ce buffer peut etre altere par un read_reg() interpose NOT THREAD SAFE
@@ -262,6 +285,29 @@ set_bandwidth( M, E );
 set_modu( CC1101_AM );
 set_patable( full_patable );
 set_power( 5 );
+
+set_pkt_len(61);
+set_PQT(5);
+set_CRC_autoflush(1);
+set_append_status(0);
+set_adress_check(1);
+set_whiten(0);
+set_packet_format(1);
+set_CRC(0);
+set_packet_len_config(2);
+set_adr( 53 );
+set_no_dc_filt(1);
+set_modu(0);
+set_sync_mode(0);
+set_preamble(4);
+set_CCA(2);
+set_RXOFF(2);
+set_TXOFF(3);
+set_autocal(1);
+set_FOC_limit(3);
+set_BS_limit(2);
+set_FOC_BS_gate(1);
+
 }
 
 void CC1101::quick_view()
@@ -272,11 +318,11 @@ CDC_printf("version %02x\n", read_status_reg( CC1101_VERSION ) );
 
 fu = get_synth_frequ();
 ff = synth_frequ_to_float( fu );
-CDC_printf("freq synth %06x -> %6f MHz\n", fu, ff );
+CDC_printf("freq synth 0x%06x -> %6f MHz\n", fu, ff );
 
 fu = get_IF();
 ff = IF_to_float( fu );
-CDC_printf("IF %02x -> %.2f kHz\n", fu, ff );
+CDC_printf("IF %d -> %.2f kHz\n", fu, ff );
 
 get_data_rate( &M, &E );
 ff = data_rate_to_float( M, E );
@@ -290,9 +336,29 @@ get_bandwidth( &M, &E );
 ff = bandwidth_to_float( M, E );
 CDC_printf("bandwidth M=%d, E=%d -> %.2f kHz\n", M, E, ff );
 
-M = get_modu();
-CDC_printf("modulation : %s\n", mod_methods[M] );
 dump_patable();
+
+CDC_printf("packet length : %d\n", get_pkt_len() );
+M = get_PQT(); CDC_printf("preamble quality threshold PQT : %d : %d transitions\n", M, M*4 );
+CDC_printf("autoflush on CRC error : %d\n", get_CRC_autoflush() );
+CDC_printf("append status to Rx packet : %d\n", get_append_status() );
+CDC_printf("address Tx and check on Rx : %d\n", get_adress_check() );
+CDC_printf("data whitening : %d\n", get_whiten() );
+M = get_packet_format(); CDC_printf("packet format : %d : %s\n", M, pack_format[M] );
+CDC_printf("CRC enable : %d\n", get_CRC() );
+M = get_packet_len_config(); CDC_printf("packet length config : %d : %s\n", M, pack_len_conf[M] );
+CDC_printf("address value : %d\n", get_adr() );
+CDC_printf("disable DC filter : %d\n", get_no_dc_filt() );
+M = get_modu(); CDC_printf("modulation : %d : %s\n", M, mod_methods[M] );
+M = get_sync_mode(); CDC_printf("sync word matching : %d : %s\n", M, sync_word_conf[M] );
+M = get_preamble(); CDC_printf("preamble size : %d : %d bytes\n", M, preamble_size[M] );
+M = get_CCA(); CDC_printf("clear channel assignment CCA : %d : %s\n", M, CCA_mode[M] );
+M = get_RXOFF(); CDC_printf("FSM state after RX : %d : %s\n", M, FSM_next_state[M] );
+M = get_TXOFF(); CDC_printf("FSM state after TX : %d : %s\n", M, FSM_next_state[M] );
+CDC_printf("auto-calibration : %d\n", get_autocal() );
+CDC_printf("frequency offset compensation FOC limit : %d\n", get_FOC_limit() );
+CDC_printf("bit sync BS limit : %d\n", get_BS_limit() );
+CDC_printf("FOC and BS gate with carrier sense CS : %d\n", get_FOC_BS_gate() );
 }
 
 // quelques configs non documentees, intuitees par SmartRF
@@ -343,6 +409,11 @@ switch	( c ) {
 	case 'F' :		// FSK manuel, use JK
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
+		quick_view();
+		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
+		break;
+	case 'G' :		// GFSK packet
+		preset_P10G();
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
