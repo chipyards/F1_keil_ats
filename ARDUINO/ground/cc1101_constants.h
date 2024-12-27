@@ -6,9 +6,9 @@
 
 //			adr   dump doc	<-- dump = valeurs observees au reset, doc = valeurs par defaut selon  CC1101.pdf
 #define CC1101_IOCFG2   0x00 // 29 29 GDO2 - mettre 2F ou 6F pour test JLN's LED
-#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - laisser 2E = tristate
+#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - laisser 2E = Hi Z
 #define CC1101_IOCFG0   0x02 // 3f 3F GDO0 - default 3F=135.4kHz a remplacer pour interrupt
-#define CC1101_FIFOTHR	0x03 // 07 07 4x = ADC_retention, FIFO Threshold & RX attenuator; 07 = half fifo, 0dB att
+#define CC1101_FIFOTHR  0x03 // 07 07 FIFO Threshold & RX attenuator 07 = half fifo, 0dB att
 #define CC1101_SYNC1    0x04 // d3 D3 Sync Word, High Byte 11010011
 #define CC1101_SYNC0    0x05 // 91 91 Sync Word, Low Byte  10010001
 #define CC1101_PKTLEN   0x06 // ff FF Packet Length (ou max length si variable)
@@ -27,13 +27,13 @@
 #define CC1101_MDMCFG1  0x13 // 22 22 FEC=off, preamble=4bytes, Channel Spacing Exponent=2
 #define CC1101_MDMCFG0  0x14 // f8 F8 Channel Spacing Mantissa=F8 --> 199.951 kHz, resolution Fxtal/(1<<18)
 #define CC1101_DEVIATN  0x15 // 47 47 FM Deviation (on each side of base frequ.) -> 47.607 kHz, resolution Fxtal/(1<<17)
-#define CC1101_MCSM2    0x16 // 07 07 FSM: RX Timout=off (leave RX at end of packet) N.B. otherwise timer needs RC osc
-#define CC1101_MCSM1    0x17 // 30 30 FSM: CCA="low RSSI andnot receiving", RXOFF->IDLE, TXOFF->IDLE
-#define CC1101_MCSM0    0x18 // 04 04 FSM: FS_AUTOCAL=off, PowerOn timout=37us(recomm plus), 3-Pin Control(hack)=off, force XOSC=off
+#define CC1101_MCSM2    0x16 // 07 07 RX Timout=off (leave RX at end of packet) N.B. otherwise timer needs RC osc
+#define CC1101_MCSM1    0x17 // 30 30 CCA="low RSSI andnot receiving", RXOFF->IDLE, TXOFF->IDLE
+#define CC1101_MCSM0    0x18 // 04 04 FS_AUTOCAL=off, PowerOn timout=37us(recomm plus), 3-Pin Control(hack)=off, force XOSC=off
 #define CC1101_FOCCFG   0x19 // 76!36 Frequ Offset Compens: freeze until CS high=on, gain before sync=3K, after=K/2, saturation=on,+-BW/4
 #define CC1101_BSCFG    0x1A // 6c 6C Bit Synchronization Configuration: loop gain before sync i=2K, p=3k, after i=K/2, p=K, saturation=0(loop off)
 #define CC1101_AGCCTRL2 0x1B // 03 03 AGC: DVGA gain=max, LNA gain=max, target amplitude (consigne)=33dB (medium)
-#define CC1101_AGCCTRL1 0x1C // 40 40 AGC: LNA gain prority=LNA, CS relative change threshold=off, CS absolute threshold=target amplitude
+#define CC1101_AGCCTRL1 0x1C // 40 40 AGC: LNA gain prority=1, CS relative change threshold=off, CS absolute threshold=target amplitude
 #define CC1101_AGCCTRL0 0x1D // 91 91 AGC: hysteresis=medium, delay=medium, freeze=off, FIR filter=16samples, OOK/ASK boundary=8dB
 #define CC1101_WOREVT1  0x1E // 87 87 WOR Event0 Timeout: big endian, sera affecte d'un exposant 5*WOR_RES
 #define CC1101_WOREVT0  0x1F // 6b 6B WOR Event0 Timeout: "   -> 1s
@@ -51,7 +51,7 @@
 //#define CC1101_AGCTEST0x2B // 3f 3F - undocumented
 #define CC1101_TEST2	0x2C // 88 88 - undocumented
 #define CC1101_TEST1	0x2D // 31 31 - undocumented
-#define CC1101_TEST0	0x2E // 0b 0B - SmartRF -> 09 = VCO selection calibration stage off, impacte calib de FSCAL1
+#define CC1101_TEST0	0x2E // 0b 0B - undocumented
 
 // CC1101 Strobe commands
 #define CC1101_SRES         0x30        // Reset chip.
@@ -94,3 +94,15 @@
 #define CC1101_AM	3
 #define CC1101_4FSK	4
 #define CC1101_MSK	7
+
+// CC1101 GDO settings p. 62 - add 0x40 to invert
+#define CC1101_GDO_RXFIFO	0	// Rx fifo above threshold, cleared by reading the FIFO
+#define CC1101_GDO_P_IN_PROC	6	// Tx or Rx in process, from sync to end
+#define CC1101_GDO_CRC_OK	7	// Rx CRC Ok, cleared by reading the FIFO
+#define CC1101_GDO_CCA		9	// CCA
+#define CC1101_GDO_C_SENSE	14	// Carrier sense
+
+#define CC1101_GDO_HIZ		46	// high Z
+#define CC1101_GDO_LO		0x2F	// 0
+#define CC1101_GDO_HI		0x6F	// 1
+#define CC1101_GDO_13MHZ	50	// XOSC/2 pour frequencemetre

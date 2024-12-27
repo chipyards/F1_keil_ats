@@ -388,6 +388,8 @@ switch	( c ) {
 	// minuscules : observation
 	case 'c' : compare_config( reset_regs );
 		break;
+	case 'd' : dump_config();
+		break;
 	case 'q' : quick_view();
 		break;
 	case ' ' :
@@ -404,7 +406,13 @@ switch	( c ) {
 		if	( rxbytes )
 			{
 			unsigned char * zetxt = read_regs( 0x3F, rxbytes );
-			CDC_printf("RX len %d, [%.9s]\n", zetxt[0], zetxt+1 );
+			CDC_printf( "RX len %d, [", zetxt[0] );
+			unsigned int pos = zetxt[0] + 1;
+			if	( pos >= sizeof( rxbuf ) )
+				pos = ( sizeof( rxbuf ) - 1 );
+			zetxt[pos] = 0;
+			CDC_printf( (const char *)zetxt+1 );
+			CDC_printf( "]\n" );
 			}
 		} break;
 	// majuscules et chiffres : actions
@@ -413,7 +421,7 @@ switch	( c ) {
 		unsigned int len = strlen( txt );
 		write_reg( 0x3F, len );
 		write_regs( 0x3F, (const unsigned char *)txt, len );
-		CDC_printf("wrote %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
+		CDC_printf("put %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
 		} break;
 	case 'J':
 		write_reg( CC1101_IOCFG2, 0x2f );	// test LED : logic 0

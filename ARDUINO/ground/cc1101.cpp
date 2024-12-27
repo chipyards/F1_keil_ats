@@ -71,11 +71,22 @@ for ( byte i = 0; i < 0x2F; i++ )
     snprintf( tbuf, sizeof(tbuf), "reg %02x : %02x\n", i, fbuf[i] );
     Serial.print( tbuf );
     }
-unsigned long int fu = get_synth_frequ();
-// convertir en kHz
-fu *= 1625;   // 26000 / 16
-fu >>= 12;
-snprintf( tbuf, sizeof(tbuf), "F = %lu kHz\n", fu ); Serial.print( tbuf );
+snprintf( tbuf, sizeof(tbuf), "F = %lu kHz\n", synth_frequ_to_kHz(get_synth_frequ()) );
+Serial.print( tbuf );
+}
+
+// dump PATABLE
+void CC1101::dump_patable()
+{
+snprintf( tbuf, sizeof(tbuf), "PATABLE : %d -> ", get_power() );
+Serial.print( tbuf );
+unsigned char * fbuf = read_regs( 0x3E, 8 );
+for	( byte i = 0; i < 8; i++ )
+	{
+	snprintf( tbuf, sizeof(tbuf), " %02x", fbuf[i] );
+	Serial.print( tbuf );
+	}
+Serial.print("\n");
 }
 
 void CC1101::demo( byte c )
@@ -86,15 +97,35 @@ switch ( c ) {
   case 'd' : dump_config();
     break;
   case 'v' :
-    snprintf( tbuf, sizeof(tbuf), "version %02x\n", read_status_reg( CC1101_VERSION ) );
-    Serial.print( tbuf ); 
-    break;
-  case '?' :
+  case ' ' :
     read_strobe( CC1101_SNOP );
-    snprintf( tbuf, sizeof(tbuf), "FSM state %s, FIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
+    snprintf( tbuf, sizeof(tbuf), "FSM %s, RXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
+    Serial.print( tbuf ); 
+    write_strobe( CC1101_SNOP );
+    snprintf( tbuf, sizeof(tbuf), "FSM %s, TXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
     Serial.print( tbuf ); 
     break;
+  case '?' : {
+    byte rxbytes, txbytes;
+    rxbytes = read_status_reg( CC1101_RXBYTES );
+    txbytes = read_status_reg( CC1101_TXBYTES );
+    snprintf( tbuf, sizeof(tbuf), "RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
+    Serial.print( tbuf ); 
+    if	( rxbytes )
+	    {
+	    unsigned char * zetxt = read_regs( 0x3F, rxbytes );
+	    snprintf( tbuf, sizeof(tbuf), "RX len %d, [", zetxt[0] );
+	    Serial.print( tbuf );
+	    byte pos = zetxt[0] + 1;
+	    if	( pos >= sizeof( txbuf ) )
+		      pos = ( sizeof( txbuf ) - 1 );
+	    zetxt[pos] = 0;
+	    Serial.print( (char *)zetxt+1 );
+	    Serial.print( "]\n" );
+	    }
+    } break;
   // majuscules et chiffres : actions
+  /* experience CW *
   case 'J':
     adr = CC1101_IOCFG0;
     write_reg( adr, 0x2f ); // test GDO0 : logic 0
@@ -106,13 +137,38 @@ switch ( c ) {
   case 'F' :    // FSK manuel, use JK
     preset_P10AF();
     break;
-  case '3' :
-    unsigned long fu = 433000;
-    fu <<= 12;
-    fu /= 1625;
-    set_synth_frequ( fu );
-    break;
-      // les strobes
+  //*/
+  case '!': {	// put some text in tx fifo
+	  const char * txt = "C'est imposant pour mon petit corps";
+	  unsigned int len = strlen( txt );
+	  write_reg( 0x3F, len );
+	  write_regs( 0x3F, (const unsigned char *)txt, len );
+	  snprintf( tbuf, sizeof(tbuf), "put %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
+	  Serial.print( tbuf );
+	  } break;
+  case 'G' :		// GFSK packet
+	  preset_P10G();
+	  set_pkt_len(61);
+	  set_PQT(0);
+	  set_append_status(1);
+	  set_adress_check(0);
+	  set_whiten(0);
+	  set_packet_format(0);
+	  set_CRC(0);
+	  set_packet_len_config(1);
+	  set_no_dc_filt(0);
+	  set_sync_mode(3);
+	  set_preamble(2);
+	  set_CCA(0);
+	  set_RXOFF(3);
+	  set_TXOFF(3);
+	  set_autocal(1);
+	  set_FOC_limit(0);
+	  set_BS_limit(0);
+	  write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
+	  write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
+	  break;
+  // les strobes
   case 'Z' :
     read_strobe( CC1101_SRES );
     break;
@@ -131,6 +187,5 @@ switch ( c ) {
   case 'T' :
     read_strobe( CC1101_STX );
     break;
-
   }
 }

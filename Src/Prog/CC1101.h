@@ -227,10 +227,9 @@ void smarties();
 void quick_set();	// tester les float convs
 void demo( int c );
 
-// GFSK modulation by GDO0
+// GFSK modulation
 void preset_P10G() {
 // X-tal frequency = 26 MHz
-// RF output power = 0 dBm
 // RX filterbandwidth = 101.562500 kHz
 // Deviation = 19 kHz
 // Datarate = 9.992599 kBaud
@@ -238,8 +237,6 @@ void preset_P10G() {
 // Manchester enable = (0) Manchester disabled
 // RF Frequency = 433.999969 MHz
 // Channel spacing = 199.951172 kHz
-// Channel number = 0
-// Optimization = -
 // Sync mode = (3) 30/32 sync word bits detected
 // Format of RX/TX data = (0) Normal mode, use FIFOs for RX and TX
 // CRC operation = (1) CRC calculation in TX and CRC check in RX enabled
