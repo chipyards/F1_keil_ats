@@ -6,7 +6,7 @@
 
 //			adr   dump doc	<-- dump = valeurs observees au reset, doc = valeurs par defaut selon  CC1101.pdf
 #define CC1101_IOCFG2   0x00 // 29 29 GDO2 - mettre 2F ou 6F pour test JLN's LED
-#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - laisser 2E = tristate
+#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - laisser 2E = Hi Z
 #define CC1101_IOCFG0   0x02 // 3f 3F GDO0 - default 3F=135.4kHz a remplacer pour interrupt
 #define CC1101_FIFOTHR  0x03 // 07 07 FIFO Threshold & RX attenuator 07 = half fifo, 0dB att
 #define CC1101_SYNC1    0x04 // d3 D3 Sync Word, High Byte 11010011
@@ -94,3 +94,15 @@
 #define CC1101_AM	3
 #define CC1101_4FSK	4
 #define CC1101_MSK	7
+
+// CC1101 GDO settings p. 62 - add 0x40 to invert
+#define CC1101_GDO_RXFIFO	0	// Rx fifo above threshold, cleared by reading the FIFO
+#define CC1101_GDO_P_IN_PROC	6	// Tx or Rx in process, from sync to end
+#define CC1101_GDO_CRC_OK	7	// Rx CRC Ok, cleared by reading the FIFO
+#define CC1101_GDO_CCA		9	// CCA
+#define CC1101_GDO_C_SENSE	14	// Carrier sense
+
+#define CC1101_GDO_HIZ		46	// high Z
+#define CC1101_GDO_LO		0x2F	// 0
+#define CC1101_GDO_HI		0x6F	// 1
+#define CC1101_GDO_13MHZ	50	// XOSC/2 pour frequencemetre

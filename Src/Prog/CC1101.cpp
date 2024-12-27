@@ -67,7 +67,7 @@ const unsigned char reset_regs[] = {	// 47 registres au reset, selon doc CC1101.
 };
 
 const char * fsm_states[] = { 		// noms des codes d'etats obtenus dans le status byte
-	"IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
+	"IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_UNDER"
 	};
 const char * mod_methods[] = { 		// noms des methodes de modulation
 	"2-FSK", "GFSK", "-", "ASK/OOK", "4-FSK", "-", "-", "MSK"
@@ -359,6 +359,8 @@ CDC_printf("auto-calibration : %d\n", get_autocal() );
 CDC_printf("frequency offset compensation FOC limit : %d\n", get_FOC_limit() );
 CDC_printf("bit sync BS limit : %d\n", get_BS_limit() );
 CDC_printf("FOC and BS gate with carrier sense CS : %d\n", get_FOC_BS_gate() );
+CDC_printf("VCO Calib %02x %02x %02x %02x\n", read_reg(CC1101_FSCAL3),
+	   read_reg(CC1101_FSCAL2), read_reg(CC1101_FSCAL1), read_reg(CC1101_FSCAL0) );
 }
 
 // quelques configs non documentees, intuitees par SmartRF
@@ -382,7 +384,6 @@ void CC1101::demo( int c )
 	CDC_printf("%02x -> %02x, MISO=%d\n", c, echo, IS_MISO_SET() );
 	}
 */
-int adr;
 switch	( c ) {
 	// minuscules : observation
 	case 'c' : compare_config( reset_regs );
@@ -391,20 +392,38 @@ switch	( c ) {
 		break;
 	case ' ' :
 		read_strobe( CC1101_SNOP );
-		CDC_printf("FSM state %s, FIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
+		CDC_printf("FSM %s, RXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
+		write_strobe( CC1101_SNOP );
+		CDC_printf("FSM %s, TXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
 		break;
+	case '?' : {
+		unsigned int rxbytes, txbytes;
+		rxbytes = read_status_reg( CC1101_RXBYTES );
+		txbytes = read_status_reg( CC1101_TXBYTES );
+		CDC_printf("RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
+		if	( rxbytes )
+			{
+			unsigned char * zetxt = read_regs( 0x3F, rxbytes );
+			CDC_printf("RX len %d, [%.9s]\n", zetxt[0], zetxt+1 );
+			}
+		} break;
 	// majuscules et chiffres : actions
+	case '!': {	// put some text in tx fifo
+		const char * txt = "C'est imposant pour ton petit corps";
+		unsigned int len = strlen( txt );
+		write_reg( 0x3F, len );
+		write_regs( 0x3F, (const unsigned char *)txt, len );
+		CDC_printf("wrote %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
+		} break;
 	case 'J':
-		adr = CC1101_IOCFG2;
-		write_reg( adr, 0x2f );	// test LED : logic 0
+		write_reg( CC1101_IOCFG2, 0x2f );	// test LED : logic 0
 		GDO0_LO();
-		CDC_printf("wrote 0x2f to reg %02x, 0 to GDO0\n", adr  );
+		CDC_printf("wrote 0 to GDO0\n");
 		break;
 	case 'K':
-		adr = CC1101_IOCFG2;
-		write_reg( adr, 0x40 | 0x2f ); //  test LED : logic 1
+		write_reg( CC1101_IOCFG2, 0x40 | 0x2f ); //  test LED : logic 1
 		GDO0_HI();
-		CDC_printf("wrote 0x6f to reg %02x, 1 to GDO0\n", adr  );
+		CDC_printf("wrote 1 to GDO0\n");
 		break;
 	case 'F' :		// FSK manuel, use JK
 		preset_P10AF();
@@ -414,6 +433,25 @@ switch	( c ) {
 		break;
 	case 'G' :		// GFSK packet
 		preset_P10G();
+		set_pkt_len(61);
+		set_PQT(0);
+		set_append_status(1);
+		set_adress_check(0);
+		set_whiten(0);
+		set_packet_format(0);
+		set_CRC(0);
+		set_packet_len_config(1);
+		set_no_dc_filt(0);
+		set_sync_mode(3);
+		set_preamble(2);
+		set_CCA(0);
+		set_RXOFF(3);
+		set_TXOFF(3);
+		set_autocal(1);
+		set_FOC_limit(0);
+		set_BS_limit(0);
+		write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
+		write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
