@@ -34,6 +34,10 @@ digitalWrite( 10, 1 );  // SS hi
 const char * fsm_states[] = {     // noms des codes d'etats obtenus dans le status byte
   "IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
   };
+const unsigned char full_patable[] = {
+//  -30   -20   -15   -10    0     5     7     10 dBm  (table 39 page 60)
+  0x12, 0x0E, 0x1D, 0x34, 0x60, 0x84, 0xC8, 0xC0
+  };
 
 ///
 /// singleton
@@ -58,6 +62,7 @@ void CC1101::write_regs( byte start_adr, const unsigned char * src, byte cnt ) {
   SPI1_multi_byte( txbuf, rxbuf, cnt+1 );
   }
 
+
 ///
 /// experiences
 ///
@@ -80,7 +85,7 @@ void CC1101::dump_patable()
 {
 snprintf( tbuf, sizeof(tbuf), "PATABLE : %d -> ", get_power() );
 Serial.print( tbuf );
-unsigned char * fbuf = read_regs( 0x3E, 8 );
+unsigned char * fbuf = get_patable();
 for	( byte i = 0; i < 8; i++ )
 	{
 	snprintf( tbuf, sizeof(tbuf), " %02x", fbuf[i] );
@@ -94,17 +99,18 @@ void CC1101::demo( byte c )
 byte adr;
 switch ( c ) {
   // minuscules : observation
-  case 'd' : dump_config();
+  case 'd' : dump_config(); dump_patable();
     break;
   case 'v' :
-  case ' ' :
-    read_strobe( CC1101_SNOP );
-    snprintf( tbuf, sizeof(tbuf), "FSM %s, RXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
+  case ' ' : {
+    byte fif;
+    read_strobe( CC1101_SNOP ); fif = STATUS & 0x0F;
+    snprintf( tbuf, sizeof(tbuf), "FSM %s, RXFIFO %s%d", fsm_states[(STATUS >> 4) & 7], ((fif<15)?(""):(">=")), fif );
     Serial.print( tbuf ); 
-    write_strobe( CC1101_SNOP );
-    snprintf( tbuf, sizeof(tbuf), "FSM %s, TXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
+    write_strobe( CC1101_SNOP ); fif = STATUS & 0x0F;
+    snprintf( tbuf, sizeof(tbuf), ", TXFIFO %s%d free\n", ((fif<15)?(""):(">=")), fif );
     Serial.print( tbuf ); 
-    break;
+    } break;
   case '?' : {
     byte rxbytes, txbytes;
     rxbytes = read_status_reg( CC1101_RXBYTES );
@@ -117,11 +123,13 @@ switch ( c ) {
 	    snprintf( tbuf, sizeof(tbuf), "RX len %d, [", zetxt[0] );
 	    Serial.print( tbuf );
 	    byte pos = zetxt[0] + 1;
+      int hrssi = (int)((char)zetxt[pos]) - (2*74);
 	    if	( pos >= sizeof( txbuf ) )
 		      pos = ( sizeof( txbuf ) - 1 );
 	    zetxt[pos] = 0;
 	    Serial.print( (char *)zetxt+1 );
-	    Serial.print( "]\n" );
+      snprintf( tbuf, sizeof(tbuf), "] %d half-dBm\n", hrssi );
+	    Serial.print( tbuf );
 	    }
     } break;
   // majuscules et chiffres : actions
@@ -167,6 +175,8 @@ switch ( c ) {
 	  set_BS_limit(0);
 	  write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
 	  write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
+    set_patable( full_patable );
+    set_power( 4 ); // 0 dBm
 	  break;
   // les strobes
   case 'Z' :

@@ -188,15 +188,20 @@ byte get_FOC_BS_gate()			{ return get1( CC1101_FOCCFG, 5 ); }
 void set_power( byte power )		{ set3( power, CC1101_FREND0, 0 ); }
 byte get_power()			{ return get3( CC1101_FREND0, 0 ); }
 
+unsigned char * get_patable() {
+  return read_regs( 0x3E, 8 );
+  }
+void set_patable( const unsigned char *src ) {
+  write_regs( 0x3E, src, 8 );
+  }
+
 // human friendly conversions
 unsigned long synth_frequ_from_kHz( unsigned long fu ) {
-    fu <<= 12;
-    fu /= 1625;
+    fu <<= 12; fu += 812; fu /= 1625;
     return fu;
     }
 unsigned long synth_frequ_to_kHz( unsigned long fk ) {
-    fk *= 1625;
-    fk >>= 12;
+    fk *= 1625; fk += (1<<11); fk >>= 12;
     return fk;
     }
 

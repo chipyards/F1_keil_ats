@@ -120,22 +120,6 @@ void CC1101::write_regs( int start_adr, const unsigned char * src, int cnt ) {
 	}
 
 ///
-/// get-set methods
-///
-void CC1101::get_patable( unsigned char *dest )
-{
-txbuf[0] = 0xC0 | 0x3E;
-SPI1_multi_byte( txbuf, dest, 9 );
-}
-
-void CC1101::set_patable( const unsigned char *src )
-{
-write_regs( 0x3E, src, 8 );
-}
-
-
-
-///
 /// float methods
 ///
 float CC1101::synth_frequ_to_float( unsigned int fu )
@@ -232,6 +216,7 @@ void CC1101::dump_config()
 unsigned char * fbuf = read_regs( 0, 0x2F );
 for	( unsigned int i = 0; i < 0x2F; i++ )
 	CDC_printf("reg %02x : %02x\n", i, fbuf[i] );
+CDC_printf("F = %lu kHz\n", synth_frequ_to_kHz(get_synth_frequ()) );
 }
 
 // comparer les 47 registres de 00 a 2E, avec les valeurs de reference
@@ -248,14 +233,14 @@ for	( unsigned int i = 0; i < 0x2F; i++ )
 void CC1101::dump_patable()
 {
 CDC_printf("PATABLE : %d -> ", get_power() );
-unsigned char * fbuf = read_regs( 0x3E, 8 );
+unsigned char * fbuf = get_patable();
 for	( unsigned int i = 0; i < 8; i++ )
 	CDC_printf(" %02x", fbuf[i] );
 CDC_printf("\n");
 }
 
-void CC1101::quick_set()	// valeurs bidon, pour tester les set methods, avec quick_view
-{
+void CC1101::quick_set()
+{	/* valeurs bidon, pour tester les set methods, avec quick_view *
 unsigned int E, M, fu; float ff;
 ff = 433.333f;
 fu= synth_frequ_from_float( ff );
@@ -307,7 +292,7 @@ set_autocal(1);
 set_FOC_limit(3);
 set_BS_limit(2);
 set_FOC_BS_gate(1);
-
+//*/
 }
 
 void CC1101::quick_view()
@@ -318,7 +303,7 @@ CDC_printf("version %02x\n", read_status_reg( CC1101_VERSION ) );
 
 fu = get_synth_frequ();
 ff = synth_frequ_to_float( fu );
-CDC_printf("freq synth 0x%06x -> %6f MHz\n", fu, ff );
+CDC_printf("freq synth 0x%06x -> %6f MHz (%u kHz)\n", fu, ff, synth_frequ_to_kHz( fu ) );
 
 fu = get_IF();
 ff = IF_to_float( fu );
@@ -388,16 +373,17 @@ switch	( c ) {
 	// minuscules : observation
 	case 'c' : compare_config( reset_regs );
 		break;
-	case 'd' : dump_config();
+	case 'd' : dump_config(); dump_patable();
 		break;
 	case 'q' : quick_view();
 		break;
-	case ' ' :
-		read_strobe( CC1101_SNOP );
-		CDC_printf("FSM %s, RXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
-		write_strobe( CC1101_SNOP );
-		CDC_printf("FSM %s, TXFIFO %d\n", fsm_states[(STATUS >> 4) & 7], STATUS & 0x0F );
-		break;
+	case ' ' : {
+		unsigned int fif;
+		read_strobe( CC1101_SNOP ); fif = STATUS & 0x0F;
+    		CDC_printf("FSM %s, RXFIFO %s%d", fsm_states[(STATUS >> 4) & 7], ((fif<15)?(""):(">=")), fif );
+    		write_strobe( CC1101_SNOP ); fif = STATUS & 0x0F;
+    		CDC_printf(", TXFIFO %s%d free\n", ((fif<15)?(""):(">=")), fif );
+    		} break;
 	case '?' : {
 		unsigned int rxbytes, txbytes;
 		rxbytes = read_status_reg( CC1101_RXBYTES );
@@ -408,11 +394,12 @@ switch	( c ) {
 			unsigned char * zetxt = read_regs( 0x3F, rxbytes );
 			CDC_printf( "RX len %d, [", zetxt[0] );
 			unsigned int pos = zetxt[0] + 1;
+			int hrssi = (int)((char)zetxt[pos]) - (2*74);
 			if	( pos >= sizeof( rxbuf ) )
 				pos = ( sizeof( rxbuf ) - 1 );
 			zetxt[pos] = 0;
 			CDC_printf( (const char *)zetxt+1 );
-			CDC_printf( "]\n" );
+			CDC_printf( "] %d half-dBm\n", hrssi );
 			}
 		} break;
 	// majuscules et chiffres : actions
@@ -460,6 +447,8 @@ switch	( c ) {
 		set_BS_limit(0);
 		write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
 		write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
+		set_patable( full_patable );
+		set_power( 4 ); // 0 dBm
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;

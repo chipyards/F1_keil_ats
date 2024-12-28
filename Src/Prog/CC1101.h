@@ -186,6 +186,12 @@ unsigned int get_FOC_BS_gate()			{ return get1( CC1101_FOCCFG, 5 ); }
 void set_power( unsigned int power )		{ set3( power, CC1101_FREND0, 0 ); }
 unsigned int get_power()			{ return get3( CC1101_FREND0, 0 ); }
 
+unsigned char * get_patable() {
+	return read_regs( 0x3E, 8 );
+	}
+void set_patable( const unsigned char *src ) {
+	write_regs( 0x3E, src, 8 );
+	}
 
 // gets sans set
 
@@ -194,10 +200,17 @@ int get_RSSI_half_dB() {
 	return ( (int)((char)read_status_reg( CC1101_RSSI )) - (2*74) );
 	};
 
-void get_patable( unsigned char * dest );
-void set_patable( const unsigned char * src );
+// human friendly conversion method (no float)
+unsigned int synth_frequ_from_kHz( unsigned int fu ) {
+    fu <<= 12; fu += 812; fu /= 1625;
+    return fu;
+    }
+unsigned int synth_frequ_to_kHz( unsigned int fk ) {
+    fk *= 1625; fk += (1<<11); fk >>= 12;
+    return fk;
+    }
 
-// float conversion methods
+// human friendly conversion method (float)
 float synth_frequ_to_float( unsigned int fu );		// MHz
 unsigned int synth_frequ_from_float( float ff );	// MHz
 
