@@ -240,6 +240,9 @@ void smarties();
 void quick_set();	// tester les float convs
 void demo( int c );
 
+int simple_beacon_init();	// return 0 if CC1101 responds Ok
+void simple_beacon_tx( unsigned int t );
+
 // GFSK modulation
 void preset_P10G() {
 // X-tal frequency = 26 MHz

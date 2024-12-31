@@ -3,6 +3,7 @@
 #include "stm32f1xx_ll_gpio.h"
 #include "stm32f1xx_ll_spi.h"
 #include <string.h> // pour memcpy
+#include <stdio.h>	// pour snprintf
 #include "qfplib-m3.h"
 #include "gpio.h"
 #include "sys.h"
@@ -403,6 +404,12 @@ switch	( c ) {
 			}
 		} break;
 	// majuscules et chiffres : actions
+	case '1' :
+	case '2' :
+	case '3' :
+	case '4' :
+		simple_beacon_tx(c);
+		break;
 	case '!': {	// put some text in tx fifo
 		const char * txt = "C'est imposant pour ton petit corps";
 		unsigned int len = strlen( txt );
@@ -505,4 +512,51 @@ switch	( c ) {
 
 	default : CDC_printf("%c\n", ((c>=' ')?(c):('?')) );
 	}
+}
+
+int CC1101::simple_beacon_init()
+{
+// gpio_spi1_init();	// c'est fait
+// SPI1_init();		// c'est fait
+if	( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
+	return 3;
+read_strobe( CC1101_SIDLE );
+preset_P10G();
+set_pkt_len(61);
+set_PQT(0);
+set_append_status(1);
+set_adress_check(0);
+set_whiten(0);
+set_packet_format(0);
+set_CRC(0);
+set_packet_len_config(1);
+set_no_dc_filt(0);
+set_sync_mode(3);
+set_preamble(2);
+set_CCA(0);
+set_RXOFF(3);
+set_TXOFF(3);
+set_autocal(1);
+set_FOC_limit(0);
+set_BS_limit(0);
+write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
+write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
+set_patable( full_patable );
+set_power( 4 ); // 0 dBm
+read_strobe( CC1101_SIDLE );
+return 0;
+}
+
+
+void CC1101::simple_beacon_tx( unsigned int t )
+{
+char fbuf[16];
+read_strobe( CC1101_SIDLE );
+snprintf( fbuf, sizeof(fbuf), "t=%d", t );
+unsigned int len = strlen( fbuf );
+if	( read_reg( CC1101_FREQ2 ) != 0x10 )
+	return
+write_reg( 0x3F, len );
+write_regs( 0x3F, (const unsigned char *)fbuf, len );
+read_strobe( CC1101_STX );
 }

@@ -6,6 +6,7 @@
 #else	// Blue Pill
 #define LED_OFF()	LL_GPIO_SetOutputPin(   GPIOC, LL_GPIO_PIN_13 )
 #define LED_ON()	LL_GPIO_ResetOutputPin( GPIOC, LL_GPIO_PIN_13 )
+#define BLUE_PRESS()	(0)
 #endif
 
 #define IS_PA12_SET()	LL_GPIO_IsInputPinSet(  GPIOA, LL_GPIO_PIN_12 )

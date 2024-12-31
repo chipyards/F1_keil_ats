@@ -11,6 +11,11 @@
 // nucleo cut	Y		N		N
 // blue pill	Y		Y		N
 
+/* resume des differences entre Nucleo et Blue Pill :
+			8MHz		LED		BUTTON		PA12
+	Nucleo		HSE_EXT	| HSI	PA5  act hi	PC13 act lo	-
+	Blue 		HSE		PC13 act lo	-		pullup @ 5V
+ */
 
 // choix du main
 // #define MAIN_COULOMB
@@ -22,20 +27,22 @@
 #define NUCLEO
 // #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
-// pour eviter brick, SLEEP n'est effectif qu'apres 10s depuis reset
+// pour eviter brick de la blue-pill ou nucleo coupee, SLEEP n'est effectif qu'apres 10s depuis reset
 #define GREEN_CPU
 
 // modules optionnels
 #define USE_CC1101
-#define USE_CDC
-#define USE_TIM3_PC6
-// #define USE_ADC_4CH	// uses TIM3
-// #define USE_PWM	// uses TIM3, retired for the moment
-// #define USE_NOKIA	// implies SPI1 remap or AF 5
+#ifdef NUCLEO
+  // #define USE_CDC
+  // #define USE_TIM3_PC6	// uses TIM3
+#endif
 // #define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)
-// #define USE_UART3_FM
 // #define USE_LCD2x16
 #endif
+
+// experiences optionnelles
+// #define LEPILOT_TEST	// simulation utilisant la classe Apilot, rejeu-like
+#define SIMPLE_BEACON	// emission spontanee de msg UHF periodiques
 
 // presets
 #ifdef MAIN_COULOMB

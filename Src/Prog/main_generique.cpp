@@ -40,6 +40,7 @@ void cmd_handler( char c );
 
 volatile unsigned int cnt100Hz = 0;
 volatile unsigned int cnt1Hz = 0;
+volatile unsigned int cntblinks = 1;
 unsigned int next_step = 0;
 unsigned int step_period = 0x7FFFFFFF;
 
@@ -67,7 +68,7 @@ extern "C" {
 void SysTick_Handler()
 {
 ++cnt100Hz;
-/* LED blinks */
+/* LED blinks (sauf que sur nucleo la LED est masquee par SCK de SPI1) */
 	{
 	switch	( cnt100Hz % 100 )
 		{
@@ -310,7 +311,6 @@ switch	( c )
 		#else	// simple echo
 		CDC_printf("%c\n", ((c>=' ')?(c):('?')) );
 		#endif
-	#endif
 	}
 }
 #endif
@@ -430,12 +430,16 @@ set_cursor( 6, 1 ); lcd_print("vrai!");
 while (1)
  	{
  	static unsigned int old1Hz = 0;
- 	if	( ( BLUE_PRESS() ) && ( old1Hz != cnt1Hz ) )
+ 	if	(  ( old1Hz != cnt1Hz ) )
  		{
-		if	( cnt100Hz > (10*100) )
-			CDC_printf("%d", cnt1Hz % 10 );		// test UART Rx du PC
-		else	{ lepilot.iplan = 0; lepilot.cnt = 1; next_step = cnt100Hz; }
-		old1Hz = cnt1Hz;
+ 		old1Hz = cnt1Hz;
+		// do something exactly once per second
+		#ifdef SIMPLE_BEACON
+		if	( cnt1Hz == 12 )
+			cntblinks = 2 + CC.simple_beacon_init();
+		else if	( cnt1Hz > 12 )
+			CC.simple_beacon_tx( cnt1Hz );
+		#endif
 		}
 	#ifdef LEPILOT_TEST
 	if	( cnt100Hz > next_step )
@@ -448,7 +452,7 @@ while (1)
 	if	( cnt100Hz < (10*100) )
 		LED_ON();	// continuous light indicating safe to debug
 	else	{
-		// LED_OFF(); 	// LED blinks indicating green mode
+		// 		// LED blinks (SysTick_Handler() driven)
 		SCB->SCR = 0;				// avoid deep sleep
 		PWR->CR &= ~(PWR_CR_PDDS|PWR_CR_LPDS);	// avoid power down
 		__WFI();	// Wait for Interrupt
@@ -525,5 +529,6 @@ while (1)
 		rx_status = 0;
 		}
 	#endif
- 	}
+ 	} // while (1)
 }	// main
+#endif
