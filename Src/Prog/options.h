@@ -12,9 +12,10 @@
 // blue pill	Y		Y		N
 
 /* resume des differences entre Nucleo et Blue Pill :
-			8MHz		LED		BUTTON		PA12
-	Nucleo		HSE_EXT	| HSI	PA5  act hi	PC13 act lo	-
-	Blue 		HSE		PC13 act lo	-		pullup @ 5V
+			Flash		8MHz		LED		BUTTON		PA12
+	Nucleo		128k		HSE_EXT	| HSI	PA5  act hi	PC13 act lo	-
+	Blue 		 64k		HSE		PC13 act lo	-		pullup USB @ 5V
+	ATTENTION au linker script, celui de la Blue Pill est Debug_STM32F103C8_FLASH.ld, il est Ok pour Nucleo mais limite la flash a 64k
  */
 
 // choix du main
@@ -24,7 +25,7 @@
 
 #ifdef MAIN_GENERIC
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
-#define NUCLEO
+// #define NUCLEO
 // #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
 // pour eviter brick de la blue-pill ou nucleo coupee, SLEEP n'est effectif qu'apres 10s depuis reset

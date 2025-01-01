@@ -72,11 +72,21 @@ void SysTick_Handler()
 	{
 	switch	( cnt100Hz % 100 )
 		{
-		case 0 :
-			++cnt1Hz; LED_ON();
+		case 0 : ++cnt1Hz; if ( cntblinks ) LED_ON();
 			break;
-		case 5 :
-			LED_OFF();
+		case 10 : if ( cntblinks > 1 ) LED_ON();
+			break;
+		case 20 : if ( cntblinks > 2 ) LED_ON();
+			break;
+		case 30 : if ( cntblinks > 3 ) LED_ON();
+			break;
+		case 40 : if ( cntblinks > 4 ) LED_ON();
+			break;
+		case 4 :
+		case 14 :
+		case 24 :
+		case 34 :
+		case 44 : LED_OFF();
 			break;
 		}
 	}
@@ -436,7 +446,10 @@ while (1)
 		// do something exactly once per second
 		#ifdef SIMPLE_BEACON
 		if	( cnt1Hz == 12 )
-			cntblinks = 2 + CC.simple_beacon_init();
+			{
+			cntblinks = 5;	// pour le cas ou SPI planterait dans while ( IS_MISO_SET() )
+			cntblinks = 1 + CC.simple_beacon_init(); // 1 blink si Ok
+			}
 		else if	( cnt1Hz > 12 )
 			CC.simple_beacon_tx( cnt1Hz );
 		#endif
