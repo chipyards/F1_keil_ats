@@ -68,8 +68,8 @@ extern "C" {
 void SysTick_Handler()
 {
 ++cnt100Hz;
-/* LED blinks (sauf que sur nucleo la LED est masquee par SCK de SPI1) */
-	{
+#ifndef NUCLEO	// sur nucleo la LED est masquee par SCK de SPI1
+	{	// 1 to 5 LED blinks per second
 	switch	( cnt100Hz % 100 )
 		{
 		case 0 : ++cnt1Hz; if ( cntblinks ) LED_ON();
@@ -90,7 +90,10 @@ void SysTick_Handler()
 			break;
 		}
 	}
-//*/
+#else
+if	( ( cnt100Hz % 100 ) == 0 )
+	++cnt1Hz;
+#endif
 // log periodique
 #ifdef USE_UART3_FM
 if	( autoTx )
@@ -327,10 +330,9 @@ switch	( c )
 
 int main(void)
 {
-// Configure the system clock to 64 or 72 MHz according to HSE_EXT
+// Configure the system clock to 8 or 64 or 72 MHz according to options.h
 SystemClock_Config();
 
-// config LED
 gpio_init();
 
 // config systick @ 100Hz
@@ -445,15 +447,18 @@ while (1)
  		old1Hz = cnt1Hz;
 		// do something exactly once per second
 		#ifdef SIMPLE_BEACON
-		if	( cnt1Hz == 12 )
+		if	( cnt1Hz == 11 )
 			{
 			cntblinks = 5;	// pour le cas ou SPI planterait dans while ( IS_MISO_SET() )
 			cntblinks = 1 + CC.simple_beacon_init(); // 1 blink si Ok
+			CC.beacon_tx_enable = 1;
 			}
-		else if	( cnt1Hz > 12 )
+		else if	( ( cnt1Hz > 11 ) && ( CC.beacon_tx_enable ) )
 			CC.simple_beacon_tx( cnt1Hz );
 		#endif
 		}
+	if	( IS_GDO0_SET() )
+		CC.handle_rx();
 	#ifdef LEPILOT_TEST
 	if	( cnt100Hz > next_step )
 		{
@@ -474,9 +479,7 @@ while (1)
 	#ifdef USE_CDC
 	int c;
 	if	( ( c = CDC_getcmd() ) > 0 )
-		{
 		cmd_handler( c );
-		}
 	#endif
 	#ifdef PROF_PB12_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();

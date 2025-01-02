@@ -25,7 +25,7 @@
 
 #ifdef MAIN_GENERIC
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
-// #define NUCLEO
+#define NUCLEO
 // #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
 // pour eviter brick de la blue-pill ou nucleo coupee, SLEEP n'est effectif qu'apres 10s depuis reset
@@ -34,7 +34,7 @@
 // modules optionnels
 #define USE_CC1101
 #ifdef NUCLEO
-  // #define USE_CDC
+  #define USE_CDC
   // #define USE_TIM3_PC6	// uses TIM3
 #endif
 // #define USE_FLASHY	// eeprom zone @ (0x08020000-0x400)

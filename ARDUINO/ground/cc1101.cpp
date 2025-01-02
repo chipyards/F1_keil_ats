@@ -13,7 +13,7 @@ SPI.begin();
 SPI.beginTransaction( SPISettings( 2000000, MSBFIRST, SPI_MODE0 ) );
 pinMode( 10, OUTPUT );
 pinMode( 2, INPUT_PULLUP );  // GDO0
-digitalWrite( 10, 1 );
+digitalWrite( 10, 1 );  // SS hi
 }
 
 // ecrire et lire cnt bytes en une transaction
@@ -118,19 +118,7 @@ switch ( c ) {
     snprintf( tbuf, sizeof(tbuf), "RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
     Serial.print( tbuf ); 
     if	( rxbytes )
-	    {
-	    unsigned char * zetxt = read_regs( 0x3F, rxbytes );
-	    snprintf( tbuf, sizeof(tbuf), "RX len %d, [", zetxt[0] );
-	    Serial.print( tbuf );
-	    byte pos = zetxt[0] + 1;
-      int hrssi = (int)((char)zetxt[pos]) - (2*74);
-	    if	( pos >= sizeof( txbuf ) )
-		      pos = ( sizeof( txbuf ) - 1 );
-	    zetxt[pos] = 0;
-	    Serial.print( (char *)zetxt+1 );
-      snprintf( tbuf, sizeof(tbuf), "] %d half-dBm\n", hrssi );
-	    Serial.print( tbuf );
-	    }
+	      handle_rx();
     } break;
   // majuscules et chiffres : actions
   /* experience CW *
@@ -146,6 +134,12 @@ switch ( c ) {
     preset_P10AF();
     break;
   //*/
+  case '1' :
+  case '2' :
+  case '3' :
+  case '4' :
+    simple_beacon_tx(c);
+    break;
   case '!': {	// put some text in tx fifo
 	  const char * txt = "C'est imposant pour mon petit corps";
 	  unsigned int len = strlen( txt );
@@ -155,31 +149,23 @@ switch ( c ) {
 	  Serial.print( tbuf );
 	  } break;
   case 'G' :		// GFSK packet
-	  preset_P10G();
-	  set_pkt_len(61);
-	  set_PQT(0);
-	  set_append_status(1);
-	  set_adress_check(0);
-	  set_whiten(0);
-	  set_packet_format(0);
-	  set_CRC(0);
-	  set_packet_len_config(1);
-	  set_no_dc_filt(0);
-	  set_sync_mode(3);
-	  set_preamble(2);
-	  set_CCA(0);
-	  set_RXOFF(3);
-	  set_TXOFF(3);
-	  set_autocal(1);
-	  set_FOC_limit(0);
-	  set_BS_limit(0);
-	  write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
-	  write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
-    set_patable( full_patable );
-    set_power( 4 ); // 0 dBm
+	  preset_P10Gplus();
 	  break;
+  case 'A' : {    // AM via GDO0 ou CW
+    read_strobe( CC1101_SIDLE );
+    preset_P10AF();
+    set_modu( CC1101_AM );
+    unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 };  // levels 0 dBm
+    set_patable( patable );
+    set_power( 0 ); // 0 ==> CW
+    } break;
+  case 'B' :
+    beacon_tx_enable = 1;
+    break;
+
   // les strobes
   case 'Z' :
+    beacon_tx_enable = 0;
     read_strobe( CC1101_SRES );
     break;
   case 'I' :
@@ -197,5 +183,56 @@ switch ( c ) {
   case 'T' :
     read_strobe( CC1101_STX );
     break;
+  }
+}
+
+byte CC1101::simple_beacon_init()
+{
+if  ( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
+  return 3;
+preset_P10Gplus();
+read_strobe( CC1101_SIDLE );
+return 0;
+}
+
+// radio TX
+void CC1101::simple_beacon_tx( byte t )
+{
+char fbuf[16];
+read_strobe( CC1101_SIDLE );
+snprintf( fbuf, sizeof(fbuf), "!%d!", t );
+byte len = strlen( fbuf );
+if  ( read_reg( CC1101_FREQ2 ) != 0x10 )  // securite 416MHz < F < 442MHz bof c'est leger !
+  return;
+write_reg( 0x3F, len );
+write_regs( 0x3F, (const unsigned char *)fbuf, len );
+read_strobe( CC1101_STX );
+}
+
+// handle radio RX packet to CDC
+void CC1101::handle_rx()
+{
+char rxbytes = read_status_reg( CC1101_RXBYTES );
+if  ( rxbytes )
+  {
+  byte * rxdata = read_regs( 0x3F, rxbytes );
+  byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
+  snprintf( tbuf, sizeof(tbuf), "RX len %d (%d), {", len, rxbytes );
+  Serial.print( tbuf );
+  for ( byte i = 0; i < len+3; i++ )
+      {
+      snprintf( tbuf, sizeof(tbuf), "%02X,", rxdata[i] );  // affichage hexa, len, RSSI et LQI inclus
+      Serial.print( tbuf );
+      }
+  Serial.print("}=\"");
+  for ( byte i = 1; i < len+1; i++ )  // affichage payload en texte filtre
+      {
+      snprintf( tbuf, sizeof(tbuf), "%c", (char(rxdata[i])<' ')?('?'):(rxdata[i]) );
+      Serial.print( tbuf );
+      }
+  int hrssi = (int)((char)rxdata[len+1]) - (2*74);
+  byte LQI = rxdata[len+2];
+  snprintf( tbuf, sizeof(tbuf),"\" %d half-dBm, CRC=%s, LQI=%u", hrssi, ((LQI&0x80)?("ok"):("err")), LQI & 0x7F );
+  Serial.println( tbuf );
   }
 }

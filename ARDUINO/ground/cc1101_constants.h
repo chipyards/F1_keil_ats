@@ -96,7 +96,8 @@
 #define CC1101_MSK	7
 
 // CC1101 GDO settings p. 62 - add 0x40 to invert
-#define CC1101_GDO_RXFIFO	0	// Rx fifo above threshold, cleared by reading the FIFO
+#define CC1101_GDO_RXFIFO  0 // Rx fifo above threshold, cleared by reading the FIFO below threshold
+#define CC1101_GDO_RXEND  1 // Rx fifo above threshold or end-of-packet, cleared by drainig the FIFO
 #define CC1101_GDO_P_IN_PROC	6	// Tx or Rx in process, from sync to end
 #define CC1101_GDO_CRC_OK	7	// Rx CRC Ok, cleared by reading the FIFO
 #define CC1101_GDO_CCA		9	// CCA

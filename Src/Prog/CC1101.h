@@ -1,5 +1,7 @@
 #include "CC1101_constants.h"
 
+extern const unsigned char full_patable[];
+
 // SPI1 en full duplex
 void SPI1_init(void);
 
@@ -12,6 +14,7 @@ class CC1101 {
 public:
 unsigned char txbuf[65];
 unsigned char rxbuf[65];
+int beacon_tx_enable;
 
 void write_strobe( int val ) {
 	txbuf[0] = val & 0x3f;
@@ -74,6 +77,14 @@ void set3( unsigned int opt, unsigned int reg, unsigned int pos ) {
 unsigned int get3( unsigned int reg, unsigned int pos ) {
 	return( ( read_reg( reg ) >> pos ) & 7 );
 	}
+// 4 bits
+void set4( unsigned int opt, unsigned int reg, unsigned int pos ) {
+	unsigned int tmp = read_reg( reg ) & ~( 0xF << pos );	// preserve others
+	write_reg( reg, tmp | ( ( opt & 0xF ) << pos ) );
+	}
+unsigned int get4( unsigned int reg, unsigned int pos ) {
+	return( ( read_reg( reg ) >> pos ) & 0xF );
+	}
 
 // set_gets specialises
 
@@ -119,6 +130,9 @@ void set_bandwidth( unsigned int M, unsigned int E ) {
 // Intermediate frequency aka IF - 4 bits
 unsigned int get_IF()				{ return read_reg( CC1101_FSCTRL1 ) & 0x0F; }
 void set_IF( unsigned int f4 )			{ write_reg( CC1101_FSCTRL1, f4 & 0x0F ); }
+// fifo thresholds 4 bits (2 x 6 bits encoded into 4)
+void set_fifo_thr( unsigned int opt )		{ set4( opt, CC1101_FIFOTHR, 0 ); }
+unsigned int get_fifo_thr()			{ return get4( CC1101_FIFOTHR, 0 ); }
 // packet length 8 bits
 void set_pkt_len( unsigned int len )		{ write_reg( CC1101_PKTLEN, len ); }
 unsigned int get_pkt_len()			{ return read_reg( CC1101_PKTLEN ); }
@@ -242,6 +256,7 @@ void demo( int c );
 
 int simple_beacon_init();	// return 0 if CC1101 responds Ok
 void simple_beacon_tx( unsigned int t );
+void handle_rx();
 
 // GFSK modulation
 void preset_P10G() {
@@ -301,6 +316,34 @@ write_reg(CC1101_PKTCTRL1, 0x04); // 07 Packet automation control.
 write_reg(CC1101_PKTCTRL0, 0x05); // 08 Packet automation control.
 write_reg(CC1101_ADDR,     0x00); // 09 Device address.
 write_reg(CC1101_PKTLEN,   61); // 06 Packet length.
+}
+
+void preset_P10Gplus() {
+read_strobe( CC1101_SIDLE );
+preset_P10G();
+set_synth_frequ( synth_frequ_from_kHz(434024) ); // SMA short, aligner la frequence sur les "blue coil"
+set_pkt_len(61);
+set_PQT(0);
+set_append_status(1);
+set_adress_check(0);
+set_whiten(0);
+set_packet_format(0);
+set_CRC(0);
+set_packet_len_config(1);
+set_no_dc_filt(0);
+set_sync_mode(3);
+set_preamble(2);	// The recommended setting is 4-byte preamble and 4-byte sync word,
+set_CCA(0);
+set_RXOFF(3);
+set_TXOFF(3);
+set_autocal(1);
+set_FOC_limit(0);
+set_BS_limit(0);
+write_reg(CC1101_IOCFG0, CC1101_GDO_RXEND );		// (RXFIFO >= RX FIFO_THR) || EOP (default THR = 32)
+set_fifo_thr( 15 );   // le max, pour que GDO0 soit active uniquement a la fin du paquet EOP
+write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );	// Tx or Rx in process, from sync to end
+set_patable( full_patable );
+set_power( 4 ); // 0 dBm
 }
 
 // Async transparent mode, FSK modulation by GDO0
@@ -364,7 +407,9 @@ write_reg(CC1101_PKTCTRL1, 0x04); // 07 Packet automation control.
 write_reg(CC1101_PKTCTRL0, 0x32); // 08 Packet automation control.
 write_reg(CC1101_ADDR,     0x00); // 09 Device address.
 write_reg(CC1101_PKTLEN,   0xFF); // 06 Packet length.
+set_synth_frequ( synth_frequ_from_kHz(434024) ); // SMA short, aligner la frequence sur les "blue coil"
 };
+
 
 }; // class
 

@@ -391,17 +391,7 @@ switch	( c ) {
 		txbytes = read_status_reg( CC1101_TXBYTES );
 		CDC_printf("RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
 		if	( rxbytes )
-			{
-			unsigned char * zetxt = read_regs( 0x3F, rxbytes );
-			CDC_printf( "RX len %d, [", zetxt[0] );
-			unsigned int pos = zetxt[0] + 1;
-			int hrssi = (int)((char)zetxt[pos]) - (2*74);
-			if	( pos >= sizeof( rxbuf ) )
-				pos = ( sizeof( rxbuf ) - 1 );
-			zetxt[pos] = 0;
-			CDC_printf( (const char *)zetxt+1 );
-			CDC_printf( "] %d half-dBm\n", hrssi );
-			}
+			handle_rx();
 		} break;
 	// majuscules et chiffres : actions
 	case '1' :
@@ -434,32 +424,12 @@ switch	( c ) {
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
 	case 'G' :		// GFSK packet
-		preset_P10G();
-		set_pkt_len(61);
-		set_PQT(0);
-		set_append_status(1);
-		set_adress_check(0);
-		set_whiten(0);
-		set_packet_format(0);
-		set_CRC(0);
-		set_packet_len_config(1);
-		set_no_dc_filt(0);
-		set_sync_mode(3);
-		set_preamble(2);
-		set_CCA(0);
-		set_RXOFF(3);
-		set_TXOFF(3);
-		set_autocal(1);
-		set_FOC_limit(0);
-		set_BS_limit(0);
-		write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
-		write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
-		set_patable( full_patable );
-		set_power( 4 ); // 0 dBm
+		preset_P10Gplus();
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
 	case 'O' : {		// OOK manuel, use JK
+		read_strobe( CC1101_SIDLE );
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
 		set_modu( CC1101_AM );
@@ -470,6 +440,7 @@ switch	( c ) {
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		} break;
 	case 'A' : {		// ASK manuel, use JK
+		read_strobe( CC1101_SIDLE );
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
 		set_modu( CC1101_AM );
@@ -482,6 +453,8 @@ switch	( c ) {
 		#ifdef USE_TIM3_PC6
 		gpio_tim3_pc6_init();
 		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 to PA10
+		#else
+		beacon_tx_enable = 1;
 		#endif
 		break;
 	case 'U' :		// apres O : CW
@@ -492,6 +465,7 @@ switch	( c ) {
 
 	// les strobes
 	case 'Z' :
+		beacon_tx_enable = 0;
 		read_strobe( CC1101_SRES );
 		break;
 	case 'I' :
@@ -520,43 +494,41 @@ int CC1101::simple_beacon_init()
 // SPI1_init();		// c'est fait
 if	( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
 	return 3;
-read_strobe( CC1101_SIDLE );
-preset_P10G();
-set_pkt_len(61);
-set_PQT(0);
-set_append_status(1);
-set_adress_check(0);
-set_whiten(0);
-set_packet_format(0);
-set_CRC(0);
-set_packet_len_config(1);
-set_no_dc_filt(0);
-set_sync_mode(3);
-set_preamble(2);
-set_CCA(0);
-set_RXOFF(3);
-set_TXOFF(3);
-set_autocal(1);
-set_FOC_limit(0);
-set_BS_limit(0);
-write_reg(CC1101_IOCFG0, CC1101_GDO_RXFIFO );
-write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );
-set_patable( full_patable );
-set_power( 4 ); // 0 dBm
+preset_P10Gplus();
 read_strobe( CC1101_SIDLE );
 return 0;
 }
 
-
+// radio TX
 void CC1101::simple_beacon_tx( unsigned int t )
 {
 char fbuf[16];
 read_strobe( CC1101_SIDLE );
-snprintf( fbuf, sizeof(fbuf), "t=%d", t );
+snprintf( fbuf, sizeof(fbuf), "!%d!", t );
 unsigned int len = strlen( fbuf );
-if	( read_reg( CC1101_FREQ2 ) != 0x10 )
-	return
+if	( read_reg( CC1101_FREQ2 ) != 0x10 )	// securite 416MHz < F < 442MHz bof c'est leger !
+	return;
 write_reg( 0x3F, len );
 write_regs( 0x3F, (const unsigned char *)fbuf, len );
 read_strobe( CC1101_STX );
+}
+
+// handle radio RX packet to CDC
+void CC1101::handle_rx()
+{
+unsigned int rxbytes = read_status_reg( CC1101_RXBYTES );
+if	( rxbytes )
+	{
+	unsigned char * rxdata = read_regs( 0x3F, rxbytes );
+	unsigned int len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
+	CDC_printf("RX len %d (%d), {", len, rxbytes );
+	for	( unsigned int i = 0; i < len+3; i++ )
+		CDC_printf("%02X,", rxdata[i] );	// affichage hexa, len, RSSI et LQI inclus
+	CDC_printf("}=\"");
+	for	( unsigned int i = 1; i < len+1; i++ )	// affichage payload en texte filtre
+		CDC_printf("%c", (char(rxdata[i])<' ')?('?'):(rxdata[i]) );
+	int hrssi = (int)((char)rxdata[len+1]) - (2*74);
+	unsigned char LQI = rxdata[len+2];
+	CDC_printf( "\" %d half-dBm, CRC=%s, LQI=%u\n", hrssi, ((LQI&0x80)?("ok"):("err")), LQI & 0x7F );
+	}
 }
