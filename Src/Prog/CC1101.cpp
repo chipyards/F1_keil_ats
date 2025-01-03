@@ -391,7 +391,7 @@ switch	( c ) {
 		txbytes = read_status_reg( CC1101_TXBYTES );
 		CDC_printf("RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
 		if	( rxbytes )
-			handle_rx();
+			handle_rx_to_CDC();
 		} break;
 	// majuscules et chiffres : actions
 	case '1' :
@@ -400,12 +400,13 @@ switch	( c ) {
 	case '4' :
 		simple_beacon_tx(c);
 		break;
-	case '!': {	// put some text in tx fifo
+	case '!': {	// put some text in tx fifo, then TX
 		const char * txt = "C'est imposant pour ton petit corps";
 		unsigned int len = strlen( txt );
 		write_reg( 0x3F, len );
 		write_regs( 0x3F, (const unsigned char *)txt, len );
 		CDC_printf("put %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
+		read_strobe( CC1101_STX );
 		} break;
 	case 'J':
 		write_reg( CC1101_IOCFG2, 0x2f );	// test LED : logic 0
@@ -428,7 +429,7 @@ switch	( c ) {
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
-	case 'O' : {		// OOK manuel, use JK
+	case 'O' : {		// OOK manuel, (start with T, stop with I), use JK to modulate
 		read_strobe( CC1101_SIDLE );
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
@@ -439,13 +440,24 @@ switch	( c ) {
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		} break;
-	case 'A' : {		// ASK manuel, use JK
+	case 'A' : {		// ASK manuel, (start with T, stop with I), use JK to modulate
 		read_strobe( CC1101_SIDLE );
 		preset_P10AF();
 		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
 		set_modu( CC1101_AM );
 		set_patable( full_patable );
 		set_power( 6 );
+		quick_view();
+		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
+		} break;
+	case 'W' : {		// pure CW (start with T, stop with I)
+		read_strobe( CC1101_SIDLE );
+		preset_P10AF();
+		write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
+		set_modu( CC1101_AM );
+		unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 };	// level 0 dBm
+		set_patable( patable );
+		set_power( 0 );
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		} break;
@@ -457,10 +469,7 @@ switch	( c ) {
 		beacon_tx_enable = 1;
 		#endif
 		break;
-	case 'U' :		// apres O : CW
-		set_power( 0 );
-		break;
-	case 'Q' : quick_set();
+	case 'Q' : beacon_tx_enable = 0; quick_set();
 		break;
 
 	// les strobes
@@ -514,8 +523,9 @@ read_strobe( CC1101_STX );
 }
 
 // handle radio RX packet to CDC
-void CC1101::handle_rx()
+void CC1101::handle_rx_to_CDC()
 {
+#ifdef USE_CDC
 unsigned int rxbytes = read_status_reg( CC1101_RXBYTES );
 if	( rxbytes )
 	{
@@ -531,4 +541,5 @@ if	( rxbytes )
 	unsigned char LQI = rxdata[len+2];
 	CDC_printf( "\" %d half-dBm, CRC=%s, LQI=%u\n", hrssi, ((LQI&0x80)?("ok"):("err")), LQI & 0x7F );
 	}
+#endif
 }

@@ -118,7 +118,7 @@ switch ( c ) {
     snprintf( tbuf, sizeof(tbuf), "RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
     Serial.print( tbuf ); 
     if	( rxbytes )
-	      handle_rx();
+	      handle_rx_to_Serial();
     } break;
   // majuscules et chiffres : actions
   /* experience CW *
@@ -140,27 +140,31 @@ switch ( c ) {
   case '4' :
     simple_beacon_tx(c);
     break;
-  case '!': {	// put some text in tx fifo
+  case '!': {	// put some text in tx fifo, then TX
 	  const char * txt = "C'est imposant pour mon petit corps";
 	  unsigned int len = strlen( txt );
 	  write_reg( 0x3F, len );
 	  write_regs( 0x3F, (const unsigned char *)txt, len );
 	  snprintf( tbuf, sizeof(tbuf), "put %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
 	  Serial.print( tbuf );
+    read_strobe( CC1101_STX );
 	  } break;
   case 'G' :		// GFSK packet
 	  preset_P10Gplus();
 	  break;
-  case 'A' : {    // AM via GDO0 ou CW
+  case 'W' : {    // pure CW (start with T, stop with I)
     read_strobe( CC1101_SIDLE );
     preset_P10AF();
     set_modu( CC1101_AM );
-    unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 };  // levels 0 dBm
+    unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 }; // level 0 dBm
     set_patable( patable );
-    set_power( 0 ); // 0 ==> CW
-    } break;
+    set_power( 0 );
+   } break;
   case 'B' :
     beacon_tx_enable = 1;
+    break;
+  case 'Q' :
+    beacon_tx_enable = 0;
     break;
 
   // les strobes
@@ -210,7 +214,7 @@ read_strobe( CC1101_STX );
 }
 
 // handle radio RX packet to CDC
-void CC1101::handle_rx()
+void CC1101::handle_rx_to_Serial()
 {
 char rxbytes = read_status_reg( CC1101_RXBYTES );
 if  ( rxbytes )

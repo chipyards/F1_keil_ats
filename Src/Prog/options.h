@@ -18,6 +18,19 @@
 	ATTENTION au linker script, celui de la Blue Pill est Debug_STM32F103C8_FLASH.ld, il est Ok pour Nucleo mais limite la flash a 64k
  */
 
+// CC1101 fine tuning
+//#define FINE_TUNING (36)  // 1	short SMA	433.964 -48dBm	-83ppm	434036
+//#define FINE_TUNING (37)  // 2	short SMA	433.963 -50dBm	-85ppm	434037
+//#define FINE_TUNING (13)  // 3	long SMA	433.987 -46dBm	-30ppm	434013
+//#define FINE_TUNING (12)  // 4	long SMA	433.988 -43dBm	-28ppm	434012
+//#define FINE_TUNING (12)  // 5	blue coil	433.988 -52dBm	-28ppm	434012
+  #define FINE_TUNING (12)  // 6	blue coil	433.988 -53dBm	-28ppm	434012
+//#define FINE_TUNING (-8)  // 7	green coil	434.008 -70dBm	+18ppm	433992
+//#define FINE_TUNING (-8)  // 8	green coil	434.008 -71dBm	+18ppm	433992
+
+#define BASE_TUNING (434000)
+#define USE_CC1101_CRC
+
 // choix du main
 // #define MAIN_COULOMB
 // #define MAIN_TERMINAL
@@ -25,7 +38,7 @@
 
 #ifdef MAIN_GENERIC
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
-#define NUCLEO
+// #define NUCLEO
 // #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
 // pour eviter brick de la blue-pill ou nucleo coupee, SLEEP n'est effectif qu'apres 10s depuis reset

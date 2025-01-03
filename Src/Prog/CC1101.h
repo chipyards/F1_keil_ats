@@ -256,7 +256,7 @@ void demo( int c );
 
 int simple_beacon_init();	// return 0 if CC1101 responds Ok
 void simple_beacon_tx( unsigned int t );
-void handle_rx();
+void handle_rx_to_CDC();
 
 // GFSK modulation
 void preset_P10G() {
@@ -321,14 +321,13 @@ write_reg(CC1101_PKTLEN,   61); // 06 Packet length.
 void preset_P10Gplus() {
 read_strobe( CC1101_SIDLE );
 preset_P10G();
-set_synth_frequ( synth_frequ_from_kHz(434024) ); // SMA short, aligner la frequence sur les "blue coil"
+set_synth_frequ( synth_frequ_from_kHz(BASE_TUNING+FINE_TUNING) );
 set_pkt_len(61);
 set_PQT(0);
 set_append_status(1);
 set_adress_check(0);
 set_whiten(0);
 set_packet_format(0);
-set_CRC(0);
 set_packet_len_config(1);
 set_no_dc_filt(0);
 set_sync_mode(3);
@@ -339,9 +338,16 @@ set_TXOFF(3);
 set_autocal(1);
 set_FOC_limit(0);
 set_BS_limit(0);
-write_reg(CC1101_IOCFG0, CC1101_GDO_RXEND );		// (RXFIFO >= RX FIFO_THR) || EOP (default THR = 32)
+#ifdef USE_CC1101_CRC
+set_CRC(1);
+set_CRC_autoflush(1); // avoid RX overflow
+write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );		// 7
+#else
+set_CRC(0);
 set_fifo_thr( 15 );   // le max, pour que GDO0 soit active uniquement a la fin du paquet EOP
-write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );	// Tx or Rx in process, from sync to end
+write_reg(CC1101_IOCFG0, CC1101_GDO_RXEND );		// 1 (RXFIFO >= RX FIFO_THR) || EOP (default THR = 32)
+#endif
+write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );	// 6 Tx or Rx in process, from sync to end
 set_patable( full_patable );
 set_power( 4 ); // 0 dBm
 }
@@ -407,7 +413,7 @@ write_reg(CC1101_PKTCTRL1, 0x04); // 07 Packet automation control.
 write_reg(CC1101_PKTCTRL0, 0x32); // 08 Packet automation control.
 write_reg(CC1101_ADDR,     0x00); // 09 Device address.
 write_reg(CC1101_PKTLEN,   0xFF); // 06 Packet length.
-set_synth_frequ( synth_frequ_from_kHz(434024) ); // SMA short, aligner la frequence sur les "blue coil"
+set_synth_frequ( synth_frequ_from_kHz(BASE_TUNING+FINE_TUNING) );
 };
 
 

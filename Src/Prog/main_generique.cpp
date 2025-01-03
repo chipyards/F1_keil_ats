@@ -458,7 +458,7 @@ while (1)
 		#endif
 		}
 	if	( IS_GDO0_SET() )
-		CC.handle_rx();
+		CC.handle_rx_to_CDC();
 	#ifdef LEPILOT_TEST
 	if	( cnt100Hz > next_step )
 		{

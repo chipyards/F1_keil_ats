@@ -1,8 +1,8 @@
 ///
 /// CC1101 constants
 ///
-//						valeur par defaut commentee
-// configuration registers
+
+// configuration registers	   valeur par defaut commentee
 
 //			adr   dump doc	<-- dump = valeurs observees au reset, doc = valeurs par defaut selon  CC1101.pdf
 #define CC1101_IOCFG2   0x00 // 29 29 GDO2 - mettre 2F ou 6F pour test JLN's LED
