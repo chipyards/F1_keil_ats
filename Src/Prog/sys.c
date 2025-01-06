@@ -28,9 +28,10 @@ void systick_no_interrupt()
 SysTick->CTRL &= (~SysTick_CTRL_TICKINT_Msk);
 }
 
-// temporisation base sur systick
+// temporisation base sur systick, max moitie de la periode systick interrupt
 // unites en periodes d'horloge du timer ( HCLK ou HCLK/8 )
-// tickd doit etre inferieur a (LOAD+1)/2
+// tickd doit etre inferieur a (LOAD+1)/2 = SystemCoreClock / ( 2 * freq )
+// soit 360000 @ 72MzZ, 40000 @ 8MHz ( systick interrupt 10 ms )
 void tickdelay( unsigned int tickd )
 {
 int tper = SysTick->LOAD + 1;

@@ -2,6 +2,7 @@
 #include "stm32f1xx_ll_bus.h"
 #include "stm32f1xx_ll_rcc.h"
 #include "stm32f1xx_ll_gpio.h"
+#include "sys.h"
 #include "gpio.h"
 
 // N.B. LL_GPIO_MODE_FLOATING <==> pas de pull
@@ -187,6 +188,33 @@ LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL );
 // pin PA3 = RX
 LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_FLOATING );
 }
+
+// test jumper A2-A3, to use before gpio_uart2_init()
+#ifndef USE_NUCLEO
+int gpio_test_jmpA23(void)
+{
+LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_GPIOA );
+// pin PA2 = TX
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT );
+LL_GPIO_SetPinSpeed(      GPIOA, LL_GPIO_PIN_2, LL_GPIO_SPEED_FREQ_MEDIUM );
+LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_2, LL_GPIO_OUTPUT_PUSHPULL );
+// pin PA3 = RX
+LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_3, LL_GPIO_MODE_INPUT );
+// test 0
+LL_GPIO_ResetOutputPin(   GPIOA, LL_GPIO_PIN_2 );	// down
+LL_GPIO_SetOutputPin(     GPIOA, LL_GPIO_PIN_3 );	// pull up
+tickdelay( 800 );	// HCLK units, 800 -> 0.1ms @ 8MHz
+if	( LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_3 ) )
+	return 0;	// already failed !
+// test 1
+LL_GPIO_SetOutputPin(     GPIOA, LL_GPIO_PIN_2 );	// up
+LL_GPIO_ResetOutputPin(   GPIOA, LL_GPIO_PIN_3 );	// pull down
+tickdelay( 800 );	// HCLK units, 800 -> 0.1ms
+if	( !LL_GPIO_IsInputPinSet(GPIOA, LL_GPIO_PIN_3 ) )
+	return 0;	// now failed !
+return 1; // jumper present
+}
+#endif
 
 #ifdef USE_UART3_FM
 /* initialiser GPIO pour UART3 */

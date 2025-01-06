@@ -502,7 +502,7 @@ int CC1101::simple_beacon_init()
 // gpio_spi1_init();	// c'est fait
 // SPI1_init();		// c'est fait
 if	( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
-	return 3;
+	return 1;
 preset_P10Gplus();
 read_strobe( CC1101_SIDLE );
 return 0;
@@ -520,6 +520,25 @@ if	( read_reg( CC1101_FREQ2 ) != 0x10 )	// securite 416MHz < F < 442MHz bof c'es
 write_reg( 0x3F, len );
 write_regs( 0x3F, (const unsigned char *)fbuf, len );
 read_strobe( CC1101_STX );
+}
+
+int CC1101::simple_CW_init()
+{
+// gpio_spi1_init();	// c'est fait
+// SPI1_init();		// c'est fait
+if	( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
+	return 1;
+read_strobe( CC1101_SIDLE );
+preset_P10AF();
+write_reg(CC1101_IOCFG0, 0x2E); // Hi Z, for safety when leaving async mode
+set_modu( CC1101_AM );
+unsigned char patable[] = { 0x34, 0x34, 0, 0, 0, 0, 0, 0 };	// level -10 dBm
+set_patable( patable );
+set_power( 0 );
+read_strobe( CC1101_SIDLE );
+tickdelay( 8000 );	// 8000 -> 1ms @ 8MHz
+read_strobe( CC1101_STX );
+return 0;
 }
 
 // handle radio RX packet to CDC

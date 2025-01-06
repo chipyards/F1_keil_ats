@@ -25,6 +25,7 @@ void gpio_spi1_init(void);
 void gpio_uart1_init(void);
 void gpio_uart2_init(void);
 void gpio_uart3_init(void);
+int gpio_test_jmpA23(void);
 void Tx_cmd( int on );
 void Rx_cmd( int on );
 

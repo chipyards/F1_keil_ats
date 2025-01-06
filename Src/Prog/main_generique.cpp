@@ -333,6 +333,11 @@ int main(void)
 // Configure the system clock to 8 or 64 or 72 MHz according to options.h
 SystemClock_Config();
 
+// mode CW avec jumper A2-A3 pour Blue Pill, peu compatible avec NUCLEO
+#ifndef USE_NUCLEO
+CC.CW_tx_enable = ( gpio_test_jmpA23() );
+#endif
+
 gpio_init();
 
 // config systick @ 100Hz
@@ -449,9 +454,13 @@ while (1)
 		#ifdef SIMPLE_BEACON
 		if	( cnt1Hz == 11 )
 			{
-			cntblinks = 5;	// pour le cas ou SPI planterait dans while ( IS_MISO_SET() )
-			cntblinks = 1 + CC.simple_beacon_init(); // 1 blink si Ok
-			CC.beacon_tx_enable = 1;
+			cntblinks = 5;	// pour le cas ou SPI planterait dans while ( IS_MISO_SET() ), i.e. si transceiver absent
+			if	( CC.CW_tx_enable )
+				cntblinks = 3 + CC.simple_CW_init(); // 3 blink si Ok, sinon 4
+			else	{
+				cntblinks = 1 + CC.simple_beacon_init(); // 1 blink si Ok, sinon 2
+				CC.beacon_tx_enable = 1;
+				}
 			}
 		else if	( ( cnt1Hz > 11 ) && ( CC.beacon_tx_enable ) )
 			CC.simple_beacon_tx( cnt1Hz );
