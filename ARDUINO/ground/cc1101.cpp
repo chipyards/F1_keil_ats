@@ -118,7 +118,7 @@ switch ( c ) {
     snprintf( tbuf, sizeof(tbuf), "RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
     Serial.print( tbuf ); 
     if	( rxbytes )
-	      handle_rx_to_Serial();
+	      handle_rx();
     } break;
   // majuscules et chiffres : actions
   /* experience CW *
@@ -219,15 +219,37 @@ read_strobe( CC1101_STX );
 return 0;
 }
 
-// handle radio RX packet to CDC
-void CC1101::handle_rx_to_Serial()
+// format radio RX packet to Serial (first byte is length)
+void CC1101::format_rx_to_Serial( byte * rxdata )
+{
+byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
+snprintf( tbuf, sizeof(tbuf), "RX len %d, {", len );
+Serial.print( tbuf );
+for ( byte i = 0; i < len+3; i++ )
+    {
+    snprintf( tbuf, sizeof(tbuf), "%02X,", rxdata[i] );  // affichage hexa, len, RSSI et LQI inclus
+    Serial.print( tbuf );
+    }
+Serial.print("}=\"");
+for ( byte i = 1; i < len+1; i++ )  // affichage payload en texte filtre
+    {
+    snprintf( tbuf, sizeof(tbuf), "%c", (char(rxdata[i])<' ')?('?'):(rxdata[i]) );
+    Serial.print( tbuf );
+    }
+int hrssi = (int)((char)rxdata[len+1]) - (2*74);
+byte LQI = rxdata[len+2];
+snprintf( tbuf, sizeof(tbuf),"\" %d half-dBm, CRC=%s, LQI=%u", hrssi, ((LQI&0x80)?("ok"):("err")), LQI & 0x7F );
+Serial.println( tbuf );
+}
+
+void CC1101::handle_rx()
 {
 char rxbytes = read_status_reg( CC1101_RXBYTES );
-if  ( rxbytes )
-  {
-  byte * rxdata = read_regs( 0x3F, rxbytes );
-  byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
-  if  ( rxdata[1] == 'L' )
+if  ( rxbytes == 0 )
+    return;
+byte * rxdata = read_regs( 0x3F, rxbytes );
+byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
+if  ( rxdata[1] == 'L' )
     {
     for ( byte i = 1; i < len+1; i++ )  // AAR report to java app : affichage payload jusqu'au \n inclus 
       {
@@ -236,25 +258,6 @@ if  ( rxbytes )
       Serial.print( tbuf );
       if  ( c == 10 ) break;
       }
-    return;  
     }
-  // other : debug report  
-  snprintf( tbuf, sizeof(tbuf), "RX len %d (%d), {", len, rxbytes );
-  Serial.print( tbuf );
-  for ( byte i = 0; i < len+3; i++ )
-      {
-      snprintf( tbuf, sizeof(tbuf), "%02X,", rxdata[i] );  // affichage hexa, len, RSSI et LQI inclus
-      Serial.print( tbuf );
-      }
-  Serial.print("}=\"");
-  for ( byte i = 1; i < len+1; i++ )  // affichage payload en texte filtre
-      {
-      snprintf( tbuf, sizeof(tbuf), "%c", (char(rxdata[i])<' ')?('?'):(rxdata[i]) );
-      Serial.print( tbuf );
-      }
-  int hrssi = (int)((char)rxdata[len+1]) - (2*74);
-  byte LQI = rxdata[len+2];
-  snprintf( tbuf, sizeof(tbuf),"\" %d half-dBm, CRC=%s, LQI=%u", hrssi, ((LQI&0x80)?("ok"):("err")), LQI & 0x7F );
-  Serial.println( tbuf );
-  }
+else format_rx_to_Serial( rxdata );  // other : debug report  
 }

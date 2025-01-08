@@ -256,14 +256,14 @@ void dump_patable();
 void compare_config( const unsigned char * ref_regs );
 void quick_view();
 
-int tx_if_can( const char * tbuf, int len );
 
 void demo( int c );
 int simple_CW_init();
 
 int simple_radio_init();	// return 0 if CC1101 responds Ok
-void simple_beacon_tx( unsigned int t );
-void handle_rx_to_CDC();
+int tx_if_can( const char * tbuf, int len );
+void format_rx_to_CDC( unsigned char * rxdata );
+void handle_rx();
 
 // GFSK modulation
 void preset_P10G() {

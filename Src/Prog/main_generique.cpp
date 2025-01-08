@@ -401,6 +401,7 @@ set_cursor( 6, 1 ); lcd_print("vrai!");
 while (1)
  	{
  	static unsigned int old1Hz = 0;
+ 	static unsigned int oldGDO0 = 0;
  	if	(  ( old1Hz != cnt1Hz ) )
  		{
  		old1Hz = cnt1Hz;
@@ -418,13 +419,13 @@ while (1)
 			}
 		else if	( ( cnt1Hz > 11 ) && ( CC.AAR_tx_enable ) )
 			{
-			// CC.simple_beacon_tx( cnt1Hz );
 			lepilot.AAR_tx();
 			}
 		#endif
 		}
-	if	( IS_GDO0_SET() )
-		CC.handle_rx_to_CDC();
+	if	( ( IS_GDO0_SET() ) && ( oldGDO0 == 0 ) )
+		{ CC.handle_rx(); oldGDO0 = 1; }
+	else	oldGDO0 = 0;
 	#ifdef GREEN_CPU
 	if	( cnt100Hz < (10*100) )
 		LED_ON();	// continuous light indicating safe to debug
