@@ -3,16 +3,20 @@
 #include "options.h"
 #include "skysplit.h"
 #include "CDC.h"
-#include "prof_tick.h"
+#include "CC1101.h"
+// #include "prof_tick.h"
 #include <math.h>
+#include <stdio.h>	// pour snprintf
+#include <string.h>	// pour strlen
 
-// 2 outils de profilage
+/* 2 outils de profilage *
 #ifdef PROF_PB12
 #include "stm32f1xx_ll_gpio.h"
 #include "gpio.h"
 #else
 DTICK_VARS
 #endif
+*/
 
 Apilot lepilot;
 
@@ -30,22 +34,6 @@ const float rom_beacons[] = {
 	10, 20,		// 9  F
 	10, 10		// 10 G
 	};
-
-void test_a() {
-float z; int i;
-// rounding positive float
-z = 1.0f;     i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = 0.51f;    i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = 0.49f;    i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = 20.99f;   i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = 777.501f; i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = 66.499f;  i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = 1111.0f;  i = (int)qfp_fadd( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-// rounding negative float
-z = -3.1f;    i = (int)qfp_fsub( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-z = -5.51f;   i = (int)qfp_fsub( 0.5, z ); CDC_printf("%.5f -> %d\n", z, i );
-}
-
 
 // // methodes de calcul
 // ramener cap dans ] -PI/2, +PI/2 ]
@@ -72,7 +60,9 @@ float Apilot::cap2head( float c ) {
 	return h;
 	}
 void Apilot::dump_loc() {
+	#ifdef USE_CDC
 	CDC_printf( "L %.2f %.2f %.2f %d %d %d\n", x, y, cap2head(cap), segtype, target_waypoint, iplan );
+	#endif
 	}
 // preparation de la route depuis le point courant et le cap courant: virage puis segment
 // cette methode calcule le cap destination de ce virage
@@ -139,7 +129,9 @@ void Apilot::step() {
 	//y += vy;
 	y = qfp_fadd( y, vy );
 	// track.add( new Punkt( x, y ) );
+	#ifdef USE_CDC
 	dump_loc();
+	#endif
 	// ici on doit tester s'il n'y a pas une requete de diversion
 	if	( diversion >= 0 )
 		{				// diversion vers un autre waypoint
@@ -261,6 +253,53 @@ void Apilot::routetoXY( float xb, float yb ) {
 		}
 	}
 
+// interpreteur de commandes pilote de 1 char
+void Apilot::cmd_handler( char c )
+{
+switch	( c )
+	{
+	case 'f' : {	// fast
+		CC.AAR_tx_enable = 1; sim_speed = 5;
+		} break;
+	case 's' : {	// slow
+		CC.AAR_tx_enable = 1; sim_speed = 1;
+		} break;
+	case 'p' : {	// pause
+		CC.AAR_tx_enable = 0;
+		} break;
+	case 'r' : {
+		lepilot.iplan = 0; lepilot.cnt = 1;
+		} break;
+	case 'Z' : { lepilot.diversion = 0; } break;
+	case 'N' : { lepilot.diversion = 1; } break;
+	case 'E' : { lepilot.diversion = 2; } break;
+	case 'S' : { lepilot.diversion = 3; } break;
+	case 'O' : { lepilot.diversion = 4; } break;
+	case 'A' : { lepilot.diversion = 5; } break;
+	case 'B' : { lepilot.diversion = 6; } break;
+	case 'C' : { lepilot.diversion = 7; } break;
+	case 'D' : { lepilot.diversion = 8; } break;
+	case 'F' : { lepilot.diversion = 9; } break;
+	case 'G' : { lepilot.diversion = 10; } break;
 
-void test_b() {
+	case '0' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(0.0f); } break;
+	case '1' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(45.0f); } break;
+	case '2' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(90.0f); } break;
+	case '3' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(135.0f); } break;
+	case '4' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(180.0f); } break;
+	case '5' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(225.0f); } break;
+	case '6' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(270.0f); } break;
+	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
+	}
 }
+
+// navigation automatic report, including navigation steps
+int Apilot::AAR_tx()
+{
+for	( int i = 0; i < sim_speed; i++ )
+	step();
+char tbuf[60];
+snprintf( tbuf, sizeof(tbuf), "L %.2f %.2f \n", x, y );
+return CC.tx_if_can( tbuf, strlen(tbuf) );
+}
+

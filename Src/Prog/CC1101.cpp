@@ -240,62 +240,6 @@ for	( unsigned int i = 0; i < 8; i++ )
 CDC_printf("\n");
 }
 
-void CC1101::quick_set()
-{	/* valeurs bidon, pour tester les set methods, avec quick_view *
-unsigned int E, M, fu; float ff;
-ff = 433.333f;
-fu= synth_frequ_from_float( ff );
-CDC_printf("set freq synth %.3f -> %06x\n", ff, fu );
-set_synth_frequ( fu );
-
-ff = 277.77f;
-fu = IF_from_float( ff );
-CDC_printf("set IF %.2f kHz -> %02x\n", ff, fu );
-set_IF( fu );
-
-ff = 22.22f;
-data_rate_from_float( &M, &E, ff );
-CDC_printf("set symbol rate %.2f kHz -> M=%d, E=%d\n", ff, M, E );
-set_data_rate( M, E );
-
-ff = 44.44f;
-deviation_from_float( &M, &E, ff );
-CDC_printf("set deviation %.2f kHz -> M=%d, E=%d\n", ff, M, E );
-set_deviation( M, E );
-
-ff = 333.33f;
-bandwidth_from_float( &M, &E, ff );
-CDC_printf("set bandwidth %.2f kHz -> M=%d, E=%d\n", ff, M, E );
-set_bandwidth( M, E );
-
-set_modu( CC1101_AM );
-set_patable( full_patable );
-set_power( 5 );
-
-set_pkt_len(61);
-set_PQT(5);
-set_CRC_autoflush(1);
-set_append_status(0);
-set_adress_check(1);
-set_whiten(0);
-set_packet_format(1);
-set_CRC(0);
-set_packet_len_config(2);
-set_adr( 53 );
-set_no_dc_filt(1);
-set_modu(0);
-set_sync_mode(0);
-set_preamble(4);
-set_CCA(2);
-set_RXOFF(2);
-set_TXOFF(3);
-set_autocal(1);
-set_FOC_limit(3);
-set_BS_limit(2);
-set_FOC_BS_gate(1);
-//*/
-}
-
 void CC1101::quick_view()
 {
 unsigned int E, M, fu;
@@ -349,18 +293,6 @@ CDC_printf("VCO Calib %02x %02x %02x %02x\n", read_reg(CC1101_FSCAL3),
 	   read_reg(CC1101_FSCAL2), read_reg(CC1101_FSCAL1), read_reg(CC1101_FSCAL0) );
 }
 
-// quelques configs non documentees, intuitees par SmartRF
-void CC1101::smarties()
-{
-write_reg( CC1101_FSCAL3, 0xE0  ); // FSCAL config 11 inst of 10, charge pump calibration still 1
-write_reg( CC1101_FSCAL2, 0 );	  // automatic
-write_reg( CC1101_FSCAL1, 0 );	  // automatic
-write_reg( CC1101_FSCAL0, 0x1F );  // 1F instead of 0D, SmartRF said
-write_reg( CC1101_TEST2, 0x81 );  //
-write_reg( CC1101_TEST1, 0x35 );  //
-write_reg( CC1101_TEST0, 0x09 );  //
-}
-
 void CC1101::demo( int c )
 {
 /* test wiring (sans le transceiver)
@@ -403,10 +335,8 @@ switch	( c ) {
 	case '!': {	// put some text in tx fifo, then TX
 		const char * txt = "C'est imposant pour ton petit corps";
 		unsigned int len = strlen( txt );
-		write_reg( 0x3F, len );
-		write_regs( 0x3F, (const unsigned char *)txt, len );
-		CDC_printf("put %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
-		read_strobe( CC1101_STX );
+		int retval = tx_if_can( txt, len );
+		CDC_printf("sent %d bytes -> tx_if_can returned %d\n", len+1, retval );
 		} break;
 	case 'J':
 		write_reg( CC1101_IOCFG2, 0x2f );	// test LED : logic 0
@@ -466,15 +396,15 @@ switch	( c ) {
 		gpio_tim3_pc6_init();
 		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 to PA10
 		#else
-		beacon_tx_enable = 1;
+		AAR_tx_enable = 1;
 		#endif
 		break;
-	case 'Q' : beacon_tx_enable = 0; quick_set();
+	case 'Q' : AAR_tx_enable = 0;
 		break;
 
 	// les strobes
 	case 'Z' :
-		beacon_tx_enable = 0;
+		AAR_tx_enable = 0;
 		read_strobe( CC1101_SRES );
 		break;
 	case 'I' :
@@ -497,7 +427,7 @@ switch	( c ) {
 	}
 }
 
-int CC1101::simple_beacon_init()
+int CC1101::simple_radio_init()
 {
 // gpio_spi1_init();	// c'est fait
 // SPI1_init();		// c'est fait
@@ -505,21 +435,41 @@ if	( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 
 	return 1;
 preset_P10Gplus();
 read_strobe( CC1101_SIDLE );
+tickdelay( 8000 );	// 8000 -> 1ms @ 8MHz
+read_strobe( CC1101_SRX );
 return 0;
 }
 
-// radio TX
+// radio TX, return val :
+//	1: wrong frequ
+//	2: TX FIFO not empty
+//	3: RX FIFO not empty
+//	4: message too big
+int CC1101::tx_if_can( const char * tbuf, int len )
+{
+// checks
+if	( read_reg( CC1101_FREQ2 ) != 0x10 )	// securite 416MHz < F < 442MHz bof c'est leger !
+	return 1;
+if	( len > 61 ) return 4;
+unsigned int rxbytes, txbytes;
+rxbytes = read_status_reg( CC1101_RXBYTES );
+txbytes = read_status_reg( CC1101_TXBYTES );
+if	( txbytes ) return 2;
+if	( rxbytes ) return 3;
+// ici on devrait verifier CCA
+// let's go
+read_strobe( CC1101_SIDLE );
+write_reg( 0x3F, len );
+write_regs( 0x3F, (const unsigned char *)tbuf, len );
+read_strobe( CC1101_STX );
+return 0;
+}
+
 void CC1101::simple_beacon_tx( unsigned int t )
 {
 char fbuf[16];
-read_strobe( CC1101_SIDLE );
 snprintf( fbuf, sizeof(fbuf), "!%d!", t );
-unsigned int len = strlen( fbuf );
-if	( read_reg( CC1101_FREQ2 ) != 0x10 )	// securite 416MHz < F < 442MHz bof c'est leger !
-	return;
-write_reg( 0x3F, len );
-write_regs( 0x3F, (const unsigned char *)fbuf, len );
-read_strobe( CC1101_STX );
+tx_if_can( fbuf, strlen(fbuf) );
 }
 
 int CC1101::simple_CW_init()

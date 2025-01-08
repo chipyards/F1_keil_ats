@@ -41,8 +41,6 @@ void cmd_handler( char c );
 volatile unsigned int cnt100Hz = 0;
 volatile unsigned int cnt1Hz = 0;
 volatile unsigned int cntblinks = 1;
-unsigned int next_step = 0;
-unsigned int step_period = 0x7FFFFFFF;
 
 #ifdef USE_NOKIA
 #include "nokia.h"
@@ -143,7 +141,7 @@ if	( ( autoTx ) && ( ( cnt100Hz % 100 ) == 10 ) )
 
 
 #ifdef USE_CDC
-
+int CDC_debug_mode = 1;
 // attention cette fonction ne doit pas etre appelee depuis une interruption (CDC_printf n'est pas thread-safe !)
 void cmd_handler( char c )
 {
@@ -270,50 +268,6 @@ switch	( c )
 	case 'd' :
 		CDC_printf("test conversion %lu %lu\n", ADC1->DR, ADC2->DR );
 		break;
-	#endif
-	#ifdef LEPILOT_TEST
-	case 'a' : {
-		test_a();
-		CDC_printf("rom %p\n", lepilot.beacons );
-		} break;
-//	case 'b' : {
-//		test_b();
-//		} break;
-	case 'h' : {
-		step_period = 0; next_step = cnt100Hz;
-		} break;
-	case 'f' : {	// fast
-		step_period = 20; next_step = cnt100Hz;
-		} break;
-	case 's' : {	// slow
-		step_period = 100; next_step = cnt100Hz;
-		} break;
-	case 'p' : {	// pause
-		step_period = 0x7FFFFFFF; next_step = cnt100Hz + step_period;
-		} break;
-	case 'r' : {
-		lepilot.iplan = 0; lepilot.cnt = 1; next_step = cnt100Hz;
-		} break;
-	case 'Z' : { lepilot.diversion = 0; } break;
-	case 'N' : { lepilot.diversion = 1; } break;
-	case 'E' : { lepilot.diversion = 2; } break;
-	case 'S' : { lepilot.diversion = 3; } break;
-	case 'O' : { lepilot.diversion = 4; } break;
-	case 'A' : { lepilot.diversion = 5; } break;
-	case 'B' : { lepilot.diversion = 6; } break;
-	case 'C' : { lepilot.diversion = 7; } break;
-	case 'D' : { lepilot.diversion = 8; } break;
-	case 'F' : { lepilot.diversion = 9; } break;
-	case 'G' : { lepilot.diversion = 10; } break;
-
-	case '0' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(0.0f); } break;
-	case '1' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(45.0f); } break;
-	case '2' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(90.0f); } break;
-	case '3' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(135.0f); } break;
-	case '4' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(180.0f); } break;
-	case '5' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(225.0f); } break;
-	case '6' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(270.0f); } break;
-	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
 	#endif
 	case '$' :
 		report_interrupts();
@@ -458,23 +412,19 @@ while (1)
 			if	( CC.CW_tx_enable )
 				cntblinks = 3 + CC.simple_CW_init(); // 3 blink si Ok, sinon 4
 			else	{
-				cntblinks = 1 + CC.simple_beacon_init(); // 1 blink si Ok, sinon 2
-				CC.beacon_tx_enable = 1;
+				cntblinks = 1 + CC.simple_radio_init(); // 1 blink si Ok, sinon 2
+				CC.AAR_tx_enable = 1;
 				}
 			}
-		else if	( ( cnt1Hz > 11 ) && ( CC.beacon_tx_enable ) )
-			CC.simple_beacon_tx( cnt1Hz );
+		else if	( ( cnt1Hz > 11 ) && ( CC.AAR_tx_enable ) )
+			{
+			// CC.simple_beacon_tx( cnt1Hz );
+			lepilot.AAR_tx();
+			}
 		#endif
 		}
 	if	( IS_GDO0_SET() )
 		CC.handle_rx_to_CDC();
-	#ifdef LEPILOT_TEST
-	if	( cnt100Hz > next_step )
-		{
-		next_step += step_period;
-		lepilot.step();
-		}
-	#endif
 	#ifdef GREEN_CPU
 	if	( cnt100Hz < (10*100) )
 		LED_ON();	// continuous light indicating safe to debug
@@ -488,7 +438,16 @@ while (1)
 	#ifdef USE_CDC
 	int c;
 	if	( ( c = CDC_getcmd() ) > 0 )
-		cmd_handler( c );
+		{
+		if	( c == '#' )
+			{
+			CDC_debug_mode = !CDC_debug_mode;
+			CDC_printf("debug_mode %d\n", CDC_debug_mode );
+			}
+		if	( CDC_debug_mode )
+			cmd_handler( c );
+		else	lepilot.cmd_handler(c);
+		}
 	#endif
 	#ifdef PROF_PB12_EOS
 	if	( LL_ADC_IsActiveFlag_EOS(ADC1) ) PB12_PROFIL_0();

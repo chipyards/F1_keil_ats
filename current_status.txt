@@ -1,0 +1,24 @@
+demo Java - Arduino - RF - STM32 - simu
+
+STM32 : capabilite simu Apilot :
+	nav reports "L %.2f %.2f \n", x, y
+	commands sur 1 char du commit 802a39d
+
+STM32 : capabilite radio (nucleo seult)
+	TX : les nav reports de Apilot, demarrage auto
+	RX : msg -> CDC en format debug
+
+STM32 : capabilite serial (nucleo seult)
+	RX : modal, '#' pour toggle
+		CDC_debug_mode = 1 : commandes de 1 char traitees par le simulateur (defaut) 
+		CDC_debug_mode = 0 : commandes de 1 char traitees par demo CC1101
+	TX : debug msg de demo CC1101 et simu
+
+Arduino : capabilite radio
+	RX : reconnait les nav reports de Apilot, les envoie verbatim sur CDC
+	     envoie les autres en format debug aussi sur CDC
+	TX : emet seulement un texte de test sur ordre CDC type debug
+
+Arduino : capabilite serial
+	RX : debug demo CC1101
+	TX : compatibilite Java commit d98365d, terminal Java plotte le vol

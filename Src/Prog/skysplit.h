@@ -3,8 +3,6 @@
 #define ToDegrees ((float)(180.0/PI))
 #define QBEACON 11
 #define QPLAN 16
-extern volatile unsigned int cnt100Hz;
-extern volatile unsigned int cnt1Hz;
 
 class Beacon {
 public:
@@ -16,6 +14,8 @@ extern const float rom_beacons[];
 
 class Apilot {
 public:
+// config simu
+int sim_speed;		// acceleration virtuelle du temps avion
 // etat du mouvement
 float x;
 float y;
@@ -54,6 +54,7 @@ Apilot() {	// constructeur
 	};
 
 void init() {
+	sim_speed = 1;
 	x = 0.0f;
         y = 0.0f;
         v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots
@@ -98,7 +99,7 @@ float limit_cap( float c );
 //	cap en radian dans ] -PI/2, +PI/2 ]
 float head2cap( float h );
 float cap2head( float c );
-// emet un report
+// emet un report vers CDC
 void dump_loc();
 // calcul le cap du premier virage
 float angletoXY( float xb, float yb );
@@ -123,6 +124,12 @@ void routetoXY( float xb, float yb );
 
 // // step de la FSM (une seconde pour le moment)
 void step();
+
+// interpreteur de commandes de 1 char
+void cmd_handler( char c );
+
+// navigation automatic report, including navigation steps
+int AAR_tx();
 
 }; // class Apilot
 

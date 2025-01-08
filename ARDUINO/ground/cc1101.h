@@ -225,8 +225,8 @@ void dump_patable();
 
 void demo( byte c );
 
-byte simple_beacon_init();  // return 0 if CC1101 responds Ok
-void simple_beacon_tx( byte t );
+byte simple_radio_init();  // return 0 if CC1101 responds Ok
+byte tx_if_can( const char * tbuf, byte len );  // return 0 if sent Ok
 void handle_rx_to_Serial();
 
 // GFSK modulation

@@ -134,20 +134,13 @@ switch ( c ) {
     preset_P10AF();
     break;
   //*/
-  case '1' :
-  case '2' :
-  case '3' :
-  case '4' :
-    simple_beacon_tx(c);
     break;
   case '!': {	// put some text in tx fifo, then TX
 	  const char * txt = "C'est imposant pour mon petit corps";
 	  unsigned int len = strlen( txt );
-	  write_reg( 0x3F, len );
-	  write_regs( 0x3F, (const unsigned char *)txt, len );
-	  snprintf( tbuf, sizeof(tbuf), "put %d bytes in TX FIFO -> %d\n", len+1, read_status_reg( CC1101_TXBYTES ) );
+    byte retval = tx_if_can( txt, len );
+    snprintf( tbuf, sizeof(tbuf), "sent %d bytes -> %d\n", len+1, retval );
 	  Serial.print( tbuf );
-    read_strobe( CC1101_STX );
 	  } break;
   case 'G' :		// GFSK packet
 	  preset_P10Gplus();
@@ -190,27 +183,40 @@ switch ( c ) {
   }
 }
 
-byte CC1101::simple_beacon_init()
+byte CC1101::simple_radio_init()
 {
 if  ( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
   return 3;
 preset_P10Gplus();
 read_strobe( CC1101_SIDLE );
+delay(2);
+read_strobe( CC1101_SRX );
 return 0;
 }
 
-// radio TX
-void CC1101::simple_beacon_tx( byte t )
+// radio TX, return val :
+//  1: wrong frequ
+//  2: TX FIFO not empty
+//  3: RX FIFO not empty
+//  4: message too big
+byte CC1101::tx_if_can( const char * tbuf, byte len )
 {
-char fbuf[16];
-read_strobe( CC1101_SIDLE );
-snprintf( fbuf, sizeof(fbuf), "!%d!", t );
-byte len = strlen( fbuf );
+// checks
 if  ( read_reg( CC1101_FREQ2 ) != 0x10 )  // securite 416MHz < F < 442MHz bof c'est leger !
-  return;
+  return 1;
+if  ( len > 61 ) return 4;
+byte rxbytes, txbytes;
+rxbytes = read_status_reg( CC1101_RXBYTES );
+txbytes = read_status_reg( CC1101_TXBYTES );
+if  ( txbytes ) return 2;
+if  ( rxbytes ) return 3;
+// ici on devrait verifier CCA
+// let's go
+read_strobe( CC1101_SIDLE );
 write_reg( 0x3F, len );
-write_regs( 0x3F, (const unsigned char *)fbuf, len );
+write_regs( 0x3F, (const unsigned char *)tbuf, len );
 read_strobe( CC1101_STX );
+return 0;
 }
 
 // handle radio RX packet to CDC
@@ -221,6 +227,18 @@ if  ( rxbytes )
   {
   byte * rxdata = read_regs( 0x3F, rxbytes );
   byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
+  if  ( rxdata[1] == 'L' )
+    {
+    for ( byte i = 1; i < len+1; i++ )  // AAR report to java app : affichage payload jusqu'au \n inclus 
+      {
+      char c = char(rxdata[i]);
+      snprintf( tbuf, sizeof(tbuf), "%c", c );
+      Serial.print( tbuf );
+      if  ( c == 10 ) break;
+      }
+    return;  
+    }
+  // other : debug report  
   snprintf( tbuf, sizeof(tbuf), "RX len %d (%d), {", len, rxbytes );
   Serial.print( tbuf );
   for ( byte i = 0; i < len+3; i++ )

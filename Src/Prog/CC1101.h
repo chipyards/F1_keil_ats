@@ -14,11 +14,11 @@ class CC1101 {
 public:
 unsigned char txbuf[65];
 unsigned char rxbuf[65];
-int beacon_tx_enable;
+int AAR_tx_enable;
 int CW_tx_enable;
 
 // constructeur
-CC1101() { beacon_tx_enable = 0; CW_tx_enable = 0; };
+CC1101() { AAR_tx_enable = 0; CW_tx_enable = 0; };
 
 // inline methods
 
@@ -256,12 +256,12 @@ void dump_patable();
 void compare_config( const unsigned char * ref_regs );
 void quick_view();
 
-void smarties();
-void quick_set();	// tester les float convs
+int tx_if_can( const char * tbuf, int len );
+
 void demo( int c );
 int simple_CW_init();
 
-int simple_beacon_init();	// return 0 if CC1101 responds Ok
+int simple_radio_init();	// return 0 if CC1101 responds Ok
 void simple_beacon_tx( unsigned int t );
 void handle_rx_to_CDC();
 
