@@ -7,12 +7,12 @@
 // register (*pcrc) read LSB first
 
 // version pour MPU 8 bits
-static void update_crc_ben8( unsigned int poly, unsigned int * pcrc, unsigned char byte )
+static void update_crc_ben8( unsigned long poly, unsigned long * pcrc, unsigned char byte )
 {
 char i; unsigned char lsb;
 for	( i = 0; i < 8; i++ )
 	{
-	lsb = (unsigned char)*pcrc;		// optim for 8-bit machine, pour eviter un XOR sur 32 bits
+	lsb = *((unsigned char *)pcrc);		// optim for 8-bit machine, pour eviter un XOR sur 32 bits
 	*pcrc >>= 1;
 	if	( ( lsb ^ byte ) & 1 )
 		*pcrc ^= poly;
@@ -39,7 +39,8 @@ unsigned int crc_ben( unsigned int init, unsigned int poly, unsigned int xorout,
 unsigned int crc = init;
 
 do  {
-    update_crc_ben32( poly, &crc, *(buf++) );
+    // update_crc_ben32( poly, &crc, *(buf++) );
+    update_crc_ben8( (unsigned long)poly, (unsigned long *)&crc, *(buf++) );
     } while (--len);
 
 return crc ^ xorout;
@@ -51,6 +52,21 @@ return crc ^ xorout;
 
 // data byte is read MSB first
 // register (*pcrc) read MSB first
+
+// version pour machine 8 bits
+static void update_crc_mm8( unsigned long poly, unsigned long * pcrc, unsigned char byte )
+{
+char i;
+unsigned char msbreg;
+for	( i = 0; i < 8; i++ )
+	{
+	msbreg = ((unsigned char *)pcrc)[3];	// high byte
+	*pcrc <<= 1;
+	if	( ( byte ^ msbreg ) & 0x80 )	// test the MSB
+		*pcrc ^= poly;
+	byte <<= 1;
+	}
+}
 
 // version pour machine 32 bits
 static void update_crc_mm32( unsigned int poly, unsigned int * pcrc, unsigned char byte )
@@ -73,7 +89,8 @@ unsigned int crc_mm( unsigned int init, unsigned int poly, unsigned int xorout, 
 unsigned int crc = init;
 
 do  {
-    update_crc_mm32( poly, &crc, *(buf++) );
+    // update_crc_mm32( poly, &crc, *(buf++) );
+    update_crc_mm8( (unsigned long)poly, (unsigned long *)&crc, *(buf++) );
     } while (--len);
 
 return crc ^ xorout;
