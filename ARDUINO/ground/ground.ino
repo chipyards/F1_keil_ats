@@ -20,6 +20,48 @@ do  {
 return crc;
 }
 
+
+/* disassembly by godbolt.org, AVR gcc, -std=gnu11 -mmcu=atmega328p -Os
+crc_aixm(unsigned char const*, unsigned char):
+        mov r20,r24
+        mov r21,r22
+        mov r18,r24
+        mov r19,r25
+        ldi r22,0
+        ldi r23,0
+        movw r24,r22
+        add r21,r20
+.L4:
+        movw r30,r18
+        ld r31,Z
+        subi r18,-1
+        sbci r19,-1
+        ldi r30,lo8(8)
+.L3:
+        mov r20,r25
+        eor r20,r31
+        lsl r22
+        rol r23
+        rol r24
+        rol r25
+        sbrs r20,7
+        rjmp .L2
+        ldi r20,171
+        eor r22,r20
+        ldi r20,65
+        eor r23,r20
+        eor r24,r20
+        ldi r20,129
+        eor r25,r20
+.L2:
+        lsl r31
+        dec r30
+        brne .L3
+        cpse r21,r18
+        rjmp .L4
+        ret
+*/
+
 void setup() {
   Serial.begin(9600);
   SPI1_init();

@@ -282,6 +282,28 @@ switch	( c )
 }
 #endif
 
+// test CRC32, mis ici provisoirement
+#define POLY 0x814141ABL
+unsigned int crc_aixm( const unsigned char *buf, unsigned int len )
+{
+unsigned int crc = 0, i, msbin, msbreg, bit;
+unsigned char lebyte;
+do	{
+	lebyte = *(buf++);
+	for	( i = 0; i < 8; i++ )
+		{
+		msbin  = lebyte >> 7;
+		msbreg = crc >> 31;
+		bit = ( msbin ^ msbreg ) & 1;
+		crc <<= 1;
+		if	( bit )
+			crc ^= POLY;
+		lebyte <<= 1;
+        	}
+	} while (--len);
+return crc;
+}
+
 int main(void)
 {
 // Configure the system clock to 8 or 64 or 72 MHz according to options.h
@@ -303,6 +325,15 @@ gpio_uart2_init();
 UART2_init( 9600 );
 CDC_init();
 #endif
+
+// test CRC debug provisoire
+unsigned long crc;
+crc = crc_aixm( (const unsigned char *)"C'est imposant", 14 ); // EA9F9ECC
+CDC_printf( "0x%08lX\n", crc );
+crc = crc_aixm( (const unsigned char *)"782", 3 ); // 6C297100
+CDC_printf( "0x%08lX\n", crc );
+crc = crc_aixm( (const unsigned char *)"480637N0163411E78246.7", 22 ); // 5E5DC940
+CDC_printf( "0x%08lX\n", crc );
 
 #ifdef USE_CC1101
 gpio_spi1_init();
