@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>AIXM CRC TOOL</title>
+<style>
+form, input, textarea { font-size: 20px }
+</style>
+<body>
+
+<script language="JavaScript" type="text/javascript">
+
+// CRC of a binary buffer (AIXM polynomial 0x814141AB)
+function crc_aixm( buf, size ) {
+var crc = 0, i, j, msbin, msbreg, lebyte, bit;
+for	( j = 0; j < size; j++ )
+	{
+	lebyte = buf[j];
+	for	( i = 0; i < 8; i++ )
+		{
+		msbin  = lebyte >> 7;
+		msbreg = crc >> 31;
+		bit = ( msbin ^ msbreg ) & 1;
+		crc <<= 1;
+		if	( bit )
+			crc ^= 0x814141AB;
+		lebyte <<= 1;
+        	}
+	};
+return crc;
+}
+
+// unsigned int to hex ( toString(16) is signed ! )
+function uint32toHex( x ) {
+var hi = ( x >> 16 ) & 0xFFFF;
+var lo = x & 0xFFFF;
+return hi.toString(16).padStart(4,'0') + lo.toString(16).padStart(4,'0');
+}
+
+// hex bytes text to typed array
+function hex2bin( sx ) {
+var len, i, j;
+len = sx.length;
+if	( ( len % 2 ) != 0 )
+	return 1;
+len2 = len / 2;
+var bin2 = new Uint8Array( len2 );
+j = 0;
+for	( i = 0; i < len; i += 2 )
+	{
+	val = parseInt( sx.substr(i,2), 16 );
+	if	( Number.isNaN( val ) )
+		return 2;
+	bin2[j++] = val;
+	}
+return bin2;
+}
+
+
+// CRC of submitted plain text
+function string2crc() {
+var sx = document.getElementById("targ").value;
+var bin = new TextEncoder().encode(sx);
+var crc = crc_aixm( bin, bin.length );
+// var resu = crc.toString(16).padStart(8, '0');
+var resu = uint32toHex(crc);
+// console.log( resu );
+document.getElementById("crc").value = resu;
+}
+
+// CRC of submitted hex text
+function hex2crc() {
+var sx = document.getElementById("targ").value;
+var bin = hex2bin( sx );
+var resu, crc;
+if	( ( typeof bin ) == 'number' )
+	resu = 'error #' + bin;
+else	{
+	crc = crc_aixm( bin, bin.length );
+	// resu = crc.toString(16).padStart(8, '0');
+	resu = uint32toHex(crc);
+	}
+document.getElementById("crc").value = resu;
+}
+
+</script>
+
+<table>
+<tr><td>payload</td><td><textarea name="targ" id="targ" rows="3" cols="64"></textarea></td></tr>
+<tr><td><input type="button" value="Ascii to CRC" onclick="string2crc()"></td><td></td></tr>
+<tr><td><input type="button" value="Hex to CRC" onclick="hex2crc()"></td><td></td></tr>
+<tr><td>CRC</td><td><textarea name="crc" id="crc" rows="1" cols="64"></textarea></td></tr>
+</table>
+
+</body>

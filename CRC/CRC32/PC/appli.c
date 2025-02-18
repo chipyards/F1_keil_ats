@@ -69,6 +69,19 @@ poly = 0x814141ab;
 xorout = 0;
 // selon reveng.sourceforge.io :
 // poly=0x814141ab init=0x00000000 refin=false refout=false xorout=0x00000000 check=0x3010bf7f residue=0x00000000
+// selon koopman (0xc0a0a0d5; 0x1814141ab) <=> (0xd5828281; 0x1ab050503)
+// x^32 +x^31 +x^24 +x^22 +x^16 +x^14 +x^8 +x^7 +x^5 +x^3 +x +1
+// deja un polynome de degre 32 a 33 termes, mais les 2 extremes sont obligatoires dont possiblement implicites
+// voici les 33 bits, dont les indices sont les exposants : 110000001010000010100000110101011
+// donc pour l'exprimer sur 32 bits le standard AIXM tout comme reveng omet le terme x^32 (MSB) (on est cense savoir que c'est un CRC32)
+// 1000 0001 0100 0001 0100 0001 1010 1011 = 814141AB CQFD
+// alors que koopman omet le terme 1 (LSB) :
+// 1100 0000 1010 0000 1010 0000 1101 0101 = C0A0A0D5 CQFD
+// le fait de mettre les poids des bits dans l'ordre des exposants implique de traiter le MSB first, donc decalage a gauche
+// pour des raisons de codage, les solutions soft peuvent preferer les decalage a droite (t.q. Bentham pour le CRC PKZIP)
+// ce qui implique de renverser le polynome, cela n'interesse ni les theoriciens ni les implementeurs hardware.
+// cependant la doc AIXM donne, pour exactement le meme polynome, la representation binaire suivante (32 bits)
+// 1101 0101 1000 0010 1000 0010 1000 0001 = D5828281, c'est a dire qu'il omet le terme x^32 et renverse le reste (exist chez koopman)
 
 crc = crc_mm( init, poly, xorout, zero, 4 );
 printf("CRC32/AIXM 0 0 0 0 -> %08X\n", crc );
