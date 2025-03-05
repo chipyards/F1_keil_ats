@@ -3,18 +3,17 @@
 
 <body>
 <pre>To run on local file, use a minimal server like "python -m http.server 8000 -d ."</pre>
-<object id="obj1" type="image/svg+xml" data="CRC8.svg"></object>
+<object id="obj1" type="image/svg+xml" data="CRC8_logic.svg"></object>
 <script>
 console.log('hello');
+let t = 0;
 document.getElementById("obj1").onload = function() {
-	doc2 = document.getElementById("obj1").contentDocument;
-	txt = doc2.getElementById("tspan2");	// inkscape text
-	rec = doc2.getElementById("rect2");
-	rec.style['fill'] = '#FFFFDD';		// path needs fill to be clickable
-	box = doc2.getElementById("g2");	// all elements in group are made clickable
+	let doc2 = document.getElementById("obj1").contentDocument;
+	let txt = doc2.getElementById("biti");	// inkscape text
+	let box = doc2.getElementById("input");	// all elements in group are made clickable
 	box.style['cursor'] = 'pointer';	// hand
 	box.onclick = function() {
-		txt.innerHTML = "1";
+		txt.innerHTML = t; t ^= 1;
 		txt.style['fill'] = '#0088FF';
 		};
 	};
