@@ -5,17 +5,66 @@
 <pre>To run on local file, use a minimal server like "python -m http.server 8000 -d ."</pre>
 <object id="obj1" type="image/svg+xml" data="CRC8_logic.svg"></object>
 <script>
-console.log('hello');
-let t = 0;
+
+// global context
+let view = {};					// svg elements
+let state = { biti: 1, bit0: 0, reg: 0 };	// logic variables
+const poly = 0x31;	// X8 + X5 + X4 + 1 <==> (1)00110001 <==> (x+1)(x7+x6+x5+x3+x2+x+1)    
+
+// display functions
+function show_biti0() {
+	view.biti.innerHTML = state.biti;
+	view.bit0.innerHTML = state.bit0;
+	}
+function show_reg() {
+	let r = state.reg;
+	for	( i = 1; i <= 8; i++ )
+		{
+		view.reg[i].innerHTML = ( r & 1 );
+		r >>=1;
+		}
+	}
+function compute_bit0() {
+	state.bit0 = state.biti ^ ( state.reg >> 7 );
+	}
+
+function compute_crc_step() {
+	compute_bit0();
+	state.reg <<= 1;
+	state.reg &= 0xFF;
+	if	( state.bit0 )
+		state.reg ^= poly;
+	console.log(state.reg.toString(16));
+	compute_bit0();
+	}
+
+// view preparation
 document.getElementById("obj1").onload = function() {
-	let doc2 = document.getElementById("obj1").contentDocument;
-	let txt = doc2.getElementById("biti");	// inkscape text
-	let box = doc2.getElementById("input");	// all elements in group are made clickable
-	box.style['cursor'] = 'pointer';	// hand
-	box.onclick = function() {
-		txt.innerHTML = t; t ^= 1;
-		txt.style['fill'] = '#0088FF';
+	let doc = document.getElementById("obj1").contentDocument;
+	// bits
+	view.biti = doc.getElementById("biti");	// inkscape text
+	view.bit0 = doc.getElementById("bit0");
+	view.reg = [];
+	for	( i = 1; i <= 8; i++ )
+		view.reg[i] = doc.getElementById("bit"+i);
+	// buttons
+	let butin = doc.getElementById("input");	// all elements in group are made clickable
+	butin.style['cursor'] = 'pointer';		// hand
+	butin.onclick = function() {
+		state.biti ^= 1;
+		compute_bit0();
+		show_biti0();
 		};
+	let butck = doc.getElementById("clock");	// all elements in group are made clickable
+	butck.style['cursor'] = 'pointer';		// hand
+	butck.onclick = function() {
+		compute_crc_step();
+		show_biti0();
+		show_reg();
+		};
+	compute_bit0();
+	show_biti0();
+	show_reg();
 	};
 </script>
 </body></html>
