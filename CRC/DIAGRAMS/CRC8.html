@@ -2,16 +2,22 @@
 <html>
 
 <body>
-<pre>To run on local file, use a minimal server like "python -m http.server 8000 -d ."</pre>
 <object id="obj1" type="image/svg+xml" data="CRC8_logic.svg"></object>
+<br><br><br><br>
+<object id="obj2" type="image/svg+xml" data="CRC8_soft.svg"></object>
 <script>
-
+// To run on local file, use a minimal server like "python -m http.server 8000 -d ."
 // global context
-let view = {};					// svg elements
-let state = { biti: 1, bit0: 0, reg: 0 };	// logic variables
+let view = {}; let view2= {};			// svg elements
+let state  = { biti: 1, bit0: 0, reg: 0 };	// logic variables for CRC8_logic.svg (obj1)
+let state2 = { biti: 1, bitx: 0, reg: 0 };	// logic variables for CRC8_soft.svg (obj2)
+state2['mode'] = 0;				// mode 0 -> shift, mode 1 -> xor
+ 
 const poly = 0x31;	// X8 + X5 + X4 + 1 <==> (1)00110001 <==> (x+1)(x7+x6+x5+x3+x2+x+1)    
+const xor_hilight = "#FF00AA";
 
-// display functions
+///////////////////////////////////////////////////////
+// display functions for CRC8_logic.svg (obj1)
 function show_biti0() {
 	view.biti.innerHTML = state.biti;
 	view.bit0.innerHTML = state.bit0;
@@ -24,10 +30,10 @@ function show_reg() {
 		r >>=1;
 		}
 	}
+// compute functions for CRC8_logic.svg (obj1)
 function compute_bit0() {
 	state.bit0 = state.biti ^ ( state.reg >> 7 );
 	}
-
 function compute_crc_step() {
 	compute_bit0();
 	state.reg <<= 1;
@@ -37,10 +43,11 @@ function compute_crc_step() {
 	console.log(state.reg.toString(16));
 	compute_bit0();
 	}
-
-// view preparation
+// view preparation for CRC8_logic.svg (obj1)
 document.getElementById("obj1").onload = function() {
 	let doc = document.getElementById("obj1").contentDocument;
+	if	( doc == null )
+		alert("please browse this document on an HTTP serveur, not a file");
 	// bits
 	view.biti = doc.getElementById("biti");	// inkscape text
 	view.bit0 = doc.getElementById("bit0");
@@ -66,6 +73,90 @@ document.getElementById("obj1").onload = function() {
 	show_biti0();
 	show_reg();
 	};
+///////////////////////////////////////////////////////
+// display functions for CRC8_soft.svg (obj2)
+function show2_biti() {
+	view2.biti.innerHTML = state2.biti;
+	}
+function show2_reg() {
+	view2.bitx.innerHTML = state2.bitx;
+	let r = state2.reg;
+	for	( i = 1; i <= 8; i++ )
+		{
+		view2.reg[i].innerHTML = ( r & 1 );
+		r >>=1;
+		}
+	}
+function show2_button() {
+	if	( state2.mode == 1 )
+		{	// xor
+		view2.but_label.innerHTML = "apply xor";
+		view2.but_bg.style['fill'] = xor_hilight;
+		view2.bitx_path.style['stroke'] = xor_hilight;
+		}
+	else	{	// shift
+		view2.but_label.innerHTML = "shift left";
+		view2.but_bg.style['fill'] = "#00c800";
+		view2.bitx_path.style['stroke'] = "#000000";
+		}
+	}
+// compute functions for CRC8_soft.svg (obj2)
+function compute2_crc_shift() {
+	state2.bitx = state2.biti ^ ( ( state2.reg >> 7 ) & 1 ); // bit 7 before shift
+	state2.reg <<= 1;
+	state2.reg &= 0xFF;
+	if	( state2.bitx == 0 )
+		console.log("   " + state2.reg.toString(16));
+	}
+function compute2_crc_xor() {
+	if	( state2.bitx )
+		state2.reg ^= poly;	
+	console.log("   " + state2.reg.toString(16));
+	}
+// context-sensitive button
+function button_action() {
+	if	( state2.mode == 1 )
+		{
+		compute2_crc_xor();
+		state2.mode = 0;
+		show2_button();
+		}
+	else	{
+		compute2_crc_shift();
+		if	( state2.bitx )
+			{
+			state2.mode = 1;
+			show2_button();
+			}
+		}
+	show2_reg();
+	}
+// view preparation for CRC8_soft.svg (obj2)
+document.getElementById("obj2").onload = function() {
+	let doc = document.getElementById("obj2").contentDocument;
+	// bits
+	view2.biti = doc.getElementById("biti");	// inkscape text
+	view2.bitx = doc.getElementById("bitx");
+	view2.bitx_path = doc.getElementById("bitx_path");
+	view2.reg = [];
+	for	( i = 1; i <= 8; i++ )
+		view2.reg[i] = doc.getElementById("bit"+i);
+	// buttons
+	let butin = doc.getElementById("input");	// all elements in group are made clickable
+	butin.style['cursor'] = 'pointer';		// hand
+	butin.onclick = function() {
+		state2.biti ^= 1;
+		show2_biti();
+		};
+	let butck = doc.getElementById("clock");	// all elements in group are made clickable
+	butck.style['cursor'] = 'pointer';		// hand
+	butck.onclick = button_action;
+	view2.but_label = doc.getElementById("but_label");
+	view2.but_bg = doc.getElementById("pulser");
+	show2_biti();
+	show2_reg();
+	};
+
 </script>
 </body></html>
 

@@ -2,13 +2,15 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <!-- width="216mm" height="54mm" -->
+
 <svg
-   width="216mm" height="54mm"
-   viewBox="0 0 216 54"
+   width="195.99998mm"
+   height="50mm"
+   viewBox="0 0 195.99998 50"
    version="1.1"
    id="svg1"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
-   sodipodi:docname="CRC8_logic.svg"
+   sodipodi:docname="CRC8_soft.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -24,20 +26,20 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="true"
-     inkscape:zoom="1.1006667"
-     inkscape:cx="417.47425"
-     inkscape:cy="236.22047"
+     inkscape:zoom="1.5287037"
+     inkscape:cx="408.18898"
+     inkscape:cy="87.001817"
      inkscape:window-width="1920"
      inkscape:window-height="1027"
      inkscape:window-x="1912"
      inkscape:window-y="127"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg1">
+     inkscape:current-layer="clock">
     <inkscape:grid
        id="grid1"
        units="mm"
-       originx="-24.000001"
-       originy="-30.000001"
+       originx="-24.000002"
+       originy="-34"
        spacingx="2"
        spacingy="2"
        empcolor="#0099e5"
@@ -50,8 +52,8 @@
     <inkscape:grid
        id="grid5"
        units="mm"
-       originx="-24.000001"
-       originy="-30.000001"
+       originx="-24.000002"
+       originy="-34"
        spacingx="0.2"
        spacingy="0.2"
        empcolor="#0099e5"
@@ -68,128 +70,128 @@
   <rect
      style="fill:none;fill-opacity:1;stroke:none;stroke-width:0.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
      id="rect1"
-     width="216"
-     height="54"
+     width="195.99998"
+     height="50"
      x="0"
      y="0"
      rx="0"
-     ry="9.2494903e-13"
+     ry="8.5643434e-13"
      inkscape:label="frame" />
   <g
      inkscape:groupmode="layer"
      id="layer7"
      inkscape:label="Labels"
      style="display:inline"
-     transform="translate(-24,-30)">
+     transform="translate(-24,-33.999998)">
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="233.97675"
+       x="196.02325"
        y="82"
        id="text30"
        inkscape:label="X0"><tspan
          sodipodi:role="line"
          id="tspan30"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="233.97675"
+         x="196.02325"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan29">0</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="211.97675"
+       x="174"
        y="82"
        id="text28"
        inkscape:label="X1"><tspan
          sodipodi:role="line"
          id="tspan28"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="211.97675"
+         x="174"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan27">1</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="190"
+       x="152.02325"
        y="82"
        id="text26"
        inkscape:label="X2"><tspan
          sodipodi:role="line"
          id="tspan26"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="190"
+         x="152.02325"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan25">2</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="167.97675"
+       x="130"
        y="82"
        id="text24"
        inkscape:label="X3"><tspan
          sodipodi:role="line"
          id="tspan24"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="167.97675"
+         x="130"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan23">3</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="131.97675"
+       x="108.02325"
        y="82"
        id="text22"
        inkscape:label="X4"><tspan
          sodipodi:role="line"
          id="tspan22"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="131.97675"
+         x="108.02325"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan21">4</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="95.976746"
+       x="86"
        y="82"
        id="text20"
        inkscape:label="X5"><tspan
          sodipodi:role="line"
          id="tspan20"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="95.976746"
+         x="86"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan19">5</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="73.976746"
+       x="63.999996"
        y="82"
        id="text18"
        inkscape:label="X6"><tspan
          sodipodi:role="line"
          id="tspan18"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="73.976746"
+         x="63.999996"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan17">6</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-size:5.29167px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';display:inline;stroke-width:0.264583"
-       x="51.976746"
+       x="41.999996"
        y="82"
        id="text13"
        inkscape:label="X7"><tspan
          sodipodi:role="line"
          id="tspan13"
          style="font-size:5.29167px;fill:#0000ff;fill-opacity:1;stroke-width:0.264583"
-         x="51.976746"
+         x="41.999996"
          y="82">X<tspan
    style="font-size:65%;baseline-shift:super;fill:#0000ff;fill-opacity:1"
    id="tspan14">7</tspan></tspan></text>
@@ -212,12 +214,7 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="reg1"
-     transform="translate(-24,-30)">
-    <path
-       id="path10"
-       style="display:inline;fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="M 234,69.199999 232,70 l 2,0.8"
-       sodipodi:nodetypes="ccc" />
+     transform="translate(-24,-33.999998)">
     <g
        inkscape:groupmode="layer"
        id="g9"
@@ -227,27 +224,32 @@
       <path
          id="path9"
          style="display:inline;fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-         d="m 104,70.000002 h -9.999997 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8" />
+         d="m 75.999992,69.999995 h -9.999997 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8" />
       <text
          xml:space="preserve"
          style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.265;stroke-dasharray:none"
-         x="108"
+         x="79.999992"
          y="72"
          id="text9"
          inkscape:label="bit1"><tspan
            sodipodi:role="line"
            id="bit1"
            style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
-           x="108"
+           x="79.999992"
            y="72">0</tspan></text>
       <rect
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:stroke fill markers"
          id="rect9"
          width="11.999998"
          height="12"
-         x="104"
-         y="64"
+         x="75.999992"
+         y="63.999992"
          rx="4.8791497e-07" />
+      <path
+         id="path12"
+         style="display:inline;fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+         d="m 93.999993,69.999997 h -6 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8"
+         sodipodi:nodetypes="ccccc" />
     </g>
     <g
        inkscape:groupmode="layer"
@@ -258,26 +260,26 @@
       <path
          id="path8"
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-         d="m 104,70.000002 h -9.999997 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8" />
+         d="m 75.999992,69.999995 h -9.999997 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8" />
       <text
          xml:space="preserve"
          style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.265;stroke-dasharray:none"
-         x="108"
+         x="79.999992"
          y="72"
          id="text8"
          inkscape:label="bit2"><tspan
            sodipodi:role="line"
            id="bit2"
            style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
-           x="108"
+           x="79.999992"
            y="72">0</tspan></text>
       <rect
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:stroke fill markers"
          id="rect8"
          width="11.999998"
          height="12"
-         x="104"
-         y="64"
+         x="75.999992"
+         y="63.999992"
          rx="4.8791497e-07" />
     </g>
     <g
@@ -289,26 +291,26 @@
       <path
          id="path7"
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-         d="M 82.000002,70.000001 H 72.000001 M 73.999999,69.2 72.000001,70.000001 74,70.800001" />
+         d="M 53.999999,69.999994 H 43.999998 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8" />
       <text
          xml:space="preserve"
          style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.265;stroke-dasharray:none"
-         x="86"
+         x="57.999996"
          y="72"
          id="text7"
          inkscape:label="bit3"><tspan
            sodipodi:role="line"
            id="bit3"
            style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
-           x="86"
+           x="57.999996"
            y="72">0</tspan></text>
       <rect
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:stroke fill markers"
          id="rect7"
          width="11.999998"
          height="12"
-         x="82"
-         y="64"
+         x="53.999996"
+         y="63.999992"
          rx="4.8791497e-07" />
     </g>
     <g
@@ -317,97 +319,63 @@
        inkscape:label="ff4"
        style="display:inline"
        transform="translate(116)">
+      <path
+         id="path6"
+         style="display:inline;fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+         d="m 126,69.999997 h -10.00001 m 2,-0.800001 -2,0.800001 2,0.8"
+         transform="translate(-116)" />
       <text
          xml:space="preserve"
          style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.265;stroke-dasharray:none"
-         x="42"
+         x="13.999995"
          y="72"
          id="text6"
          inkscape:label="bit4"><tspan
            sodipodi:role="line"
            id="bit4"
            style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
-           x="42"
+           x="13.999995"
            y="72">0</tspan></text>
       <rect
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:stroke fill markers"
          id="rect6"
          width="11.999998"
          height="12"
-         x="38"
-         y="64"
+         x="9.9999952"
+         y="63.999996"
          rx="4.8791497e-07" />
-    </g>
-    <g
-       inkscape:groupmode="layer"
-       id="g5"
-       inkscape:label="xorgate4"
-       transform="translate(36)">
-      <text
-         xml:space="preserve"
-         style="font-size:4.23333px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.264583"
-         x="101.23493"
-         y="70.911575"
-         id="text5"><tspan
-           sodipodi:role="line"
-           id="tspan5"
-           style="font-size:4.23333px;stroke-width:0.264583"
-           x="101.23493"
-           y="70.911575">xor</tspan></text>
-      <path
-         id="path5"
-         style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-         d="m 96.000002,69.200001 -1.999998,0.8 1.999999,0.8 m 1.999998,-0.8 h -4 m 4,0 c 4.000009,-6 8.000009,-6 12.000009,-6 -2,6 -2,6 0,12 -4,0 -8,0 -12.000009,-6 z m 13.000009,-3 h 3 L 114,50 m -1.99999,14.000001 c -2,6 -2,6 0,12 m -1,-3 h 4 v -3 h 3"
-         sodipodi:nodetypes="cccccccccccccccccc" />
     </g>
     <g
        inkscape:groupmode="layer"
        id="layer5"
        inkscape:label="ff5"
        style="display:inline"
-       transform="translate(80.000001)">
+       transform="translate(89.799997,-0.20000321)">
+      <path
+         id="path5"
+         style="display:inline;fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+         d="M 104,69.999997 H 93.999995 m 1.999998,-0.800001 -1.999998,0.800001 1.999999,0.8"
+         transform="translate(-89.799997,0.20000236)" />
       <text
          xml:space="preserve"
          style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.265;stroke-dasharray:none"
-         x="42"
-         y="72"
+         x="18.199999"
+         y="72.199997"
          id="text2"
          inkscape:label="bit5"><tspan
            sodipodi:role="line"
            id="bit5"
            style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
-           x="42"
-           y="72">0</tspan></text>
+           x="18.199999"
+           y="72.199997">0</tspan></text>
       <rect
          style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:stroke fill markers"
          id="rect2"
          width="11.999998"
          height="12"
-         x="38"
-         y="64"
+         x="14.199994"
+         y="64.199997"
          rx="4.8791497e-07" />
-    </g>
-    <g
-       inkscape:groupmode="layer"
-       id="layer4"
-       inkscape:label="xorgate5"
-       style="display:inline">
-      <text
-         xml:space="preserve"
-         style="font-size:4.23333px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.264583"
-         x="101.23493"
-         y="70.911575"
-         id="text4"><tspan
-           sodipodi:role="line"
-           id="tspan4"
-           style="font-size:4.23333px;stroke-width:0.264583"
-           x="101.23493"
-           y="70.911575">xor</tspan></text>
-      <path
-         id="path6"
-         style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-         d="m 96.000002,69.200001 -1.999998,0.8 1.999999,0.8 m 1.999998,-0.8 h -4 m 4,0 c 4.000009,-6 8.000009,-6 12.000009,-6 -2,6 -2,6 0,12 -4,0 -8,0 -12.000009,-6 z m 13.000009,-3 h 3 L 114,50 m -1.99999,14.000001 c -2,6 -2,6 0,12 m -1,-3 h 4 v -3 h 3"
-         sodipodi:nodetypes="cccccccccccccccccc" />
     </g>
     <g
        inkscape:groupmode="layer"
@@ -497,11 +465,6 @@
     </g>
     <path
        style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       d="m 232,69.999999 h 6 V 50 H 64"
-       id="path11"
-       sodipodi:nodetypes="cccc" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
        d="M 38,69.999999 H 34 V 53.000001 h 8"
        id="path2"
        sodipodi:nodetypes="cccc" />
@@ -512,7 +475,8 @@
     <g
        inkscape:groupmode="layer"
        id="layer3"
-       inkscape:label="xorgate2">
+       inkscape:label="xorgate2"
+       style="display:inline">
       <text
          xml:space="preserve"
          style="font-size:4.23333px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.264583"
@@ -530,18 +494,23 @@
          d="m 60,50.000001 h 4 m -17.00022,-3 h -5 m 5,6 h -5 m 4.00022,-9 c 2,6 2,6 0,11.999999 m 14,-5.999999 c -4,-6 -8,-6 -12,-6 2,6 2,6 0,11.999999 4,0 8,0 12,-5.999999 z"
          sodipodi:nodetypes="cccccccccccc" />
     </g>
+    <path
+       id="bitx_path"
+       style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:1.6, 0.4;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 197.99999,49.999998 -121.999993,-2e-6 M 197.99999,63.999998 V 49.999997 m -0.8,11.999995 0.8,2 0.8,-2 M 88,64 V 49.999999 m -0.8,11.999995 0.8,2 0.8,-2 M 110,63.999999 V 49.999998 m -0.8,11.999995 0.8,2 0.8,-2"
+       inkscape:label="bitx_path" />
     <text
        xml:space="preserve"
        style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;display:inline;stroke-width:0.265;stroke-dasharray:none"
-       x="64.772293"
-       y="47.922485"
+       x="210.77228"
+       y="71.922485"
        id="text1-8"
-       inkscape:label="bit0"><tspan
+       inkscape:label="zero"><tspan
          sodipodi:role="line"
-         id="bit0"
+         id="zero"
          style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
-         x="64.772293"
-         y="47.922485">0</tspan></text>
+         x="210.77228"
+         y="71.922485">0</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;display:inline;stroke-width:0.265;stroke-dasharray:none"
@@ -554,29 +523,49 @@
          style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
          x="30"
          y="42">0</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:4.23333px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';stroke-width:0.264583"
-       x="63.789162"
-       y="35.1091"
-       id="text11"><tspan
-         sodipodi:role="line"
-         style="stroke-width:0.264583"
-         x="63.789162"
-         y="35.1091"
-         id="tspan11">CRC generator for polynomial X<tspan
-   style="font-size:65%;baseline-shift:super"
-   id="tspan31">8</tspan> + X<tspan
-   style="font-size:65%;baseline-shift:super"
-   id="tspan32">5</tspan> + X<tspan
-   style="font-size:65%;baseline-shift:super"
-   id="tspan33">4</tspan> + 1, logic cells implementation</tspan></text>
+    <g
+       inkscape:groupmode="layer"
+       id="g4"
+       inkscape:label="ff0"
+       style="display:inline"
+       transform="translate(80.000001)">
+      <text
+         xml:space="preserve"
+         style="font-size:6.35px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.265;stroke-dasharray:none"
+         x="-12.000003"
+         y="51.999996"
+         id="text1"
+         inkscape:label="bitx"><tspan
+           sodipodi:role="line"
+           id="bitx"
+           style="font-size:6.35px;fill:#ff0000;fill-opacity:1;stroke-width:0.265;stroke-dasharray:none"
+           x="-12.000003"
+           y="51.999996">0</tspan></text>
+      <rect
+         style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:stroke fill markers"
+         id="rect4"
+         width="11.999998"
+         height="12"
+         x="-16.000002"
+         y="43.999996"
+         rx="4.8791497e-07" />
+    </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       d="M 38,69.999999 H 34 V 53.000001 h 8"
+       id="path16"
+       sodipodi:nodetypes="cccc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.4;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       d="M 38,69.999999 H 34 V 53.000001 h 8"
+       id="path17"
+       sodipodi:nodetypes="cccc" />
   </g>
   <g
      inkscape:groupmode="layer"
      id="input"
      inkscape:label="input"
-     transform="translate(-24,-30)">
+     transform="translate(-24,-33.999998)">
     <path
        style="fill:#00c800;fill-opacity:1;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="m 36.000001,44.000001 3,3 -3,2.999999 h -11 v -6 z"
@@ -600,26 +589,45 @@
      inkscape:groupmode="layer"
      id="clock"
      style="display:inline"
-     transform="translate(-24,-30)">
+     transform="translate(-24,-33.999998)">
     <rect
        style="display:inline;fill:#00c800;fill-opacity:1;stroke:#000000;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke fill markers"
-       id="rect12"
+       id="pulser"
        width="21.999998"
        height="7.9999995"
-       x="216"
-       y="32"
+       x="195"
+       y="35.999996"
        rx="1.9999982"
-       ry="2.0000002" />
+       ry="2.0000002"
+       inkscape:label="pulser" />
     <text
        xml:space="preserve"
        style="font-size:4.23333px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';stroke-width:0.264583"
-       x="217.86357"
-       y="37.152508"
-       id="text12"><tspan
+       x="196.86357"
+       y="41.152504"
+       id="text12"
+       inkscape:label="but_label"><tspan
          sodipodi:role="line"
-         id="tspan12"
+         id="but_label"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:condensed;font-family:'Helsinki Narrow';-inkscape-font-specification:'Helsinki Narrow Bold Condensed';fill:#ffffff;fill-opacity:1;stroke-width:0.264583"
-         x="217.86357"
-         y="37.152508">clock pulse</tspan></text>
+         x="196.86357"
+         y="41.152504">shift left</tspan></text>
   </g>
+  <text
+     xml:space="preserve"
+     style="font-size:4.23333px;line-height:1.25;font-family:Arial;-inkscape-font-specification:'Arial, Normal';stroke-width:0.264583"
+     x="29.789158"
+     y="5.1090984"
+     id="text11"><tspan
+       sodipodi:role="line"
+       style="stroke-width:0.264583"
+       x="29.789158"
+       y="5.1090984"
+       id="tspan11">CRC generator for polynomial X<tspan
+   style="font-size:65%;baseline-shift:super"
+   id="tspan31">8</tspan> + X<tspan
+   style="font-size:65%;baseline-shift:super"
+   id="tspan32">5</tspan> + X<tspan
+   style="font-size:65%;baseline-shift:super"
+   id="tspan33">4</tspan> + 1, software implementation</tspan></text>
 </svg>
