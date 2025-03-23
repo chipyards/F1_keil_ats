@@ -225,7 +225,7 @@ void dump_patable();
 
 void demo( byte c );
 
-byte simple_radio_init();  // return 0 if CC1101 responds Ok
+byte GFSK_radio_init();  // return 0 if CC1101 responds Ok
 byte tx_if_can( const char * tbuf, byte len );  // return 0 if sent Ok
 void format_rx_to_Serial( byte * rxdata );
 void handle_rx();
@@ -310,18 +310,18 @@ set_TXOFF(3);
 set_autocal(1);
 set_FOC_limit(0);
 set_BS_limit(0);
-#ifdef USE_CC1101_CRC
- set_CRC(1);
- set_CRC_autoflush(1); // avoid RX overflow
- write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );    // 7
-#else
- set_CRC(0);
- set_fifo_thr( 15 );   // le max, pour que GDO0 soit active uniquement a la fin du paquet EOP
- write_reg(CC1101_IOCFG0, CC1101_GDO_RXEND );    // 1 (RXFIFO >= RX FIFO_THR) || EOP (default THR = 32)
-#endif
+set_CRC(1);
+set_CRC_autoflush(1); // avoid RX overflow
+write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );    // 7
 write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );  // Tx or Rx in process, from sync to end
 set_patable( full_patable );
 set_power( 4 ); // 0 dBm
+}
+
+// turbo
+void preset_P38Gplus() {
+preset_P10Gplus();
+set_data_rate( 131, 10 ); // kbaud = 26000 * ( 256 + 131 ) * pow( 2, ( 10 - 28 ) )
 }
 
 /* Async transparent mode, FSK modulation by GDO0 */
@@ -385,10 +385,18 @@ write_reg(CC1101_PKTCTRL1, 0x04); // 07 Packet automation control.
 write_reg(CC1101_PKTCTRL0, 0x32); // 08 Packet automation control.
 write_reg(CC1101_ADDR,     0x00); // 09 Device address.
 write_reg(CC1101_PKTLEN,   0xFF); // 06 Packet length.
-set_synth_frequ( synth_frequ_from_kHz(434024) ); // SMA short, aligner la frequence sur les "blue coil"
-}; //*/
+};
 
-
+/* Async transparent mode, amplitude modulation by GDO0 */
+void preset_P10AA() {
+read_strobe( CC1101_SIDLE );
+preset_P10AF();
+set_synth_frequ( synth_frequ_from_kHz(BASE_TUNING+FINE_TUNING) );
+set_modu( CC1101_AM );
+unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 }; // level 0 dBm
+set_patable( patable );
+set_power( 0 );
+}
 
 }; // class
 

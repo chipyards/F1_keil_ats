@@ -21,15 +21,14 @@
 // CC1101 fine tuning	      board
 //#define FINE_TUNING (36)  // 1	short SMA	433.964 -48dBm	-83ppm	434036
 //#define FINE_TUNING (37)  // 2	short SMA	433.963 -50dBm	-85ppm	434037
-//#define FINE_TUNING (13)  // 3	long SMA	433.987 -46dBm	-30ppm	434013
-//#define FINE_TUNING (12)  // 4	long SMA	433.988 -43dBm	-28ppm	434012
-//#define FINE_TUNING (12)  // 5	blue coil	433.988 -52dBm	-28ppm	434012
-//#define FINE_TUNING (12)  // 6	blue coil	433.988 -53dBm	-28ppm	434012
+//#define FINE_TUNING (13)  // 3	long SMA	433.987 -46dBm	-30ppm	434013	nucleo
+//#define FINE_TUNING (12)  // 4	ex-long SMA	433.988 -43dBm	-28ppm	434012	WUCAM
+//#define FINE_TUNING (12)  // 5	blue ex-coil	433.988 -52dBm	-28ppm	434012	WUCAM
+//#define FINE_TUNING (12)  // 6	blue ex-coil	433.988 -53dBm	-28ppm	434012	WUCAM #1
 //#define FINE_TUNING (-8)  // 7	green coil	434.008 -70dBm	+18ppm	433992
 //#define FINE_TUNING (-8)  // 8	green coil	434.008 -71dBm	+18ppm	433992
 
 #define BASE_TUNING (434000)
-#define USE_CC1101_CRC
 
 // choix du main
 // #define MAIN_COULOMB
@@ -50,7 +49,7 @@
 #ifdef NUCLEO
   #define USE_CDC
   // #define USE_TIM3_PC6	// uses TIM3 pour moduler via GDO0 = PA10
-  #define FINE_TUNING (37)  	// 2	short SMA	433.963 -50dBm	-85ppm	434037
+#define FINE_TUNING (13)	// 3	long SMA	433.987 -46dBm	-30ppm	434013
 #else
   #define FINE_TUNING (12)  	// 6	blue coil	433.988 -53dBm	-28ppm	434012
 #endif
@@ -61,7 +60,8 @@
 
 // experiences optionnelles
 // #define LEPILOT_TEST	// simulation utilisant la classe Apilot, rejeu-like
-#define SIMPLE_BEACON	// emission spontanee de msg UHF periodiques
+#define AUTO_BEACON	// demarrage spontanee de l'emission de msg UHF periodiques
+#define TURBO_38K	// 38.4 kbaud au lieu de 10
 
 // presets
 #ifdef MAIN_COULOMB

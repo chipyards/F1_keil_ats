@@ -145,13 +145,9 @@ switch ( c ) {
   case 'G' :		// GFSK packet
 	  preset_P10Gplus();
 	  break;
-  case 'W' : {    // pure CW (start with T, stop with I)
-    read_strobe( CC1101_SIDLE );
-    preset_P10AF();
-    set_modu( CC1101_AM );
-    unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 }; // level 0 dBm
-    set_patable( patable );
-    set_power( 0 );
+  case 'W' : {    // pure CW (stop with I)
+   CC.preset_P10AA();
+   CC.write_strobe( CC1101_STX );
    } break;
   case 'B' :
     beacon_tx_enable = 1;
@@ -183,11 +179,13 @@ switch ( c ) {
   }
 }
 
-byte CC1101::simple_radio_init()
+byte CC1101::GFSK_radio_init()
 {
+SPI1_init();
+delay(1000);
 if  ( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
   return 3;
-preset_P10Gplus();
+preset_P38Gplus();
 read_strobe( CC1101_SIDLE );
 delay(2);
 read_strobe( CC1101_SRX );

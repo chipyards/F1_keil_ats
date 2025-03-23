@@ -326,15 +326,6 @@ UART2_init( 9600 );
 CDC_init();
 #endif
 
-// test CRC debug provisoire
-unsigned long crc;
-crc = crc_aixm( (const unsigned char *)"C'est imposant", 14 ); // EA9F9ECC
-CDC_printf( "0x%08lX\n", crc );
-crc = crc_aixm( (const unsigned char *)"782", 3 ); // 6C297100
-CDC_printf( "0x%08lX\n", crc );
-crc = crc_aixm( (const unsigned char *)"480637N0163411E78246.7", 22 ); // 5E5DC940
-CDC_printf( "0x%08lX\n", crc );
-
 #ifdef USE_CC1101
 gpio_spi1_init();
 SPI1_init();
@@ -436,23 +427,22 @@ while (1)
  	if	(  ( old1Hz != cnt1Hz ) )
  		{
  		old1Hz = cnt1Hz;
-		// do something exactly once per second
-		#ifdef SIMPLE_BEACON
-		if	( cnt1Hz == 11 )
+		if	( cnt1Hz == 11 )	// do this once
 			{
 			cntblinks = 5;	// pour le cas ou SPI planterait dans while ( IS_MISO_SET() ), i.e. si transceiver absent
 			if	( CC.CW_tx_enable )
 				cntblinks = 3 + CC.simple_CW_init(); // 3 blink si Ok, sinon 4
 			else	{
 				cntblinks = 1 + CC.simple_radio_init(); // 1 blink si Ok, sinon 2
+				#ifdef AUTO_BEACON
 				CC.AAR_tx_enable = 1;
+				#endif
 				}
 			}
 		else if	( ( cnt1Hz > 11 ) && ( CC.AAR_tx_enable ) )
-			{
+			{			// do something exactly once per second
 			lepilot.AAR_tx();
 			}
-		#endif
 		}
 	if	( ( IS_GDO0_SET() ) && ( oldGDO0 == 0 ) )
 		{ CC.handle_rx(); oldGDO0 = 1; }

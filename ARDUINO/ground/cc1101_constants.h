@@ -1,16 +1,11 @@
-// CC1101 fine tuning
-  #define FINE_TUNING (36)  // 1  short SMA 433.964 -48dBm  -83ppm  434036
-//#define FINE_TUNING (37)  // 2  short SMA 433.963 -50dBm  -85ppm  434037
-//#define FINE_TUNING (13)  // 3  long SMA  433.987 -46dBm  -30ppm  434013
-//#define FINE_TUNING (12)  // 4  long SMA  433.988 -43dBm  -28ppm  434012
-//#define FINE_TUNING (12)  // 5  blue coil 433.988 -52dBm  -28ppm  434012
-//#define FINE_TUNING (12)  // 6  blue coil 433.988 -53dBm  -28ppm  434012
-//#define FINE_TUNING (-8)  // 7  green coil  434.008 -70dBm  +18ppm  433992
-//#define FINE_TUNING (-8)  // 8  green coil  434.008 -71dBm  +18ppm  433992
-
 #define BASE_TUNING (434000)
-#define USE_CC1101_CRC
-
+// CC1101 fine tuning (compensation of manufacturing variation of ref. ocillator frequency)
+// #define FINE_TUNING (36)  // shield 1 
+// #define FINE_TUNING (37)  // shield 2 
+// #define FINE_TUNING (33)  // shield 3 
+// #define FINE_TUNING (31)  // shield 4 
+// #define FINE_TUNING (31)  // shield 5 
+ #define FINE_TUNING (30)  // shield 6
 ///
 /// CC1101 constants
 ///

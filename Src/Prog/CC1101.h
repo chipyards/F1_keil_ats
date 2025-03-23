@@ -337,26 +337,28 @@ set_whiten(0);
 set_packet_format(0);
 set_packet_len_config(1);
 set_no_dc_filt(0);
-set_sync_mode(3);
-set_preamble(2);	// The recommended setting is 4-byte preamble and 4-byte sync word,
-set_CCA(0);
+set_sync_mode(3);	//  4-byte sync word, 30/32 matching
+set_preamble(2);	//  4-byte preamble
+set_CCA(0);		// always
 set_RXOFF(3);
 set_TXOFF(3);
 set_autocal(1);
-set_FOC_limit(0);
+set_FOC_limit(0);	// no frequ offset comp
 set_BS_limit(0);
-#ifdef USE_CC1101_CRC
 set_CRC(1);
 set_CRC_autoflush(1); // avoid RX overflow
 write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );		// 7
-#else
-set_CRC(0);
-set_fifo_thr( 15 );   // le max, pour que GDO0 soit active uniquement a la fin du paquet EOP
-write_reg(CC1101_IOCFG0, CC1101_GDO_RXEND );		// 1 (RXFIFO >= RX FIFO_THR) || EOP (default THR = 32)
-#endif
 write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );	// 6 Tx or Rx in process, from sync to end
 set_patable( full_patable );
 set_power( 4 ); // 0 dBm
+}
+
+// turbo
+void preset_P38Gplus() {
+preset_P10Gplus();
+unsigned int M, E;
+data_rate_from_float( &M, &E, 38.4f );
+set_data_rate( M, E );
 }
 
 // Async transparent mode, FSK modulation by GDO0

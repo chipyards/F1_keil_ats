@@ -431,7 +431,11 @@ int CC1101::simple_radio_init()
 // SPI1_init();		// c'est fait
 if	( ( read_reg( CC1101_SYNC1 ) != 0xD3 ) || ( read_reg( CC1101_SYNC0 ) != 0x91 ) )
 	return 1;
+#ifdef TURBO_38K
+preset_P38Gplus();
+#else
 preset_P10Gplus();
+#endif
 read_strobe( CC1101_SIDLE );
 tickdelay( 8000 );	// 8000 -> 1ms @ 8MHz
 read_strobe( CC1101_SRX );
