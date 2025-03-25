@@ -28,18 +28,6 @@ digitalWrite( 10, 1 );  // SS hi
 }
 
 ///
-/// ROM data (enfin on voudrait)
-///
-
-const char * fsm_states[] = {     // noms des codes d'etats obtenus dans le status byte
-  "IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER"
-  };
-const unsigned char full_patable[] = {
-//  -30   -20   -15   -10    0     5     7     10 dBm  (table 39 page 60)
-  0x12, 0x0E, 0x1D, 0x34, 0x60, 0x84, 0xC8, 0xC0
-  };
-
-///
 /// singleton
 ///
 CC1101 CC;
@@ -104,6 +92,8 @@ switch ( c ) {
   case 'v' :
   case ' ' : {
     byte fif;
+    const char * fsm_states[] = {     // noms des codes d'etats obtenus dans le status byte
+        "IDLE", "RX", "TX", "FSTXON", "CALIB", "SETTLE", "RX_OVER", "TX_OVER" };
     read_strobe( CC1101_SNOP ); fif = STATUS & 0x0F;
     snprintf( tbuf, sizeof(tbuf), "FSM %s, RXFIFO %s%d", fsm_states[(STATUS >> 4) & 7], ((fif<15)?(""):(">=")), fif );
     Serial.print( tbuf ); 

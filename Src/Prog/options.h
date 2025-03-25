@@ -18,15 +18,23 @@
 	ATTENTION au linker script, celui de la Blue Pill est Debug_STM32F103C8_FLASH.ld, il est Ok pour Nucleo mais limite la flash a 64k
  */
 
-// CC1101 fine tuning	      board
-//#define FINE_TUNING (36)  // 1	short SMA	433.964 -48dBm	-83ppm	434036
-//#define FINE_TUNING (37)  // 2	short SMA	433.963 -50dBm	-85ppm	434037
-//#define FINE_TUNING (13)  // 3	long SMA	433.987 -46dBm	-30ppm	434013	nucleo
-//#define FINE_TUNING (12)  // 4	ex-long SMA	433.988 -43dBm	-28ppm	434012	WUCAM
-//#define FINE_TUNING (12)  // 5	blue ex-coil	433.988 -52dBm	-28ppm	434012	WUCAM
-//#define FINE_TUNING (12)  // 6	blue ex-coil	433.988 -53dBm	-28ppm	434012	WUCAM #1
-//#define FINE_TUNING (-8)  // 7	green coil	434.008 -70dBm	+18ppm	433992
-//#define FINE_TUNING (-8)  // 8	green coil	434.008 -71dBm	+18ppm	433992
+// CC1101 fine tuning
+
+// arduino shields
+// #define FINE_TUNING (36)  // 1  short SMA shield 1	433.964 -48dBm	-83ppm
+// #define FINE_TUNING (37)  // 2  short SMA shield 2   433.963 -50dBm	-85ppm
+// #define FINE_TUNING (33)  // 13 short SMA shield 3 
+// #define FINE_TUNING (31)  // 14 short SMA shield 4 
+// #define FINE_TUNING (31)  // 15 short SMA shield 5 
+// #define FINE_TUNING (30)  // 16 short SMA shield 6
+
+// others
+// #define FINE_TUNING (13)  // 3	long SMA	433.987 -46dBm	-30ppm	nucleo
+// #define FINE_TUNING (12)  // 4	ex-long SMA	433.988 -43dBm	-28ppm	WUCAM
+// #define FINE_TUNING (12)  // 5	blue ex-coil	433.988 -52dBm	-28ppm	WUCAM
+// #define FINE_TUNING (12)  // 6	blue ex-coil	433.988 -53dBm	-28ppm	WUCAM #1
+// #define FINE_TUNING (-8)  // 7	green coil	434.008 -70dBm	+18ppm
+// #define FINE_TUNING (-8)  // 8	green coil	434.008 -71dBm	+18ppm
 
 #define BASE_TUNING (434000)
 

@@ -1,30 +1,37 @@
 #include "cc1101_constants.h"
 
-// SPI1 en full duplex
+// SPI1 in full duplex
 void SPI1_init(void);
 
-// ecrire et lire cnt bytes en une transaction
+// write and read cnt bytes in one transaction
 void SPI1_multi_byte( unsigned char * txbuf, unsigned char * rxbuf, byte cnt );
 
-#define STATUS (rxbuf[0])	// permet de recuperer les status apres toute operation
+#define STATUS (rxbuf[0])	// for retrieving status information after any operation
 
 class CC1101 {
 public:
 unsigned char txbuf[65];
 unsigned char rxbuf[65];
-char beacon_tx_enable;
 char tbuf[64];  // pour snprintf
 
+///
+/// CC1101 register access
+///
+
+// single byte commands also known as strobes
+// read_strobe performs the same strobe action write_strobe, but
+//	- write_strobe gets TX FIFO state
+//	- read_strobe  gets RX FIFO state
 void write_strobe( byte val ) {
 	txbuf[0] = val & 0x3f;
 	SPI1_multi_byte( txbuf, rxbuf, 1 );
 	};
-// read strobe performs the strobe action as well, the difference is the FIFO state reported in the status byte
 void read_strobe( byte val ) {
 	txbuf[0] = 0x80 | ( val & 0x3f );
 	SPI1_multi_byte( txbuf, rxbuf, 1 );
 	};
 
+// conficuration registers
 void write_reg( byte adr, byte val ) {
 	txbuf[0] = adr & 0x3f;
 	txbuf[1] = val;
@@ -37,20 +44,22 @@ unsigned char read_reg( byte adr ) {
 	return rxbuf[1];
 	};
 
-// les registres de status sont lus aux adresses >= 0x30, avec le bit B (burst)
+// status registers are read at addresses >= 0x30, with bit B set (burst)
 unsigned char read_status_reg( byte adr ) {
 	txbuf[0] = 0xC0 | ( adr & 0x3f );
 	SPI1_multi_byte( txbuf, rxbuf, 2 );
 	return rxbuf[1];
 	};
 
-// burst read, rend l'adresse d'un array de bytes
+// burst read, returns the addresse of a byte array NOT THREAD SAFE
 unsigned char * read_regs( byte start_adr, byte cnt );
 
-// burst write, prend l'adresse d'un array de bytes
+// burst write, takes the addresse of a byte array
 void write_regs( byte start_adr, const unsigned char * src, byte cnt );
 
-// set_gets, short bitfields
+///
+/// set-get methods for short bitfields
+///
 
 // 1 bit
 void set1( byte opt, byte reg, byte pos ) {
@@ -85,7 +94,9 @@ byte get4( byte reg, byte pos ) {
   return( ( read_reg( reg ) >> pos ) & 0xF );
   }
 
-// set_gets specialises
+///
+/// specialized set-get methods
+///
 
 // synth frequ : 24 bits
 unsigned long int get_synth_frequ() {
@@ -217,16 +228,9 @@ unsigned long synth_frequ_to_kHz( unsigned long fk ) {
     return fk;
     }
 
-// experiments
-void dump_config();
-void dump_patable();
-
-void demo( byte c );
-
-byte GFSK_radio_init();  // return 0 if CC1101 responds Ok
-byte tx_if_can( const char * tbuf, byte len );  // return 0 if sent Ok
-void format_rx_to_Serial( byte * rxdata );
-void handle_rx();
+///
+/// config presets
+///
 
 // GFSK modulation
 void preset_P10G() {
@@ -325,79 +329,21 @@ preset_P10Gplus();
 set_data_rate( 131, 10 ); // kbaud = 26000 * ( 256 + 131 ) * pow( 2, ( 10 - 28 ) )
 }
 
-/* Async transparent mode, FSK modulation by GDO0 */
-void preset_P10AF() {
-// Product = CC1101
-// Chip version = A   (VERSION = 0x04)
-// X-tal frequency = 26 MHz
-// RF output power = 0 dBm
-// RX filterbandwidth = 101.562500 kHz
-// Deviation = 19 kHz
-// Datarate = 9.992599 kBaud
-// Modulation = (0) 2-FSK
-// Manchester enable = (0) Manchester disabled
-// RF Frequency = 433.999969 MHz
-// Channel spacing = 199.951172 kHz
-// Channel number = 0
-// Optimization = -
-// Sync mode = (0) No preamble/sync
-// Format of RX/TX data = (3) Asynchronous transparent mode. Data in on GDO0 and Data out on either of the GDO pins
-// CRC operation = (0) CRC disabled for TX and RX
-// Forward Error Correction = (0) FEC disabled
-// Length configuration = (2) Enable infinite length packets.
-// Packetlength = 255
-// Preamble count = (2)  4 bytes
-// Append status = 1
-// Address check = (0) No address check
-// FIFO autoflush = 0
-// Device address = 0
-// GDO0 signal selection = (12) Serial Synchronous Data Output
-write_reg(CC1101_FSCTRL1,  0x06); // 0B Frequency synthesizer control.
-write_reg(CC1101_FSCTRL0,  0x00); // 0C Frequency synthesizer control.
-write_reg(CC1101_FREQ2,    0x10); // 0D Frequency control word, high byte.
-write_reg(CC1101_FREQ1,    0xB1); // 0E Frequency control word, middle byte.
-write_reg(CC1101_FREQ0,    0x3B); // 0F Frequency control word, low byte.
-write_reg(CC1101_MDMCFG4,  0xC8); // 10 Modem configuration.
-write_reg(CC1101_MDMCFG3,  0x93); // 11 Modem configuration.
-write_reg(CC1101_MDMCFG2,  0x00); // 12 Modem configuration.
-write_reg(CC1101_MDMCFG1,  0x22); // 13 Modem configuration.
-write_reg(CC1101_MDMCFG0,  0xF8); // 14 Modem configuration.
-write_reg(CC1101_CHANNR,   0x00); // 0A Channel number.
-write_reg(CC1101_DEVIATN,  0x34); // 15 Modem deviation setting (when FSK modulation is enabled).
-write_reg(CC1101_FREND1,   0x56); // 21 Front end RX configuration.
-write_reg(CC1101_FREND0,   0x10); // 22 Front end TX configuration.
-write_reg(CC1101_MCSM0,    0x18); // 18 Main Radio Control State Machine configuration.
-write_reg(CC1101_FOCCFG,   0x16); // 19 Frequency Offset Compensation Configuration.
-write_reg(CC1101_BSCFG,    0x6C); // 1A Bit synchronization Configuration.
-write_reg(CC1101_AGCCTRL2, 0x43); // 1B AGC control.
-write_reg(CC1101_AGCCTRL1, 0x40); // 1C AGC control.
-write_reg(CC1101_AGCCTRL0, 0x91); // 1D AGC control.
-write_reg(CC1101_FSCAL3,   0xE9); // 23 Frequency synthesizer calibration.
-write_reg(CC1101_FSCAL2,   0x2A); // 24 Frequency synthesizer calibration.
-write_reg(CC1101_FSCAL1,   0x00); // 25 Frequency synthesizer calibration.
-write_reg(CC1101_FSCAL0,   0x1F); // 26 Frequency synthesizer calibration.
-write_reg(CC1101_FSTEST,   0x59); // 29 Frequency synthesizer calibration.
-write_reg(CC1101_TEST2,    0x81); // 2C Various test settings.
-write_reg(CC1101_TEST1,    0x35); // 2D Various test settings.
-write_reg(CC1101_TEST0,    0x09); // 2E Various test settings.
-write_reg(CC1101_FIFOTHR,  0x47); // 03 RXFIFO and TXFIFO thresholds.
-write_reg(CC1101_IOCFG0,   0x0C); // 02 GDO0 output pin configuration.
-write_reg(CC1101_PKTCTRL1, 0x04); // 07 Packet automation control.
-write_reg(CC1101_PKTCTRL0, 0x32); // 08 Packet automation control.
-write_reg(CC1101_ADDR,     0x00); // 09 Device address.
-write_reg(CC1101_PKTLEN,   0xFF); // 06 Packet length.
-};
+///
+/// utility methods
+///
 
-/* Async transparent mode, amplitude modulation by GDO0 */
-void preset_P10AA() {
-read_strobe( CC1101_SIDLE );
-preset_P10AF();
-set_synth_frequ( synth_frequ_from_kHz(BASE_TUNING+FINE_TUNING) );
-set_modu( CC1101_AM );
-unsigned char patable[] = { 0x60, 0x60, 0, 0, 0, 0, 0, 0 }; // level 0 dBm
-set_patable( patable );
-set_power( 0 );
-}
+void dump_config();
+void dump_patable();
+void format_rx_to_Serial( byte * rxdata );
+
+///
+/// main API
+///
+
+byte GFSK_radio_init();  // return 0 if CC1101 responds Ok
+byte tx_if_can( const char * tbuf, byte len );  // return 0 if sent Ok
+byte * extract_rx();
 
 }; // class
 
