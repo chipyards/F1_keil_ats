@@ -85,20 +85,23 @@ Serial.print("\n");
 // format radio RX packet to Serial (first byte is length)
 void CC1101::format_rx_to_Serial( byte * rxdata )
 {
-byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
+byte len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC16
 snprintf( tbuf, sizeof(tbuf), "RX len %d, {", len );
 Serial.print( tbuf );
-for ( byte i = 0; i < len+3; i++ )
+// payload hex display
+for ( byte i = 1; i < len+1; i++ )
     {
-    snprintf( tbuf, sizeof(tbuf), "%02X,", rxdata[i] );  // affichage hexa, len, RSSI et LQI inclus
+    snprintf( tbuf, sizeof(tbuf), "%02X,", rxdata[i] );
     Serial.print( tbuf );
     }
 Serial.print("}=\"");
-for ( byte i = 1; i < len+1; i++ )  // affichage payload en texte filtre
+// payload as filtered text
+for ( byte i = 1; i < len+1; i++ )
     {
-    snprintf( tbuf, sizeof(tbuf), "%c", (char(rxdata[i])<' ')?('?'):(rxdata[i]) );
+    snprintf( tbuf, sizeof(tbuf), "%c", (char(rxdata[i])<' ')?('_'):(rxdata[i]) );
     Serial.print( tbuf );
     }
+// diagnostics
 int hrssi = (int)((char)rxdata[len+1]) - (2*74);
 byte LQI = rxdata[len+2];
 snprintf( tbuf, sizeof(tbuf),"\" %d dBm, LQI=%u", hrssi/2, LQI & 0x7F );

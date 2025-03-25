@@ -9,13 +9,12 @@
 ///
 /// CC1101 constants
 ///
-//						valeur par defaut commentee
-// configuration registers
 
-//			adr   dump doc	<-- dump = valeurs observees au reset, doc = valeurs par defaut selon  CC1101.pdf
-#define CC1101_IOCFG2   0x00 // 29 29 GDO2 - mettre 2F ou 6F pour test JLN's LED
-#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - laisser 2E = Hi Z
-#define CC1101_IOCFG0   0x02 // 3f 3F GDO0 - default 3F=135.4kHz a remplacer pour interrupt
+// configuration registers
+//			adr   dump doc	<-- dump = hard reset values, doc = CC1101.pdf defaults
+#define CC1101_IOCFG2   0x00 // 29 29 GDO2 
+#define CC1101_IOCFG1   0x01 // 2e 2E GDO1 - Hi Z
+#define CC1101_IOCFG0   0x02 // 3f 3F GDO0 - default 3F=135.4kHz
 #define CC1101_FIFOTHR  0x03 // 07 07 FIFO Threshold & RX attenuator 07 = half fifo, 0dB att
 #define CC1101_SYNC1    0x04 // d3 D3 Sync Word, High Byte 11010011
 #define CC1101_SYNC0    0x05 // 91 91 Sync Word, Low Byte  10010001

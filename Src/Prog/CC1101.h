@@ -10,15 +10,22 @@ void SPI1_multi_byte( unsigned char * txbuf, unsigned char * rxbuf, int cnt );
 
 #define STATUS (rxbuf[0])	// permet de recuperer les status apres toute operation
 
+enum cc_mode_t {
+  CW,		// for carrier calibration
+  ECHO,		// for dialog test
+  PILOT,	// normal wucam, starts AAR upon reset
+};
+
 class CC1101 {
 public:
 unsigned char txbuf[65];
 unsigned char rxbuf[65];
+// operation mode
+cc_mode_t mode;
 int AAR_tx_enable;
-int CW_tx_enable;
 
 // constructeur
-CC1101() { AAR_tx_enable = 0; CW_tx_enable = 0; };
+CC1101() : mode(PILOT), AAR_tx_enable(1) {};
 
 // inline methods
 
@@ -256,14 +263,13 @@ void dump_patable();
 void compare_config( const unsigned char * ref_regs );
 void quick_view();
 
-
 void demo( int c );
-int simple_CW_init();
 
-int simple_radio_init();	// return 0 if CC1101 responds Ok
+int cw_radio_init();
+int GFSK_radio_init();		// return 0 if CC1101 responds Ok
 int tx_if_can( const char * tbuf, int len );
-void format_rx_to_CDC( unsigned char * rxdata );
-void handle_rx();
+void format_rx_to_CDC( unsigned char * rxdata );	// format radio RX packet to CDC (1st byte is len)
+unsigned char * extract_rx();			// extract received data from RX FIFO (first byte is len)
 
 // GFSK modulation
 void preset_P10G() {

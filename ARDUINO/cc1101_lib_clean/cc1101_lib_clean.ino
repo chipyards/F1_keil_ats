@@ -28,25 +28,43 @@ void setup() {
   else Serial.println("Radio init error");
 }
 
-void interpreter( char buf[], byte len ) // zero-terminated string
+#define FLIGHT 101
+void interpreter( char buf[], byte buflen ) // zero-terminated string
 {
 Serial.println( buf );
-if  ( buf[0] == '?' ) { 
+if  ( buf[0] == '?' ) { 	// type '?' for dumps
     CC.dump_config();
     CC.dump_patable();
     }
-else {
-     int resu = CC.tx_if_can( buf, len );
-     if ( resu ) Serial.println("tx error");
-     else Serial.println("tx ok"); 
+else {				// type a number, to be sent to flight with opcode 0
+     int n = atoi(buf);
+     if ( n != 0 )
+        {
+        byte data[4];
+        data[0] = FLIGHT;
+        data[1] = 0;
+        data[2] = n;
+        data[3] = n >> 8;
+        int resu = CC.tx_if_can( data, 4 );
+        if ( resu ) Serial.println("tx error");
+        else Serial.println("tx ok"); 
+        }
+     else {
+        int resu = CC.tx_if_can( buf, buflen );
+        if ( resu ) Serial.println("tx error");
+        else Serial.println("tx ok");
+        } 
      }
 }
 
 void handle_rx()
 {
-byte * rxdata = CC.extract_rx();
-// Serial.println( rxdata[0] );
-CC.format_rx_to_Serial( rxdata );
+byte * data = CC.extract_rx();
+if	( ( data[0] >= 4 ) && ( data[1] == (FLIGHT|0x80) ) && ( data[2] == 0 ) )
+	{
+	Serial.println( ( data[3] & 0xff ) | ( data[4] << 8 ) );
+	}
+else	CC.format_rx_to_Serial( data );
 }
 
 void loop() {

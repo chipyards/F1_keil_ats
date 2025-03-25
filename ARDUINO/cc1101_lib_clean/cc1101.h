@@ -314,8 +314,8 @@ set_FOC_limit(0);
 set_BS_limit(0);
 set_CRC(1);
 set_CRC_autoflush(1); // avoid RX overflow
-write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );    // 7
-write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC );  // Tx or Rx in process, from sync to end
+write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );    // 0x07 = Rx CRC Ok, cleared by reading the FIFO
+write_reg(CC1101_IOCFG2, CC1101_GDO_P_IN_PROC ); // 0x06 = Tx or Rx in process, from sync to end
 unsigned char full_patable[] = {
   // -30   -20   -15   -10    0     5     7    10 dBm  (table 39 page 60)
     0x12, 0x0E, 0x1D, 0x34, 0x60, 0x84, 0xC8, 0xC0  };

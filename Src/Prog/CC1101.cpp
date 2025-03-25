@@ -324,7 +324,10 @@ switch	( c ) {
 		txbytes = read_status_reg( CC1101_TXBYTES );
 		CDC_printf("RX bytes %d, TX bytes %d\n", rxbytes, txbytes );
 		if	( rxbytes )
-			handle_rx();
+			{
+			unsigned char * data = extract_rx();
+			format_rx_to_CDC( data );
+			}
 		} break;
 	// majuscules et chiffres : actions
 	case '1' :
@@ -393,16 +396,14 @@ switch	( c ) {
 		#ifdef USE_TIM3_PC6
 		gpio_tim3_pc6_init();
 		TIM3_PWM_init( SystemCoreClock / 5000 ); // signal generator for async CW modulation - connect PC6 to PA10
-		#else
-		AAR_tx_enable = 1;
 		#endif
 		break;
-	case 'Q' : AAR_tx_enable = 0;
+	case 'Q' :
+		AAR_tx_enable ^= 1;
 		break;
-
 	// les strobes
 	case 'Z' :
-		AAR_tx_enable = 0;
+		AAR_tx_enable = 1;
 		read_strobe( CC1101_SRES );
 		break;
 	case 'I' :
@@ -425,7 +426,7 @@ switch	( c ) {
 	}
 }
 
-int CC1101::simple_radio_init()
+int CC1101::GFSK_radio_init()
 {
 // gpio_spi1_init();	// c'est fait
 // SPI1_init();		// c'est fait
@@ -467,7 +468,7 @@ read_strobe( CC1101_STX );
 return 0;
 }
 
-int CC1101::simple_CW_init()
+int CC1101::cw_radio_init()
 {
 // gpio_spi1_init();	// c'est fait
 // SPI1_init();		// c'est fait
@@ -490,27 +491,28 @@ return 0;
 void CC1101::format_rx_to_CDC( unsigned char * rxdata )
 {
 #ifdef USE_CDC
-unsigned int len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
-CDC_printf("RX len %d, {", len );
-for	( unsigned int i = 0; i < len+3; i++ )
-	CDC_printf("%02X,", rxdata[i] );	// affichage hexa, len, RSSI et LQI inclus
+unsigned int len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC16
+CDC_printf("RX len %d {", len );
+// payload hex display
+for	( unsigned int i = 1; i < len+1; i++ )
+	CDC_printf("%02X,", rxdata[i] );
 CDC_printf("}=\"");
-for	( unsigned int i = 1; i < len+1; i++ )	// affichage payload en texte filtre
-	CDC_printf("%c", (char(rxdata[i])<' ')?('?'):(rxdata[i]) );
+// payload as filtered text
+for	( unsigned int i = 1; i < len+1; i++ )
+	CDC_printf("%c", (char(rxdata[i])<' ')?('_'):(rxdata[i]) );
+// diagnostics
 int hrssi = (int)((char)rxdata[len+1]) - (2*74);
 unsigned char LQI = rxdata[len+2];
-CDC_printf( "\" %d half-dBm, CRC=%s, LQI=%u\n", hrssi, ((LQI&0x80)?("ok"):("err")), LQI & 0x7F );
+CDC_printf( "\" %d dBm, LQI=%u\n", hrssi/2, LQI & 0x7F );
 #endif
 }
 
-void CC1101::handle_rx()
+// extract received data from RX FIFO
+// first byte is length of remaining contents (may be 0)
+unsigned char * CC1101::extract_rx()
 {
-unsigned int rxbytes = read_status_reg( CC1101_RXBYTES );
-if	( rxbytes == 0 )
-	return;
-unsigned char * rxdata = read_regs( 0x3F, rxbytes );
-unsigned int len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC
-if	( ( len == 2 ) && ( rxdata[1] == '@' ) )
-	lepilot.cmd_handler( rxdata[2] );
-else	format_rx_to_CDC( rxdata );  // other : debug report
+char rxbytes = read_status_reg( CC1101_RXBYTES );
+if  ( rxbytes == 0 )
+    return (unsigned char *)"";
+return read_regs( 0x3F, rxbytes );
 }
