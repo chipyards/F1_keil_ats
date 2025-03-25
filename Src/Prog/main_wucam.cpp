@@ -176,10 +176,21 @@ while (1)
 	if	( ( IS_GDO0_SET() ) && ( oldGDO0 == 0 ) )
 		{
 		unsigned char * data = CC.extract_rx();
-		if	( ( data[0] >= 4 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
+		if	( ( data[0] == 4 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
 			{
 			echo_cnt = ( data[3] & 0xff ) | ( data[4] << 8 );
-			CDC_printf("echo cnt set to %u\n", echo_cnt );
+			CDC_printf("echo _cnt <- %u (no CRC)\n", echo_cnt );
+			}
+		else if	( ( data[0] == 8 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
+			{
+			unsigned int remoteCRC = ( data[5] & 0xff ) | ( data[6] << 8 ) | ( data[7] << 16 ) | ( data[8] << 24 );
+			unsigned int localCRC = crc_aixm( data+1, 4 );
+			if	( remoteCRC == localCRC )
+				{
+				echo_cnt = ( data[3] & 0xff ) | ( data[4] << 8 );
+				CDC_printf("echo_cnt <- to %u, CRC ok\n", echo_cnt );
+				}
+			else	CDC_printf("echo_cnt rejected, bad CRC %08x vs %08x\n", localCRC, remoteCRC );
 			}
 		else	CC.format_rx_to_CDC( data );
 		oldGDO0 = 1;

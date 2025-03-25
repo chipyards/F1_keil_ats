@@ -29,6 +29,7 @@ void setup() {
 }
 
 #define FLIGHT 101
+#define CRC
 void interpreter( char buf[], byte buflen ) // zero-terminated string
 {
 Serial.println( buf );
@@ -40,12 +41,26 @@ else {				// type a number, to be sent to flight with opcode 0
      int n = atoi(buf);
      if ( n != 0 )
         {
+        #ifdef CRC
+        byte data[8];
+        data[0] = FLIGHT;
+        data[1] = 0;
+        data[2] = n;
+        data[3] = n >> 8;
+        unsigned long crc = crc_aixm( data, 4 );
+        data[4] = crc;
+        data[5] = crc >> 8;
+        data[6] = crc >> 16;
+        data[7] = crc >> 24;
+        int resu = CC.tx_if_can( data, 8 );
+        #else
         byte data[4];
         data[0] = FLIGHT;
         data[1] = 0;
         data[2] = n;
         data[3] = n >> 8;
         int resu = CC.tx_if_can( data, 4 );
+        #endif
         if ( resu ) Serial.println("tx error");
         else Serial.println("tx ok"); 
         }

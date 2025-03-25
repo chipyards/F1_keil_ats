@@ -135,7 +135,7 @@ return 0;
 byte CC1101::tx_if_can( const char * tbuf, byte len )
 {
 // checks
-if  ( read_reg( CC1101_FREQ2 ) != 0x10 )  // securite 416MHz < F < 442MHz bof c'est leger !
+if  ( read_reg( CC1101_FREQ2 ) != 0x10 )  // security 416MHz < F < 442MHz
   return 1;
 if  ( len > 61 ) return 4;
 byte rxbytes, txbytes;
