@@ -4,7 +4,7 @@
 // #define FINE_TUNING (37)  // shield 2 
 // #define FINE_TUNING (33)  // shield 3 
 // #define FINE_TUNING (31)  // shield 4 
- #define FINE_TUNING (31)  // shield 5 
+// #define FINE_TUNING (31)  // shield 5 
 // #define FINE_TUNING (30)  // shield 6
 ///
 /// CC1101 constants

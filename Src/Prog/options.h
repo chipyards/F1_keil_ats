@@ -48,7 +48,7 @@
 #define FLIGHT (101)	// flight number = address
 
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
-#define NUCLEO
+// #define NUCLEO
 // #define USE_PLL	// 64 MHz (HSI) ou 72 MHZ (HSE, HSE_EXT)
 
 // pour eviter brick de la blue-pill ou nucleo coupee, SLEEP n'est effectif qu'apres 10s depuis reset
@@ -56,7 +56,7 @@
 // modules optionnels
 #define USE_CC1101
 #define TURBO_38K	// 38.4 kbaud au lieu de 10
-#define USE_CDC
+// #define USE_CDC
 
 // N.B Attention FINE TUNING radio board attributions : pour le moment arduino #1, nucleo #2, blue pill #6
 #ifdef NUCLEO
@@ -64,7 +64,7 @@
   #define USE_CDC
   #define FINE_TUNING (13)	// 3	long SMA	433.987 -46dBm	-30ppm	434013
 #else
-  // #define USE_CDC
+  #define USE_CDC
   #define FINE_TUNING (12)  	// 6	blue coil	433.988 -53dBm	-28ppm	434012
 #endif
 

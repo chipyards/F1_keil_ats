@@ -65,7 +65,7 @@ else {				// type a number, to be sent to flight with opcode 0
         else Serial.println("tx ok"); 
         }
      else {
-        int resu = CC.tx_if_can( buf, buflen );
+        int resu = CC.tx_if_can( (byte *)buf, buflen );
         if ( resu ) Serial.println("tx error");
         else Serial.println("tx ok");
         } 

@@ -132,11 +132,13 @@ return 0;
 //  2: TX FIFO not empty
 //  3: RX FIFO not empty
 //  4: message too big
-byte CC1101::tx_if_can( const char * tbuf, byte len )
+byte CC1101::tx_if_can( const unsigned char * tbuf, byte len )
 {
 // checks
-if  ( read_reg( CC1101_FREQ2 ) != 0x10 )  // security 416MHz < F < 442MHz
-  return 1;
+byte f1 = read_reg( CC1101_FREQ1 );
+byte f2 = read_reg( CC1101_FREQ2 );
+if  ( ( f2 != 0x10 ) || ( f1 < 0xA9 ) || ( f1 > 0xB7 ) )
+  return 1; // min 433.164 MHz, max 434.687 MHz
 if  ( len > 61 ) return 4;
 byte rxbytes, txbytes;
 rxbytes = read_status_reg( CC1101_RXBYTES );
@@ -156,6 +158,6 @@ byte * CC1101::extract_rx()
 {
 char rxbytes = read_status_reg( CC1101_RXBYTES );
 if  ( rxbytes == 0 )
-    return "";
+    { rxbuf[1] = 0; return rxbuf+1; }
 return read_regs( 0x3F, rxbytes );
 }

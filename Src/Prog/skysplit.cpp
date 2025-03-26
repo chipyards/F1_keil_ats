@@ -300,6 +300,6 @@ for	( int i = 0; i < sim_speed; i++ )
 	step();
 char tbuf[60];
 snprintf( tbuf, sizeof(tbuf), "L %.2f %.2f \n", x, y );
-return CC.tx_if_can( tbuf, strlen(tbuf) );
+return CC.tx_if_can( (unsigned char *)tbuf, strlen(tbuf) );
 }
 

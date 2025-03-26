@@ -251,6 +251,14 @@ fu = get_synth_frequ();
 ff = synth_frequ_to_float( fu );
 CDC_printf("freq synth 0x%06x -> %6f MHz (%u kHz)\n", fu, ff, synth_frequ_to_kHz( fu ) );
 
+fu = 0x10A900;	// see tx_if_can()
+ff = synth_frequ_to_float( fu );
+CDC_printf("freq min   0x%06x -> %6f MHz (%u kHz)\n", fu, ff, synth_frequ_to_kHz( fu ) );
+
+fu = 0x10B7FF;	// see tx_if_can()
+ff = synth_frequ_to_float( fu );
+CDC_printf("freq max   0x%06x -> %6f MHz (%u kHz)\n", fu, ff, synth_frequ_to_kHz( fu ) );
+
 fu = get_IF();
 ff = IF_to_float( fu );
 CDC_printf("IF %d -> %.2f kHz\n", fu, ff );
@@ -331,12 +339,12 @@ switch	( c ) {
 		} break;
 	// majuscules et chiffres : actions
 	case '1' :
-		tx_if_can( "!1!", 3 );
+		tx_if_can( (unsigned char *)"!1!", 3 );
 		break;
 	case '!': {	// put some text in tx fifo, then TX
 		const char * txt = "C'est imposant pour ton petit corps";
 		unsigned int len = strlen( txt );
-		int retval = tx_if_can( txt, len );
+		int retval = tx_if_can( (unsigned char *)txt, len );
 		CDC_printf("sent %d bytes -> tx_if_can returned %d\n", len+1, retval );
 		} break;
 	case 'J':
@@ -448,11 +456,13 @@ return 0;
 //	2: TX FIFO not empty
 //	3: RX FIFO not empty
 //	4: message too big
-int CC1101::tx_if_can( const char * tbuf, int len )
+int CC1101::tx_if_can( const unsigned char * tbuf, int len )
 {
 // checks
-if	( read_reg( CC1101_FREQ2 ) != 0x10 )	// securite 416MHz < F < 442MHz bof c'est leger !
-	return 1;
+unsigned int f1 = read_reg( CC1101_FREQ1 );
+unsigned int f2 = read_reg( CC1101_FREQ2 );
+if	( ( f2 != 0x10 ) || ( f1 < 0xA9 ) || ( f1 > 0xB7 ) )
+	return 1;	// min 433.164 MHz, max 434.687 MHz
 if	( len > 61 ) return 4;
 unsigned int rxbytes, txbytes;
 rxbytes = read_status_reg( CC1101_RXBYTES );
