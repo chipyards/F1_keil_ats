@@ -4,6 +4,12 @@
 #define QBEACON 11
 #define QPLAN 16
 
+// opcodes
+enum opcode_t {
+	VAAR=0x42, PAUSE=0x81, RESUME=0x82, RATECK=0x83, SRESET=0x84
+	};
+
+
 class Beacon {
 public:
 float x;
@@ -15,8 +21,10 @@ extern const float rom_beacons[];
 class Apilot {
 public:
 // config simu
-int sim_speed;		// acceleration virtuelle du temps avion
+unsigned int sim_speed;	// acceleration virtuelle du temps avion
 // etat du mouvement
+unsigned int t;		// timestamp
+float fl;		// flight level
 float x;
 float y;
 float cap;		// radian, repere trigo
@@ -55,13 +63,15 @@ Apilot() {	// constructeur
 
 void init() {
 	sim_speed = 1;
+	t = 0;
+	fl = 220;
 	x = 0.0f;
         y = 0.0f;
         v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots
         vx = v;
-        vy = 0.0;
-        cap = 0.0;		// radian, repere trigo
-        w = 0.0;			// taux de virage en rad/s, signed
+        vy = 0.0f;
+        cap = 0.0f;		// radian, repere trigo
+        w = 0.0f;			// taux de virage en rad/s, signed
         w3 = qfp_fmul( ToRadians, 3 );	// 3 deg/s
         r3 = qfp_fdiv( v, w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
 	cnt = 0;
@@ -125,11 +135,27 @@ void routetoXY( float xb, float yb );
 // // step de la FSM (une seconde pour le moment)
 void step();
 
-// interpreteur de commandes de 1 char
-void cmd_handler( char c );
+// interpreteur de commandes (paquet radio, 1er byte is LEN, ADR et CRC deja verifies)
+void cmd_handler( unsigned char * p );
 
 // navigation automatic report, including navigation steps
 int AAR_tx();
+
+// binary coding methods
+void to_s16le( unsigned char * buf, float f ) {
+	short s = (short)f;
+	buf[0] = s;
+	buf[1] = s >> 8;
+	}
+void to_u16le( unsigned char * buf, float f ) {
+	unsigned short s = (unsigned short)f;
+	buf[0] = s;
+	buf[1] = s >> 8;
+	}
+void to_u16le( unsigned char * buf, unsigned int u ) {
+	buf[0] = u;
+	buf[1] = u >> 8;
+	}
 
 }; // class Apilot
 

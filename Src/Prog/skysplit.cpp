@@ -129,6 +129,7 @@ void Apilot::step() {
 	//y += vy;
 	y = qfp_fadd( y, vy );
 	// track.add( new Punkt( x, y ) );
+	t++;
 	#ifdef USE_CDC
 	dump_loc();
 	#endif
@@ -253,23 +254,29 @@ void Apilot::routetoXY( float xb, float yb ) {
 		}
 	}
 
-// interpreteur de commandes pilote de 1 char
-void Apilot::cmd_handler( char c )
+// interpreteur de commandes (paquet radio, 1er byte is LEN, ADR verified)
+void Apilot::cmd_handler( unsigned char * p )
 {
+switch	( opcode_t(p[2]) )
+	{
+	case PAUSE: if ( p[0] == 2 ) CC.AAR_tx_enable = 0;
+		break;
+	case RESUME: if ( p[0] == 2 )  CC.AAR_tx_enable = 1;
+		break;
+	case RATECK: if ( p[0] == 3 )
+			{
+			sim_speed = p[3];
+			if	( sim_speed > 8 )
+				sim_speed = 8;
+			}
+		break;
+	case SRESET: if ( p[0] == 2 ) init();
+		break;
+	default: ;
+	}
+/*
 switch	( c )
 	{
-	case 'f' : {	// fast
-		CC.AAR_tx_enable = 1; sim_speed = 5;
-		} break;
-	case 's' : {	// slow
-		CC.AAR_tx_enable = 1; sim_speed = 1;
-		} break;
-	case 'p' : {	// pause
-		CC.AAR_tx_enable = 0;
-		} break;
-	case 'r' : {
-		lepilot.iplan = 0; lepilot.cnt = 1;
-		} break;
 	case 'Z' : { lepilot.diversion = 0; } break;
 	case 'N' : { lepilot.diversion = 1; } break;
 	case 'E' : { lepilot.diversion = 2; } break;
@@ -291,15 +298,23 @@ switch	( c )
 	case '6' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(270.0f); } break;
 	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
 	}
+*/
 }
 
 // navigation automatic report, including navigation steps
 int Apilot::AAR_tx()
 {
-for	( int i = 0; i < sim_speed; i++ )
-	step();
-char tbuf[60];
-snprintf( tbuf, sizeof(tbuf), "L %.2f %.2f \n", x, y );
-return CC.tx_if_can( (unsigned char *)tbuf, strlen(tbuf) );
+for	( unsigned int i = 0; i < sim_speed; i++ )
+	step();	// calcule la position, la dumpe sur CDC
+unsigned char ubuf[16];
+ubuf[0] = FLIGHT | 0x80;
+ubuf[1] = opcode_t(VAAR);
+to_s16le( ubuf+2, qfp_fmul( x, 100.0f ) );
+to_s16le( ubuf+4, qfp_fmul( y, 100.0f ) );
+to_s16le( ubuf+6, qfp_fmul( vx, 36000.0f ) );	// convert Nm/s to knots*10
+to_s16le( ubuf+8, qfp_fmul( vy, 36000.0f ) );
+to_u16le( ubuf+10, fl );
+to_u16le( ubuf+12, t );
+return CC.tx_if_can( ubuf, 14 );
 }
 

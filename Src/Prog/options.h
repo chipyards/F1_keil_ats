@@ -30,9 +30,9 @@
 
 // others
 // #define FINE_TUNING (13)  // 3	long SMA	433.987 -46dBm	-30ppm	nucleo
-// #define FINE_TUNING (12)  // 4	ex-long SMA	433.988 -43dBm	-28ppm	WUCAM
-// #define FINE_TUNING (12)  // 5	blue ex-coil	433.988 -52dBm	-28ppm	WUCAM
-// #define FINE_TUNING (12)  // 6	blue ex-coil	433.988 -53dBm	-28ppm	WUCAM #1
+// #define FINE_TUNING (12)  // 4	ex-long SMA	433.988 -43dBm	-28ppm	WUCAM #103
+// #define FINE_TUNING (12)  // 5	blue ex-coil	433.988 -52dBm	-28ppm	WUCAM #102
+// #define FINE_TUNING (12)  // 6	blue ex-coil	433.988 -53dBm	-28ppm	WUCAM #101
 // #define FINE_TUNING (-8)  // 7	green coil	434.008 -70dBm	+18ppm
 // #define FINE_TUNING (-8)  // 8	green coil	434.008 -71dBm	+18ppm
 
@@ -45,7 +45,7 @@
 #define MAIN_WUCAM
 
 #ifdef MAIN_WUCAM
-#define FLIGHT (101)	// flight number = address
+#define FLIGHT (103)	// flight number = address
 
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
 // #define NUCLEO

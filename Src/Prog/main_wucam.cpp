@@ -182,7 +182,7 @@ while (1)
 			if	( ( data[0] == 4 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
 				{
 				echo_cnt = ( data[3] & 0xff ) | ( data[4] << 8 );
-				CDC_printf("echo _cnt <- %u (no CRC)\n", echo_cnt );
+				CDC_printf("echo_cnt <- %u (no CRC)\n", echo_cnt );
 				}
 			else if	( ( data[0] == 8 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
 				{
@@ -198,7 +198,9 @@ while (1)
 			else	CC.format_rx_to_CDC( data );
 			}
 		else	{
-			CC.format_rx_to_CDC( data );
+			if	( data[1] == FLIGHT )
+				lepilot.cmd_handler( data );
+			else	CC.format_rx_to_CDC( data );
 			}
 		oldGDO0 = 1;
 		}
