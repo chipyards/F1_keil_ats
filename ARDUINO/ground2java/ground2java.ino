@@ -32,13 +32,14 @@ void setup() {
 #define CRC
 void interpreter( char buf[], byte buflen ) // zero-terminated string
 {
-// Serial.println( buf );
+Serial.println( buf );
 if  ( buf[0] == '?' ) { 	// type '?' for dumps
     CC.dump_config();
     CC.dump_patable();
     }
 else {
   byte data[61]; byte LEN;
+/* OLD way  
   data[0] = FLIGHT;
   switch ( buf[0] ) {
       case 'P': data[1] = 0x81; LEN = 2;
@@ -52,9 +53,25 @@ else {
         break;
       default: return;
       } // switch
-      int resu = CC.tx_if_can( data, LEN );
-      if ( resu ) Serial.println("tx error");
-      else Serial.println("tx ok"); 
+  int resu = CC.tx_if_can( data, LEN );
+*/
+  data[1] = FLIGHT;
+  switch ( buf[0] ) {
+      case 'P': data[2] = 0x81; LEN = 2;
+        break; 
+      case 'R': data[2] = 0x82; LEN = 2;
+        break; 
+      case 'K': data[2] = 0x83; LEN = 3; // no space after K
+        data[3] = atoi(buf+1);
+        break; 
+      case 'Z': data[2] = 0x84; LEN = 2;
+        break;
+      default: return;
+      } // switch
+  data[0] = LEN;
+  int resu = CC.tx_if_can( data );
+  if ( resu ) Serial.println("tx error");
+  else Serial.println("tx ok"); 
         /*      #ifdef CRC
         unsigned long crc = crc_aixm( data, 4 );
         data[4] = crc;

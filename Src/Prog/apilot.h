@@ -2,13 +2,22 @@
 #define ToRadians ((float)(PI/180.0))
 #define ToDegrees ((float)(180.0/PI))
 #define QBEACON 11
-#define QPLAN 16
+#define QPLAN 56
 
 // opcodes
 enum opcode_t {
+	NEWFP=0x70, DIRECT=0x4A, TURN=0x5E, NEWFL=0x14,
+	WILCO=0, UNABLE=1,
+	REQFP=0x71, REQWCO=0x75, REQALT=0x15, REQRAT=0x79,
+	REPFP=0x72, REPWCO=0x76, REPALT=0x16, REPRAT=0x7A,
 	VAAR=0x42, PAUSE=0x81, RESUME=0x82, RATECK=0x83, SRESET=0x84
 	};
+// errors
+enum err_t { BADWAY=0x70, BADHDG=0x5E, BADFL=0x14 };
 
+// defaults
+#define FLMIN (100)
+#define FLMAX (380)
 
 class Beacon {
 public:
@@ -38,11 +47,10 @@ float r3;	// rayon de virage derive de v et w3 (pour 3 deg/s : 1.9 NM @ 360 knot
 float cap_diversion;	// cap demande en cas de virage de diversion
 // donnees de plan
 const Beacon * beacons;	// base de la table des balises
-int plan[QPLAN];
-int qplan;	// nombre de waypoints dans le plan
-int iplan;	// index dans le plan
-
-// FSM
+unsigned char plan[QPLAN];
+unsigned int qplan;	// nombre de waypoints dans le plan
+int iplan;		// index dans le plan ( iplan < 0 <==> plan fini )
+// autopilot FSM
 int cnt;		// steps restant avant le prochain segment (-1 si infini)
 int segtype;		// 0 = tout segment atteignant un waypoint
 			// 1 = premier virage d'une "route to XY"
@@ -51,41 +59,18 @@ int segtype;		// 0 = tout segment atteignant un waypoint
 			// 4 = virage de diversion
 int target_waypoint;	// >= 0 : indice du waypoint vers lequel on va
 			// -2 = pas de waypoint, on continue tout droit
-// flag temporaire
 int diversion;		// -1 : pas de diversion en cours
 			// >= 0 : indice du nouveau waypoint pour lequel on doit calculer une trajectoire
 			// -2 = pas de waypoint, on continue tout droit
 			// -3 = deroutement demandé : changement de cap puis tout droit
+// divers
+unsigned int rxCRC;
 
 Apilot() {	// constructeur
 	init();
 	};
 
-void init() {
-	sim_speed = 1;
-	t = 0;
-	fl = 220;
-	x = 0.0f;
-        y = 0.0f;
-        v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots
-        vx = v;
-        vy = 0.0f;
-        cap = 0.0f;		// radian, repere trigo
-        w = 0.0f;			// taux de virage en rad/s, signed
-        w3 = qfp_fmul( ToRadians, 3 );	// 3 deg/s
-        r3 = qfp_fdiv( v, w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
-	cnt = 0;
-	target_waypoint = -2;
-	diversion = -1;
-	cap_diversion = 0.0;
-	beacons = (Beacon *)rom_beacons;
-	adrift();
-	int i = 0;
-	plan[i++] = 1;	plan[i++] = 2;	plan[i++] = 3;	plan[i++] = 4;
-	plan[i++] = 5;	plan[i++] = 6;	plan[i++] = 7;	plan[i++] = 8;	plan[i++] = 9;	plan[i++] = 10;	plan[i++] = 0;
-	qplan = i;
-	iplan = 0;
-	};
+void init();
 
 // // accesseurs
 const Beacon * get_beacon( int i ) {
@@ -96,10 +81,22 @@ const Beacon * get_beacon( int i ) {
 
 // lire la suite du plan de vol
 int get_next_waypoint() {
-	if	( ( iplan > ( qplan - 1 ) ) || ( iplan < 0 ) )
+	if	( ( iplan > ( (int)qplan - 1 ) ) || ( iplan < 0 ) )
 		return -2;
 	else	return plan[iplan++];
 	};
+
+// chercher un waypoint dans le plan (-2 si pas trouve)
+int find_in_plan( unsigned int wpt ) {
+	unsigned int i;
+	for	( i = 0; i < qplan; i++ )
+		{
+		if	( wpt == plan[i] )
+			return (int)i;
+		}
+	return -2;
+	}
+
 
 // // methodes de calcul
 // ramener cap dans ] -PI/2, +PI/2 ]
@@ -135,12 +132,6 @@ void routetoXY( float xb, float yb );
 // // step de la FSM (une seconde pour le moment)
 void step();
 
-// interpreteur de commandes (paquet radio, 1er byte is LEN, ADR et CRC deja verifies)
-void cmd_handler( unsigned char * p );
-
-// navigation automatic report, including navigation steps
-int AAR_tx();
-
 // binary coding methods
 void to_s16le( unsigned char * buf, float f ) {
 	short s = (short)f;
@@ -156,6 +147,24 @@ void to_u16le( unsigned char * buf, unsigned int u ) {
 	buf[0] = u;
 	buf[1] = u >> 8;
 	}
+unsigned int from_u16le( unsigned char * buf ) {
+	return buf[0] | ( buf[1] << 8 );
+	}
+
+// verification de CRC32 dans packet p
+int CRC32ok( unsigned char * p );
+
+// interpreteur de commandes (paquet radio, 1er byte is LEN, ADR et CRC deja verifies)
+void cmd_handler( unsigned char * p );
+
+// navigation automatic report, including navigation steps
+int AAR_tx();
+
+// mise en queue d'un WILCO (revoie les 4 bytes du crc)
+void queue_wilco( unsigned char * crcbuf );
+
+// mise en queue d'un UNABLE (revoie le byte derrcode suivi des 4 bytes de CRC)
+void queue_unable( err_t err, unsigned char * crcbuf );
 
 }; // class Apilot
 

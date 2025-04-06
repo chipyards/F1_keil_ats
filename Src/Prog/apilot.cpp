@@ -1,7 +1,7 @@
 // simulation du pilote automatique: calcul de trajectoire
 #include "qfplib-m3.h"
 #include "options.h"
-#include "skysplit.h"
+#include "apilot.h"
 #include "CDC.h"
 #include "CC1101.h"
 // #include "prof_tick.h"
@@ -33,6 +33,35 @@ const float rom_beacons[] = {
 	-10, 10,	// 8  D
 	10, 20,		// 9  F
 	10, 10		// 10 G
+	};
+
+void Apilot::init() {
+	sim_speed = 1;
+	t = 0;
+	fl = 220;
+	x = 0.0f;
+        y = 0.0f;
+        v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
+        vx = v;
+        vy = 0.0f;
+        cap = 0.0f;		// radian, repere trigo
+        w = 0.0f;			// taux de virage en rad/s, signed
+        w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s
+        r3 = qfp_fdiv( v, w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+        // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
+        // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
+        // load factor : lf = 1/cos(b)
+	cnt = 0;
+	target_waypoint = -2;
+	diversion = -1;
+	cap_diversion = 0.0f;
+	beacons = (Beacon *)rom_beacons;
+	adrift();
+	int i = 0;
+	plan[i++] = 1;	plan[i++] = 2;	plan[i++] = 3;	plan[i++] = 4;
+	plan[i++] = 5;	plan[i++] = 6;	plan[i++] = 7;	plan[i++] = 8;	plan[i++] = 9;	plan[i++] = 10;	plan[i++] = 0;
+	qplan = i;
+	iplan = 0;
 	};
 
 // // methodes de calcul
@@ -137,7 +166,9 @@ void Apilot::step() {
 	if	( diversion >= 0 )
 		{				// diversion vers un autre waypoint
 		target_waypoint = diversion;
-		iplan = -2;			// abandon du plan
+		// note : iplan sera interprete par get_next_waypoint() pour continuer le plan
+		// mais si la diversion est hors du plan, iplan = -2 va causer l'abandon du plan
+		iplan = find_in_plan( target_waypoint );
 		const Beacon *b = get_beacon( target_waypoint );
 		if	( b )
 			routetoXY( b->x, b->y );
@@ -254,12 +285,62 @@ void Apilot::routetoXY( float xb, float yb ) {
 		}
 	}
 
+// verification de CRC32 dans packet p (le crc est a p + (p[0]-3))
+int Apilot::CRC32ok( unsigned char * p )
+{
+return 1;
+}
+
 // interpreteur de commandes (paquet radio, 1er byte is LEN, ADR verified)
 void Apilot::cmd_handler( unsigned char * p )
 {
 switch	( opcode_t(p[2]) )
 	{
-	case PAUSE: if ( p[0] == 2 ) CC.AAR_tx_enable = 0;
+	// pilot orders
+	case NEWFP:  if ( ( p[0] >= 7 ) && ( CRC32ok(p) ) )
+			{
+			qplan = p[0] - 6;	// len - {adr, opcode, crc}
+			if	( qplan < 55 ) qplan = 55;
+			for	( unsigned int i = 0; i < qplan; i++ )
+				{
+				if	( p[i+3] < QBEACON )
+					plan[i] = p[i+3];
+				else	{ queue_unable( BADWAY, p + (p[0]-3) ); return; }
+				}
+			unsigned int nextway = plan[0];
+			lepilot.diversion = (int)nextway;
+			queue_wilco( p + (p[0]-3) );
+			}
+		break;
+	case DIRECT: if ( ( p[0] == 7 ) && ( CRC32ok(p) ) )
+			{
+			unsigned int wpt = p[3];
+			if	( wpt >= QBEACON )
+				{ queue_unable( BADWAY, p+4 ); return; }
+			lepilot.diversion = (int)wpt;
+			queue_wilco( p+4 );
+			}
+		break;
+	case TURN:   if ( ( p[0] == 8 ) && ( CRC32ok(p) ) )
+			{
+			int newhead = (int)from_u16le( p+3 );
+			if	( ( newhead < -180 ) || ( newhead > 360 ) )
+				{ queue_unable( BADHDG, p+4 ); return; }
+			lepilot.diversion = -3;
+			lepilot.cap_diversion = lepilot.head2cap(float(newhead));
+			queue_wilco( p+5 );
+			}
+		break;
+	case NEWFL:  if ( ( p[0] == 8 ) && ( CRC32ok(p) ) )
+			{
+			unsigned int newfl = from_u16le( p+3 );
+			if	( ( newfl < FLMIN ) || ( newfl > FLMAX ) )
+				{ queue_unable( BADFL, p+4 ); return; }
+			queue_wilco( p+5 );
+			}
+		break;
+	// simulation commands
+	case PAUSE:  if ( p[0] == 2 ) CC.AAR_tx_enable = 0;
 		break;
 	case RESUME: if ( p[0] == 2 )  CC.AAR_tx_enable = 1;
 		break;
@@ -279,23 +360,8 @@ switch	( c )
 	{
 	case 'Z' : { lepilot.diversion = 0; } break;
 	case 'N' : { lepilot.diversion = 1; } break;
-	case 'E' : { lepilot.diversion = 2; } break;
-	case 'S' : { lepilot.diversion = 3; } break;
-	case 'O' : { lepilot.diversion = 4; } break;
-	case 'A' : { lepilot.diversion = 5; } break;
-	case 'B' : { lepilot.diversion = 6; } break;
-	case 'C' : { lepilot.diversion = 7; } break;
-	case 'D' : { lepilot.diversion = 8; } break;
-	case 'F' : { lepilot.diversion = 9; } break;
 	case 'G' : { lepilot.diversion = 10; } break;
-
 	case '0' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(0.0f); } break;
-	case '1' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(45.0f); } break;
-	case '2' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(90.0f); } break;
-	case '3' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(135.0f); } break;
-	case '4' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(180.0f); } break;
-	case '5' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(225.0f); } break;
-	case '6' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(270.0f); } break;
 	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
 	}
 */
@@ -307,6 +373,7 @@ int Apilot::AAR_tx()
 for	( unsigned int i = 0; i < sim_speed; i++ )
 	step();	// calcule la position, la dumpe sur CDC
 unsigned char ubuf[16];
+/* OLD deprecated
 ubuf[0] = FLIGHT | 0x80;
 ubuf[1] = opcode_t(VAAR);
 to_s16le( ubuf+2, qfp_fmul( x, 100.0f ) );
@@ -316,5 +383,26 @@ to_s16le( ubuf+8, qfp_fmul( vy, 36000.0f ) );
 to_u16le( ubuf+10, fl );
 to_u16le( ubuf+12, t );
 return CC.tx_if_can( ubuf, 14 );
+*/
+ubuf[0] = 14;
+ubuf[1] = FLIGHT | 0x80;
+ubuf[2] = opcode_t(VAAR);
+to_s16le( ubuf+3, qfp_fmul( x, 100.0f ) );
+to_s16le( ubuf+5, qfp_fmul( y, 100.0f ) );
+to_s16le( ubuf+7, qfp_fmul( vx, 36000.0f ) );	// convert Nm/s to knots*10
+to_s16le( ubuf+9, qfp_fmul( vy, 36000.0f ) );
+to_u16le( ubuf+11, fl );
+to_u16le( ubuf+13, t );
+return CC.tx_if_can( ubuf );
+}
+
+// mise en queue d'un WILCO (revoie les 4 bytes du crc)
+void Apilot::queue_wilco( unsigned char * crcbuf )
+{
+}
+
+// mise en queue d'un UNABLE (revoie le byte d'err code suivi des 4 bytes de CRC)
+void Apilot::queue_unable( err_t err, unsigned char * crcbuf )
+{
 }
 

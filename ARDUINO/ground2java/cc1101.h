@@ -342,7 +342,8 @@ void format_rx_to_Serial( byte * rxdata );
 ///
 
 byte GFSK_radio_init();  // return 0 if CC1101 responds Ok
-byte tx_if_can( const unsigned char * tbuf, byte len );  // return 0 if sent Ok
+byte tx_if_can( const unsigned char * tbuf, byte len );  // return 0 if sent Ok, method DEPRECATED
+byte tx_if_can( const unsigned char * tbuf );  // return 0 if sent Ok, len is in buffer, like in extract_rx()
 byte * extract_rx();
 
 }; // class

@@ -9,7 +9,6 @@
 #include "sys.h"
 #include "CDC.h"
 #include "CC1101.h"
-#include "skysplit.h"
 
 #ifdef USE_TIM3_PC6
 #include "pwm.h"	// experience modulation CW en mode asynchrone : relier PC6 a PA10
@@ -451,11 +450,7 @@ read_strobe( CC1101_SRX );
 return 0;
 }
 
-// radio TX, return val :
-//	1: wrong frequ
-//	2: TX FIFO not empty
-//	3: RX FIFO not empty
-//	4: message too big
+// radio TX : DEPRECATED
 int CC1101::tx_if_can( const unsigned char * tbuf, int len )
 {
 // checks
@@ -474,6 +469,32 @@ if	( rxbytes ) return 3;
 read_strobe( CC1101_SIDLE );
 write_reg( 0x3F, len );
 write_regs( 0x3F, (const unsigned char *)tbuf, len );
+read_strobe( CC1101_STX );
+return 0;
+}
+
+// radio TX, return val :
+//	1: wrong frequ
+//	2: TX FIFO not empty
+//	3: RX FIFO not empty
+//	4: message too big
+int CC1101::tx_if_can( const unsigned char * tbuf )
+{
+// checks
+unsigned int f1 = read_reg( CC1101_FREQ1 );
+unsigned int f2 = read_reg( CC1101_FREQ2 );
+if	( ( f2 != 0x10 ) || ( f1 < 0xA9 ) || ( f1 > 0xB7 ) )
+	return 1;	// min 433.164 MHz, max 434.687 MHz
+if	( tbuf[0] > 61 ) return 4;
+unsigned int rxbytes, txbytes;
+rxbytes = read_status_reg( CC1101_RXBYTES );
+txbytes = read_status_reg( CC1101_TXBYTES );
+if	( txbytes ) return 2;
+if	( rxbytes ) return 3;
+// ici on devrait verifier CCA
+// let's go
+read_strobe( CC1101_SIDLE );
+write_regs( 0x3F, (const unsigned char *)tbuf, 1+tbuf[0] );
 read_strobe( CC1101_STX );
 return 0;
 }

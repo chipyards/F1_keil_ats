@@ -18,10 +18,8 @@
 #include "uarts.h"
 #include "CDC.h"
 #include <stdio.h>	// pour snprintf
-#include "skysplit.h"
+#include "apilot.h"
 #include "CC1101.h"
-
-void cmd_handler( char c );
 
 // contexte global -----------------------------------------------------------
 

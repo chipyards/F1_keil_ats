@@ -267,7 +267,8 @@ void demo( int c );
 
 int cw_radio_init();
 int GFSK_radio_init();		// return 0 if CC1101 responds Ok
-int tx_if_can( const unsigned char * tbuf, int len );
+int tx_if_can( const unsigned char * tbuf, int len );	// deprecated
+int tx_if_can( const unsigned char * tbuf );		// consistent with buffer format in extract_rx()
 void format_rx_to_CDC( unsigned char * rxdata );	// format radio RX packet to CDC (1st byte is len)
 unsigned char * extract_rx();			// extract received data from RX FIFO (first byte is len)
 
