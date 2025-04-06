@@ -35,6 +35,13 @@ const float rom_beacons[] = {
 	10, 10		// 10 G
 	};
 
+void Apilot::load_plan() {	// chargement du plan par defaut
+	int i = 0;
+	plan[i++] = 1;	plan[i++] = 2;	plan[i++] = 3;	plan[i++] = 4;
+	plan[i++] = 5;	plan[i++] = 6;	plan[i++] = 7;	plan[i++] = 8;	plan[i++] = 9;	plan[i++] = 10;	plan[i++] = 0;
+	qplan = i;
+	}
+
 void Apilot::init() {
 	sim_speed = 1;
 	t = 0;
@@ -51,17 +58,14 @@ void Apilot::init() {
         // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
         // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
         // load factor : lf = 1/cos(b)
+	beacons = (Beacon *)rom_beacons;
+        load_plan();
 	cnt = 0;
+	segtype = 0;
+	iplan = 0;	// N.B. la combinaison segtype=0 et cnt=0 va declencher la course vers le 1er waypoint du plan
 	target_waypoint = -2;
 	diversion = -1;
 	cap_diversion = 0.0f;
-	beacons = (Beacon *)rom_beacons;
-	adrift();
-	int i = 0;
-	plan[i++] = 1;	plan[i++] = 2;	plan[i++] = 3;	plan[i++] = 4;
-	plan[i++] = 5;	plan[i++] = 6;	plan[i++] = 7;	plan[i++] = 8;	plan[i++] = 9;	plan[i++] = 10;	plan[i++] = 0;
-	qplan = i;
-	iplan = 0;
 	};
 
 // // methodes de calcul
@@ -90,7 +94,7 @@ float Apilot::cap2head( float c ) {
 	}
 void Apilot::dump_loc() {
 	#ifdef USE_CDC
-	CDC_printf( "L %.2f %.2f %.2f %d %d %d\n", x, y, cap2head(cap), segtype, target_waypoint, iplan );
+	CDC_printf( "L %.2f %.2f %.2f divers:%d seg:%d wpt:%d iplan:%d cnt:%d\n", x, y, cap2head(cap), diversion, segtype, target_waypoint, iplan, cnt );
 	#endif
 	}
 // preparation de la route depuis le point courant et le cap courant: virage puis segment
@@ -179,12 +183,14 @@ void Apilot::step() {
 	if	( diversion == -2 )
 		{				// abandon du plan en cours
 		adrift();
+		diversion = -1;		// acknowledge
 		return;
 		}
 	if	( diversion == -3 )
 		{				// virage de diversion au cap demande puis ligne droite
 		turnTo( cap_diversion );
 		segtype = 4;
+		diversion = -1;		// acknowledge
 		return;
 		}
 	if	( cnt > 1 )		// il reste au moins 1 point, continuer le segment
@@ -216,6 +222,8 @@ void Apilot::step() {
 		case 4: {	// fin virage de diversion
 			adrift();
 			} break;
+		case 5:		// drifting : nothing to do
+			break;
 		default : adrift();
 		}
 	} // step
@@ -224,10 +232,11 @@ void Apilot::step() {
 // fuir tout droit en attendant un ordre
 void Apilot::adrift() {
 	cnt = -1;	// indefini, au sens de sans limite imposee
+	diversion = -1;	// pas de diversion
 	w = 0.0f;
 	vx = qfp_fmul( v, qfp_fcos(cap) );
 	vy = qfp_fmul( v, qfp_fsin(cap) );
-	segtype = 0;
+	segtype = 5;
 	target_waypoint = -2;
 	}
 // simple segment de droite de longueur d depuis le point courant x, y
@@ -328,6 +337,7 @@ switch	( opcode_t(p[2]) )
 				{ queue_unable( BADHDG, p+4 ); return; }
 			lepilot.diversion = -3;
 			lepilot.cap_diversion = lepilot.head2cap(float(newhead));
+			CDC_printf("cap_d = %d = %.3f\n", newhead, lepilot.cap_diversion );
 			queue_wilco( p+5 );
 			}
 		break;

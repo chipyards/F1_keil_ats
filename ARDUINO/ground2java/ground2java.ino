@@ -1,23 +1,42 @@
 #include "cc1101.h"
 
-unsigned long crc_aixm( const unsigned char *buf, unsigned char len )
+// litte endian utilities (work for unsigned int as well)
+void to_16le( unsigned char * buf, int x ) {
+  buf[0] = x;
+  buf[1] = x >> 8;
+  }
+
+void to_32le( unsigned char * buf, long x ) {
+  buf[0] = x;
+  buf[1] = x >> 8;
+  buf[2] = x >> 16;
+  buf[3] = x >> 24;
+  }
+
+int from_16le( byte * bbuf ) {
+  return ( ( bbuf[0] & 0xff ) | ( bbuf[1] << 8 ) );
+  }
+
+void append_crc( unsigned char *buf )
 {
 unsigned long crc = 0;
-char i;
-unsigned char lebyte, topreg;
-do  {
-    lebyte = *(buf++);
+byte i, j, len;
+byte lebyte, topreg;
+len = buf[0];
+for ( j = 1; j < ( len - 3 ); j++ ) 
+    {
+    lebyte = buf[j];
     for ( i = 0; i < 8; i++ )
         {
         // topreg = ((unsigned char *)&crc)[3];  // very bad idea
         topreg = crc >> 24;  // high byte
         crc <<= 1;
-        if  ( ( lebyte ^ topreg ) & 0x80 )  // test the MSB
+        if  ( ( lebyte ^ topreg ) & 0x80 )  // test the MSB of each
             crc ^= 0x814141ABL;
         lebyte <<= 1;
         }
-    } while (--len);
-return crc;
+    }
+to_32le( buf + len - 3, crc );
 }
 
 void setup() {
@@ -27,6 +46,7 @@ void setup() {
       Serial.println("Radio init done");
   else Serial.println("Radio init error");
 }
+
 
 #define FLIGHT 103
 #define CRC
@@ -38,55 +58,47 @@ if  ( buf[0] == '?' ) { 	// type '?' for dumps
     CC.dump_patable();
     }
 else {
-  byte data[61]; byte LEN;
-/* OLD way  
-  data[0] = FLIGHT;
-  switch ( buf[0] ) {
-      case 'P': data[1] = 0x81; LEN = 2;
-        break; 
-      case 'R': data[1] = 0x82; LEN = 2;
-        break; 
-      case 'K': data[1] = 0x83; LEN = 3; // no space after K
-        data[2] = atoi(buf+1);
-        break; 
-      case 'Z': data[1] = 0x84; LEN = 2;
-        break;
-      default: return;
-      } // switch
-  int resu = CC.tx_if_can( data, LEN );
-*/
+  byte data[61];
   data[1] = FLIGHT;
   switch ( buf[0] ) {
-      case 'P': data[2] = 0x81; LEN = 2;
+      // --- pilot orders NEWFP=0x70, DIRECT=0x4A, TURN=0x5E, NEWFL=0x14,
+      //case 'f': data[2] = 0x70; LEN = ;
+      //  break; 
+      case 'd': data[2] = 0x4A; data[0] = 7;  // DIRECT
+        data[3] = atoi(buf+2); // 1 space after d
+        append_crc( data );  
         break; 
-      case 'R': data[2] = 0x82; LEN = 2;
+      case 't': data[2] = 0x5E; data[0] = 8;  // TURN
+        to_16le( data + 3, atoi(buf+2) );  // 1 space after t
+        append_crc( data );  
         break; 
-      case 'K': data[2] = 0x83; LEN = 3; // no space after K
-        data[3] = atoi(buf+1);
+      case 'l': data[2] = 0x14; data[0] = 8;  // NEWFL
+        to_16le( data + 3, atoi(buf+2) );  // 1 space after l
+        append_crc( data );  
         break; 
-      case 'Z': data[2] = 0x84; LEN = 2;
+      // --- simulation commands
+      case 'P': data[2] = 0x81; data[0] = 2;
+        break; 
+      case 'R': data[2] = 0x82; data[0] = 2;
+        break; 
+      case 'K': data[2] = 0x83; data[0] = 3;
+        data[3] = atoi(buf+1); // no space after K
+        break; 
+      case 'Z': data[2] = 0x84; data[0] = 2;
         break;
       default: return;
       } // switch
-  data[0] = LEN;
   int resu = CC.tx_if_can( data );
   if ( resu ) Serial.println("tx error");
   else Serial.println("tx ok"); 
         /*      #ifdef CRC
         unsigned long crc = crc_aixm( data, 4 );
-        data[4] = crc;
-        data[5] = crc >> 8;
-        data[6] = crc >> 16;
-        data[7] = crc >> 24;
         int resu = CC.tx_if_can( data, 8 );
         #end
         */
   } // if '?'
 }
 
-int from_s16le( byte * bbuf ) {
-  return ( ( bbuf[0] & 0xff ) | ( bbuf[1] << 8 ) );
-  }
 
 void handle_rx()
 {
@@ -98,12 +110,12 @@ if ( data[1] == (FLIGHT|0x80) )
     case 0x42:  // VAAR : vector report
         int x, y, vx, vy;
         unsigned int fl, t;
-        x = from_s16le( data + 3 );
-        y = from_s16le( data + 5 );
-        vx = from_s16le( data + 7 );
-        vy = from_s16le( data + 9 );
-        fl = (unsigned int)from_s16le( data + 11 );
-        t = (unsigned int)from_s16le( data + 13 );
+        x = from_16le( data + 3 );
+        y = from_16le( data + 5 );
+        vx = from_16le( data + 7 );
+        vy = from_16le( data + 9 );
+        fl = (unsigned int)from_16le( data + 11 );
+        t = (unsigned int)from_16le( data + 13 );
         snprintf( CC.tbuf, sizeof(CC.tbuf), "R %d %d %d %d %u %u", x, y, vx, vy, fl, t );
         Serial.println( CC.tbuf );
         break; 

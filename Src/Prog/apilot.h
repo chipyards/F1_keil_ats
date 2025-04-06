@@ -57,9 +57,10 @@ int segtype;		// 0 = tout segment atteignant un waypoint
 			// 0 = droite finale d'une "route to XY"
 			// 3 = droite initiale (rare) d'une "route to XY"
 			// 4 = virage de diversion
-int target_waypoint;	// >= 0 : indice du waypoint vers lequel on va
+			// 5 = drift
+int target_waypoint;	// >= 0 : indice du waypoint vers lequel on va (on doit le memoriser car il faut plusieurs segmenst pour l'atteindre)
 			// -2 = pas de waypoint, on continue tout droit
-int diversion;		// -1 : pas de diversion en cours
+int diversion;		// -1 : pas de diversion en cours (les autres valeurs sont temporaires)
 			// >= 0 : indice du nouveau waypoint pour lequel on doit calculer une trajectoire
 			// -2 = pas de waypoint, on continue tout droit
 			// -3 = deroutement demandé : changement de cap puis tout droit
@@ -70,6 +71,7 @@ Apilot() {	// constructeur
 	init();
 	};
 
+void load_plan();
 void init();
 
 // // accesseurs
@@ -81,7 +83,7 @@ const Beacon * get_beacon( int i ) {
 
 // lire la suite du plan de vol
 int get_next_waypoint() {
-	if	( ( iplan > ( (int)qplan - 1 ) ) || ( iplan < 0 ) )
+	if	( ( iplan >= ( int(qplan) - 1 ) ) || ( iplan < 0 ) )
 		return -2;
 	else	return plan[iplan++];
 	};
