@@ -40,7 +40,7 @@ to_32le( buf + len - 3, crc );
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(38400);
   int r = CC.GFSK_radio_init();
   if  ( r == 0 )
       Serial.println("Radio init done");

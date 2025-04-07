@@ -147,7 +147,7 @@ while (1)
 	 			#ifdef USE_CDC
 				// config UART (interrupt handler doit etre pret!!)
 				gpio_uart2_init();
-				UART2_init( 9600 );
+				UART2_init( 38400 );
 				CDC_init();
 				CDC_printf("CC.mode = %s\n", ((CC.mode == ECHO)?("ECHO"):("PILOT")) );
 				#endif

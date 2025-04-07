@@ -4,19 +4,21 @@
 #include "apilot.h"
 #include "CDC.h"
 #include "CC1101.h"
-// #include "prof_tick.h"
 #include <math.h>
 #include <stdio.h>	// pour snprintf
 #include <string.h>	// pour strlen
 
-/* 2 outils de profilage *
+// 2 outils de profilage *
 #ifdef PROF_PB12
 #include "stm32f1xx_ll_gpio.h"
 #include "gpio.h"
-#else
+#endif
+
+#ifdef PROF_DTICK
+#include "prof_tick.h"
 DTICK_VARS
 #endif
-*/
+
 
 Apilot lepilot;
 
@@ -37,33 +39,48 @@ const float rom_beacons[] = {
 
 void Apilot::load_plan() {	// chargement du plan par defaut
 	int i = 0;
+	/*
 	plan[i++] = 1;	plan[i++] = 2;	plan[i++] = 3;	plan[i++] = 4;
 	plan[i++] = 5;	plan[i++] = 6;	plan[i++] = 7;	plan[i++] = 8;	plan[i++] = 9;	plan[i++] = 10;	plan[i++] = 0;
+	*/
+	plan[i++] = 8;	plan[i++] = 7;	plan[i++] = 6;	plan[i++] = 5;
 	qplan = i;
 	}
 
 void Apilot::init() {
 	sim_speed = 1;
 	t = 0;
-	fl = 220;
-	x = 0.0f;
-        y = 0.0f;
-        v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
-        vx = v;
-        vy = 0.0f;
-        cap = 0.0f;		// radian, repere trigo
-        w = 0.0f;			// taux de virage en rad/s, signed
-        w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s
-        r3 = qfp_fdiv( v, w3 );		// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
+	beacons = (Beacon *)rom_beacons;
+        load_plan();
+	// rates
+        w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s = 0,05236 rd/s
+        r3 = qfp_fdiv( v, w3 );			// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
         // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
         // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
         // load factor : lf = 1/cos(b)
-	beacons = (Beacon *)rom_beacons;
-        load_plan();
-	cnt = 0;
-	segtype = 0;
-	iplan = 0;	// N.B. la combinaison segtype=0 et cnt=0 va declencher la course vers le 1er waypoint du plan
-	target_waypoint = -2;
+        v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
+	fl = 220;
+	// coordonnees de depart, au premier waypoint du plan si possible
+	if	( qplan >= 1 )
+		{
+		curway = plan[0];
+		const Beacon *b = get_beacon( curway );
+		if	( b )
+			{ x = b->x; y = b->y; }
+		else	{ x = 0.0f; y = 0.0f; }
+		}
+	else	{ x = 0.0f; y = 0.0f; }
+	// route initiale, vers second point du plan si possible
+	if	( qplan >= 2 )
+		{
+		iplan = 1; curway = plan[iplan];
+		const Beacon *b = get_beacon( curway );
+		if	( b )
+			routetoXY( b->x, b->y );
+		else	{ vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift(); }
+		}
+	else	{ vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift(); }
+	// temporaires
 	diversion = -1;
 	cap_diversion = 0.0f;
 	};
@@ -94,7 +111,7 @@ float Apilot::cap2head( float c ) {
 	}
 void Apilot::dump_loc() {
 	#ifdef USE_CDC
-	CDC_printf( "L %.2f %.2f %.2f divers:%d seg:%d wpt:%d iplan:%d cnt:%d\n", x, y, cap2head(cap), diversion, segtype, target_waypoint, iplan, cnt );
+	CDC_printf( "L %6.2f %6.2f %6.2f div:%d cur:%d iplan:%d->%d seg:%d cnt:%d\n", x, y, cap2head(cap), diversion, curway, iplan, plan[iplan], segtype, cnt );
 	#endif
 	}
 // preparation de la route depuis le point courant et le cap courant: virage puis segment
@@ -163,29 +180,30 @@ void Apilot::step() {
 	y = qfp_fadd( y, vy );
 	// track.add( new Punkt( x, y ) );
 	t++;
-	#ifdef USE_CDC
-	dump_loc();
-	#endif
-	// ici on doit tester s'il n'y a pas une requete de diversion
+	// ici on doit tester s'il n'y a pas une requete de diversion, avant de tester cnt
+	// possiblement la diversion va reinitialiser cnt et calculer une nouvelle route
 	if	( diversion >= 0 )
 		{				// diversion vers un autre waypoint
-		target_waypoint = diversion;
-		// note : iplan sera interprete par get_next_waypoint() pour continuer le plan
-		// mais si la diversion est hors du plan, iplan = -2 va causer l'abandon du plan
-		iplan = find_in_plan( target_waypoint );
-		const Beacon *b = get_beacon( target_waypoint );
+		curway = diversion;
+		// si la diversion est dans le plan, iplan va permttre la continuation de ce plan
+		// sinon iplan = -2 va faire quitter le plan apres cette diversion
+		iplan = find_in_plan( curway );
+		const Beacon *b = get_beacon( curway );
 		if	( b )
+			{
 			routetoXY( b->x, b->y );
+			//CDC_printf("diversion vers %d\n", curway );
+			}
 		else	adrift();
 		diversion = -1;		// acknowledge
 		return;
 		}
-	if	( diversion == -2 )
-		{				// abandon du plan en cours
-		adrift();
-		diversion = -1;		// acknowledge
-		return;
-		}
+//	if	( diversion == -2 )
+//		{				// abandon du plan en cours
+//		adrift();
+//		diversion = -1;		// acknowledge
+//		return;
+//		}
 	if	( diversion == -3 )
 		{				// virage de diversion au cap demande puis ligne droite
 		turnTo( cap_diversion );
@@ -195,26 +213,30 @@ void Apilot::step() {
 		}
 	if	( cnt > 1 )		// il reste au moins 1 point, continuer le segment
 		{ cnt--; return; }
-	// ici on va preparer un nouveau segment
+	// diversion ou pas, le segment est fini, on va preparer un nouveau segment
 	switch	( segtype )
 		{
 		case 0:	{	// fin de la derniere droite d'une "route to XY" : on a atteint le waypoint vise
-			target_waypoint = get_next_waypoint();
-			if	( target_waypoint < 0 )
-				{ adrift(); return; }
-			const Beacon *b = get_beacon( target_waypoint );
+			if	( iplan <= -2 )		// on vient d'une diversion hors plan
+				{ adrift(); return; }	// le plan est fini
+			iplan++;
+			if	( iplan >= int(qplan) )			// on a atteint le bout du plan
+				{ iplan = -2; adrift(); return; }	// le plan est fini
+			// ici on sait ou aller
+			curway = plan[iplan];
+			const Beacon *b = get_beacon( curway );
 			if	( b )
 				routetoXY( b->x, b->y );
 			else	adrift();
 			} break;
 		case 1: {	// fin premier virage d'une "route to XY"
-			const Beacon *b = get_beacon( target_waypoint );
+			const Beacon *b = get_beacon( curway );
 			if	( b )
 				{ gotoXY( b->x, b->y ); segtype = 0; }
 			else	adrift();
 			} break;
 		case 3: {	// fin droite initiale (rare) d'une "route to XY"
-			const Beacon *b = get_beacon( target_waypoint );
+			const Beacon *b = get_beacon( curway );
 			if	( b )
 				routetoXY( b->x, b->y );	// "nouveau calcul"
 			else	adrift();
@@ -237,7 +259,8 @@ void Apilot::adrift() {
 	vx = qfp_fmul( v, qfp_fcos(cap) );
 	vy = qfp_fmul( v, qfp_fsin(cap) );
 	segtype = 5;
-	target_waypoint = -2;
+	curway = -2;
+	iplan = -2;
 	}
 // simple segment de droite de longueur d depuis le point courant x, y
 // au cap courant
@@ -282,7 +305,7 @@ void Apilot::turnTo( float cap2, float w ) {
 // segment puis virage puis segment
 void Apilot::routetoXY( float xb, float yb ) {
 	float cape = angletoXY( xb, yb );
-	// CDC_printf( "cap exact %.5f\n", cap2head(cape) );
+	//CDC_printf( "cap exact %.2f\n", cap2head(cape) );
 	if	( cape > 666.0f )
 		{	// on va s'eloigner en ligne droite car le point vise est trop proche
 		gotoD( qfp_fmul( 2.0f, r3 ) );	// avec 2r on est sur (mais c'est trop dans la plupart des cas)
@@ -337,7 +360,7 @@ switch	( opcode_t(p[2]) )
 				{ queue_unable( BADHDG, p+4 ); return; }
 			lepilot.diversion = -3;
 			lepilot.cap_diversion = lepilot.head2cap(float(newhead));
-			CDC_printf("cap_d = %d = %.3f\n", newhead, lepilot.cap_diversion );
+			//CDC_printf("cap_d = %d = %.3f\n", newhead, lepilot.cap_diversion );
 			queue_wilco( p+5 );
 			}
 		break;
@@ -365,35 +388,32 @@ switch	( opcode_t(p[2]) )
 		break;
 	default: ;
 	}
-/*
-switch	( c )
-	{
-	case 'Z' : { lepilot.diversion = 0; } break;
-	case 'N' : { lepilot.diversion = 1; } break;
-	case 'G' : { lepilot.diversion = 10; } break;
-	case '0' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(0.0f); } break;
-	case '7' : { lepilot.diversion = -3; lepilot.cap_diversion = lepilot.head2cap(315.0f); } break;
-	}
-*/
 }
 
 // navigation automatic report, including navigation steps
 int Apilot::AAR_tx()
 {
 for	( unsigned int i = 0; i < sim_speed; i++ )
-	step();	// calcule la position, la dumpe sur CDC
+	{
+	#ifdef USE_CDC
+	dump_loc();
+	#endif
+	#ifdef PROF_DTICK
+	DTICK_BEGIN();
+	#endif
+	#ifdef PROF_PB12
+	PB12_PROFIL_1();
+	#endif
+	step();	// calcule la position et tout
+	#ifdef PROF_PB12
+	PB12_PROFIL_0();
+	#endif
+	#ifdef PROF_DTICK
+	DTICK_END();
+	CDC_printf("* %d < %d\n", dtick, max_dtick );
+	#endif
+	}
 unsigned char ubuf[16];
-/* OLD deprecated
-ubuf[0] = FLIGHT | 0x80;
-ubuf[1] = opcode_t(VAAR);
-to_s16le( ubuf+2, qfp_fmul( x, 100.0f ) );
-to_s16le( ubuf+4, qfp_fmul( y, 100.0f ) );
-to_s16le( ubuf+6, qfp_fmul( vx, 36000.0f ) );	// convert Nm/s to knots*10
-to_s16le( ubuf+8, qfp_fmul( vy, 36000.0f ) );
-to_u16le( ubuf+10, fl );
-to_u16le( ubuf+12, t );
-return CC.tx_if_can( ubuf, 14 );
-*/
 ubuf[0] = 14;
 ubuf[1] = FLIGHT | 0x80;
 ubuf[2] = opcode_t(VAAR);

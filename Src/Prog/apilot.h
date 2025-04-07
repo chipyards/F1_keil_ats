@@ -49,20 +49,25 @@ float cap_diversion;	// cap demande en cas de virage de diversion
 const Beacon * beacons;	// base de la table des balises
 unsigned char plan[QPLAN];
 unsigned int qplan;	// nombre de waypoints dans le plan
-int iplan;		// index dans le plan ( iplan < 0 <==> plan fini )
+
 // autopilot FSM
 int cnt;		// steps restant avant le prochain segment (-1 si infini)
+
 int segtype;		// 0 = tout segment atteignant un waypoint
 			// 1 = premier virage d'une "route to XY"
 			// 0 = droite finale d'une "route to XY"
 			// 3 = droite initiale (rare) d'une "route to XY"
 			// 4 = virage de diversion
 			// 5 = drift
-int target_waypoint;	// >= 0 : indice du waypoint vers lequel on va (on doit le memoriser car il faut plusieurs segmenst pour l'atteindre)
-			// -2 = pas de waypoint, on continue tout droit
+
+int iplan;		// index dans le plan du waypoint courant (vers lequel on va)
+			// -2 si on n'est plus dans le plan
+
+int curway;		// way point courant, egal a plan[iplan] sauf si on n'est pas dans le plan
+
 int diversion;		// -1 : pas de diversion en cours (les autres valeurs sont temporaires)
-			// >= 0 : indice du nouveau waypoint pour lequel on doit calculer une trajectoire
-			// -2 = pas de waypoint, on continue tout droit
+			// >= 0 : nouveau waypoint pour lequel on doit calculer une trajectoire
+			// -2 = pas de waypoint, on continue tout droit (inutilise)
 			// -3 = deroutement demandé : changement de cap puis tout droit
 // divers
 unsigned int rxCRC;
@@ -81,13 +86,6 @@ const Beacon * get_beacon( int i ) {
 	else	return 0;
 	};
 
-// lire la suite du plan de vol
-int get_next_waypoint() {
-	if	( ( iplan >= ( int(qplan) - 1 ) ) || ( iplan < 0 ) )
-		return -2;
-	else	return plan[iplan++];
-	};
-
 // chercher un waypoint dans le plan (-2 si pas trouve)
 int find_in_plan( unsigned int wpt ) {
 	unsigned int i;
@@ -98,7 +96,6 @@ int find_in_plan( unsigned int wpt ) {
 		}
 	return -2;
 	}
-
 
 // // methodes de calcul
 // ramener cap dans ] -PI/2, +PI/2 ]
