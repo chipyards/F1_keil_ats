@@ -70,27 +70,6 @@ if	( ( cnt100Hz % 100 ) == 0 )
 #endif
 
 
-// calcul CRC32, mis ici provisoirement
-unsigned int crc_aixm( const unsigned char *buf, unsigned int len )
-{
-unsigned int crc = 0, i, msbin, msbreg, bit;
-unsigned char lebyte;
-do	{
-	lebyte = *(buf++);
-	for	( i = 0; i < 8; i++ )
-		{
-		msbin  = lebyte >> 7;
-		msbreg = crc >> 31;
-		bit = ( msbin ^ msbreg ) & 1;
-		crc <<= 1;
-		if	( bit )
-			crc ^= 0x814141ABL;
-		lebyte <<= 1;
-        	}
-	} while (--len);
-return crc;
-}
-
 unsigned int echo_cnt = 0;
 // periodic report sent in ECHO mode
 void tx_echo_report() {

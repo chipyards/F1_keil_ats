@@ -17,6 +17,14 @@ int from_16le( byte * bbuf ) {
   return ( ( bbuf[0] & 0xff ) | ( bbuf[1] << 8 ) );
   }
 
+unsigned long from_32le( byte * bbuf ) {
+  unsigned long retval = bbuf[3];
+  retval <<= 8; retval |= bbuf[2];
+  retval <<= 8; retval |= bbuf[1];
+  retval <<= 8; retval |= bbuf[0];
+  return retval; 
+  }
+
 void append_crc( unsigned char *buf )
 {
 unsigned long crc = 0;
@@ -36,6 +44,8 @@ for ( j = 1; j < ( len - 3 ); j++ )
         lebyte <<= 1;
         }
     }
+snprintf( CC.tbuf, sizeof(CC.tbuf), "CRC %08lx", crc );
+        Serial.println( CC.tbuf );
 to_32le( buf + len - 3, crc );
 }
 
@@ -107,7 +117,7 @@ if ( data[1] == (FLIGHT|0x80) )
   {
   switch  ( data[2] )
     {
-    case 0x42:  // VAAR : vector report
+    case 0x42: { // VAAR : vector report
         int x, y, vx, vy;
         unsigned int fl, t;
         x = from_16le( data + 3 );
@@ -116,13 +126,24 @@ if ( data[1] == (FLIGHT|0x80) )
         vy = from_16le( data + 9 );
         fl = (unsigned int)from_16le( data + 11 );
         t = (unsigned int)from_16le( data + 13 );
-        snprintf( CC.tbuf, sizeof(CC.tbuf), "R %d %d %d %d %u %u", x, y, vx, vy, fl, t );
+        snprintf( CC.tbuf, sizeof(CC.tbuf), "@ %d %d %d %d %u %u", x, y, vx, vy, fl, t );
         Serial.println( CC.tbuf );
-        break; 
+    } break;
+    case 0x00: { // WILCO
+        unsigned long crc = from_32le( data + 3 );
+        snprintf( CC.tbuf, sizeof(CC.tbuf), "W %08lx", crc );
+        Serial.println( CC.tbuf );
+    } break;
+    case 0x01: { // UNABLE
+        unsigned long crc = from_32le( data + 4 );
+        snprintf( CC.tbuf, sizeof(CC.tbuf), "U %02x %08lx", data[3], crc );
+        Serial.println( CC.tbuf );
+    } break;
+    default:
+        CC.format_rx_to_Serial( data );
     }
 	}
 else	CC.format_rx_to_Serial( data );
-// CC.format_rx_to_Serial( data );
 }
 
 void loop() {

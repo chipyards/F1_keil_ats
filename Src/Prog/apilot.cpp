@@ -58,8 +58,11 @@ void Apilot::init() {
         // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
         // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
         // load factor : lf = 1/cos(b)
-        v = 0.1f;		// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
-	fl = 220;
+        v = 0.1f;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
+        vz = 0.0f;
+	vzup  =  0.30f;	// taux de montee, FL units/s
+	vzdown = -0.40f;	// taux de descente, FL units/s
+	fl = 220.0f;
 	// coordonnees de depart, au premier waypoint du plan si possible
 	if	( qplan >= 1 )
 		{
@@ -83,6 +86,7 @@ void Apilot::init() {
 	// temporaires
 	diversion = -1;
 	cap_diversion = 0.0f;
+	fl_request = 0.0f;
 	};
 
 // // methodes de calcul
@@ -180,6 +184,18 @@ void Apilot::step() {
 	y = qfp_fadd( y, vy );
 	// track.add( new Punkt( x, y ) );
 	t++;
+	if	( vz > 0.0f )
+		{
+		fl = qfp_fadd( fl, vz );
+		if	( fl >= fl_request )
+			{ fl = fl_request; vz = 0.0f; }
+		}
+	else if	( vz < 0.0f )
+		{
+		fl = qfp_fadd( fl, vz );
+		if	( fl <= fl_request )
+			{ fl = fl_request; vz = 0.0f; }
+		}
 	// ici on doit tester s'il n'y a pas une requete de diversion, avant de tester cnt
 	// possiblement la diversion va reinitialiser cnt et calculer une nouvelle route
 	if	( diversion >= 0 )
@@ -317,9 +333,40 @@ void Apilot::routetoXY( float xb, float yb ) {
 		}
 	}
 
+// calcul CRC32 AIXM
+unsigned int crc_aixm( const unsigned char *buf, unsigned int len )
+{
+unsigned int crc = 0, i, msbin, msbreg, bit;
+unsigned char lebyte;
+do	{
+	lebyte = *(buf++);
+	for	( i = 0; i < 8; i++ )
+		{
+		msbin  = lebyte >> 7;
+		msbreg = crc >> 31;
+		bit = ( msbin ^ msbreg ) & 1;
+		crc <<= 1;
+		if	( bit )
+			crc ^= 0x814141ABL;
+		lebyte <<= 1;
+        	}
+	} while (--len);
+return crc;
+}
+
 // verification de CRC32 dans packet p (le crc est a p + (p[0]-3))
+// retour 1 si ok
 int Apilot::CRC32ok( unsigned char * p )
 {
+unsigned int len = p[0];
+unsigned int local_crc = crc_aixm( p + 1, len - 4 );
+unsigned int rx_crc = from_32le( p + (len-3) );
+if	( local_crc != rx_crc )
+	{
+	CDC_printf("BAD CRC %08x vs %08x\n", local_crc, rx_crc );
+	return 0;
+	}
+CDC_printf("GOOD CRC %08x\n", rx_crc );
 return 1;
 }
 
@@ -348,28 +395,32 @@ switch	( opcode_t(p[2]) )
 			{
 			unsigned int wpt = p[3];
 			if	( wpt >= QBEACON )
-				{ queue_unable( BADWAY, p+4 ); return; }
+				{ queue_unable( BADWAY, p + (p[0]-3) ); return; }
 			lepilot.diversion = (int)wpt;
-			queue_wilco( p+4 );
+			queue_wilco( p + (p[0]-3) );
 			}
 		break;
 	case TURN:   if ( ( p[0] == 8 ) && ( CRC32ok(p) ) )
 			{
-			int newhead = (int)from_u16le( p+3 );
+			int newhead = from_16le( p+3 );
 			if	( ( newhead < -180 ) || ( newhead > 360 ) )
-				{ queue_unable( BADHDG, p+4 ); return; }
+				{ queue_unable( BADHDG, p + (p[0]-3) ); return; }
 			lepilot.diversion = -3;
 			lepilot.cap_diversion = lepilot.head2cap(float(newhead));
 			//CDC_printf("cap_d = %d = %.3f\n", newhead, lepilot.cap_diversion );
-			queue_wilco( p+5 );
+			queue_wilco( p + (p[0]-3) );
 			}
 		break;
 	case NEWFL:  if ( ( p[0] == 8 ) && ( CRC32ok(p) ) )
 			{
-			unsigned int newfl = from_u16le( p+3 );
+			unsigned int newfl = from_16le( p+3 );
 			if	( ( newfl < FLMIN ) || ( newfl > FLMAX ) )
-				{ queue_unable( BADFL, p+4 ); return; }
-			queue_wilco( p+5 );
+				{ queue_unable( BADFL, p + (p[0]-3) ); return; }
+			fl_request = float(newfl);
+			if	( fl_request > fl )
+				vz = vzup;
+			else 	vz = vzdown;
+			queue_wilco( p + (p[0]-3) );
 			}
 		break;
 	// simulation commands
@@ -417,22 +468,49 @@ unsigned char ubuf[16];
 ubuf[0] = 14;
 ubuf[1] = FLIGHT | 0x80;
 ubuf[2] = opcode_t(VAAR);
-to_s16le( ubuf+3, qfp_fmul( x, 100.0f ) );
-to_s16le( ubuf+5, qfp_fmul( y, 100.0f ) );
-to_s16le( ubuf+7, qfp_fmul( vx, 36000.0f ) );	// convert Nm/s to knots*10
-to_s16le( ubuf+9, qfp_fmul( vy, 36000.0f ) );
-to_u16le( ubuf+11, fl );
-to_u16le( ubuf+13, t );
+to_16le( ubuf+3, short(qfp_fmul( x, 100.0f )) );
+to_16le( ubuf+5, short(qfp_fmul( y, 100.0f )) );
+to_16le( ubuf+7, short(qfp_fmul( vx, 36000.0f )) );	// convert Nm/s to knots*10
+to_16le( ubuf+9, short(qfp_fmul( vy, 36000.0f )) );
+to_16le( ubuf+11, short(fl) );
+to_16le( ubuf+13, short(t) );
 return CC.tx_if_can( ubuf );
 }
 
 // mise en queue d'un WILCO (revoie les 4 bytes du crc)
-void Apilot::queue_wilco( unsigned char * crcbuf )
+int Apilot::queue_wilco( unsigned char * crcbuf )
 {
+unsigned char ubuf[8];
+ubuf[0] = 6;
+ubuf[1] = FLIGHT | 0x80;
+ubuf[2] = opcode_t(WILCO);
+ubuf[3] = crcbuf[0];
+ubuf[4] = crcbuf[1];
+ubuf[5] = crcbuf[2];
+ubuf[6] = crcbuf[3];
+int retval = CC.tx_if_can( ubuf );
+if	( retval )
+	CDC_printf("WILCO failed %d\n", retval );
+else	CDC_printf("WILCO\n");
+return retval;
 }
 
 // mise en queue d'un UNABLE (revoie le byte d'err code suivi des 4 bytes de CRC)
-void Apilot::queue_unable( err_t err, unsigned char * crcbuf )
+int Apilot::queue_unable( err_t err, unsigned char * crcbuf )
 {
+unsigned char ubuf[8];
+ubuf[0] = 7;
+ubuf[1] = FLIGHT | 0x80;
+ubuf[2] = opcode_t(UNABLE);
+ubuf[3] = err;
+ubuf[4] = crcbuf[0];
+ubuf[5] = crcbuf[1];
+ubuf[6] = crcbuf[2];
+ubuf[7] = crcbuf[3];
+int retval = CC.tx_if_can( ubuf );
+if	( retval )
+	CDC_printf("UNABLE failed %d\n", retval );
+else	CDC_printf("UNABLE %02x\n", err );
+return retval;
 }
 

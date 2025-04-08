@@ -19,6 +19,9 @@ enum err_t { BADWAY=0x70, BADHDG=0x5E, BADFL=0x14 };
 #define FLMIN (100)
 #define FLMAX (380)
 
+// calcul CRC32 AIXM
+unsigned int crc_aixm( const unsigned char *buf, unsigned int len );
+
 class Beacon {
 public:
 float x;
@@ -38,13 +41,17 @@ float x;
 float y;
 float cap;		// radian, repere trigo
 float w;		// taux de virage en rad/s, signed
-float vx;		// derive de v et cap
-float vy;		// derive de v et cap
+float vx;		// derivee de v et cap
+float vy;		// derivee de v et cap
+float vz;		// vitesse verticale, FL units/s
 // parametres du mouvement
 float v;	// vitesse en Nm/step 0.1 <==> 360 knots
 float w3;	// taux de virage t.q. 3 deg/s
 float r3;	// rayon de virage derive de v et w3 (pour 3 deg/s : 1.9 NM @ 360 knots)
 float cap_diversion;	// cap demande en cas de virage de diversion
+float fl_request;	// FL demande
+float vzup;	// taux de montee, FL units/s
+float vzdown;	// taux de descente, FL units/s
 // donnees de plan
 const Beacon * beacons;	// base de la table des balises
 unsigned char plan[QPLAN];
@@ -69,8 +76,6 @@ int diversion;		// -1 : pas de diversion en cours (les autres valeurs sont tempo
 			// >= 0 : nouveau waypoint pour lequel on doit calculer une trajectoire
 			// -2 = pas de waypoint, on continue tout droit (inutilise)
 			// -3 = deroutement demandé : changement de cap puis tout droit
-// divers
-unsigned int rxCRC;
 
 Apilot() {	// constructeur
 	init();
@@ -131,7 +136,30 @@ void routetoXY( float xb, float yb );
 // // step de la FSM (une seconde pour le moment)
 void step();
 
-// binary coding methods
+// litte endian utilities (work for unsigned int as well)
+void to_16le( unsigned char * buf, short x ) {
+	buf[0] = x;
+	buf[1] = x >> 8;
+	}
+
+void to_32le( unsigned char * buf, int x ) {
+	buf[0] = x;
+	buf[1] = x >> 8;
+	buf[2] = x >> 16;
+	buf[3] = x >> 24;
+	}
+
+short from_16le( unsigned char * bbuf ) {
+	return ( ( bbuf[0] & 0xff ) | ( bbuf[1] << 8 ) );
+	}
+
+unsigned int from_32le( unsigned char * bbuf ) {
+	return 	( ( bbuf[0] & 0xff ) | ( ( bbuf[1] << 8 ) & 0xFF00 ) |
+		  ( ( bbuf[2] << 16 ) & 0xFF0000 ) | ( bbuf[3] << 24 )
+		);
+	}
+
+/* binary coding methods
 void to_s16le( unsigned char * buf, float f ) {
 	short s = (short)f;
 	buf[0] = s;
@@ -149,8 +177,9 @@ void to_u16le( unsigned char * buf, unsigned int u ) {
 unsigned int from_u16le( unsigned char * buf ) {
 	return buf[0] | ( buf[1] << 8 );
 	}
+*/
 
-// verification de CRC32 dans packet p
+// verification de CRC32 dans packet p, retour 1 si ok
 int CRC32ok( unsigned char * p );
 
 // interpreteur de commandes (paquet radio, 1er byte is LEN, ADR et CRC deja verifies)
@@ -160,16 +189,12 @@ void cmd_handler( unsigned char * p );
 int AAR_tx();
 
 // mise en queue d'un WILCO (revoie les 4 bytes du crc)
-void queue_wilco( unsigned char * crcbuf );
+int queue_wilco( unsigned char * crcbuf );
 
 // mise en queue d'un UNABLE (revoie le byte derrcode suivi des 4 bytes de CRC)
-void queue_unable( err_t err, unsigned char * crcbuf );
+int queue_unable( err_t err, unsigned char * crcbuf );
 
 }; // class Apilot
 
 extern Apilot lepilot;
-
-void test_a();
-void test_b();
-
 
