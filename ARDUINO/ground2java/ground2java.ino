@@ -101,11 +101,6 @@ else {
   int resu = CC.tx_if_can( data );
   if ( resu ) Serial.println("tx error");
   else Serial.println("tx ok"); 
-        /*      #ifdef CRC
-        unsigned long crc = crc_aixm( data, 4 );
-        int resu = CC.tx_if_can( data, 8 );
-        #end
-        */
   } // if '?'
 }
 

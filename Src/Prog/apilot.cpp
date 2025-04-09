@@ -19,38 +19,55 @@
 DTICK_VARS
 #endif
 
-
 Apilot lepilot;
 
-// ROM data
-const float rom_beacons[] = {
-	0, 0,		// 0  Z
-	0, 24,		// 1  N
-	24, 0,		// 2  E
-	0, -24,		// 3  S
-	-24, 0,		// 4  O
-	-15, 20,	// 5  A
-	-15, 10,	// 6  B
-	-10, 20,	// 7  C
-	-10, 10,	// 8  D
-	10, 20,		// 9  F
-	10, 10		// 10 G
-	};
+// source beacons_sorted_traffic_small.txt trie par beacons_bordeaux_toulon.html
+const short rom_beacons[] = {
+715,-1475,1976,-1583,1898,-1617,2035,-1728,703,-1667,2047,-1737,995,-1538,228,-1368,
+299,-1497,1466,-892,1873,-1619,2128,-1552,1523,-865,1087,-1203,897,-1508,1643,-882,
+2007,-727,195,-2064,805,-972,1654,-775,-351,-934,346,-1919,1499,-1184,195,-1608,
+568,-1252,1646,-1392,1094,-1381,1574,-1656,1773,-1866,1031,-1369,-511,-1892,664,-952,
+208,-1051,-396,-1721,2139,-1657,848,-1399,-348,-1558,-249,-1041,2202,-1252,1160,-1739,
+1674,-1800,481,-990,1048,-1541,-528,-1695,327,-958,-490,-1696,1875,-1811,44,-792,
+582,-1756,486,-1254,1701,-1437,773,-1809,2152,-1729,771,-1608,1430,-1375,992,-1529,
+747,-1378,2113,-1360,-155,-1176,1683,-1847,-519,-1782,-235,-1343,1191,-1295,1220,-1342,
+973,-1207,1433,-1639,-292,-863,1572,-828,1798,-1161,707,-1571,423,-1216,1382,-1608,
+635,-1457,614,-1789,2126,-1620,222,-1920,1231,-1582,2137,-1624,792,-1127,1886,-1348,
+354,-2034,1854,-724,980,-1207,266,-1699,404,-1558,1984,-1847,1006,-1826,2285,-705,
+853,-1783,939,-1521,1948,-1083,1833,-1814,1677,-1039,-285,-1170,310,-1295,413,-1207,
+1098,-2044,-296,-1280,998,-1706,1911,-1057,1440,-908,-230,-1977,1168,-1488,1272,-810,
+1097,-1467,2070,-1335,1213,-1174,-61,-1018,1804,-1527,659,-1745,2188,-1654,1766,-937,
+-286,-1247,1305,-1299,1446,-1557,-346,-1938,2115,-1476,-418,-1557,417,-799,1075,-732,
+1046,-1599,-294,-1098,95,-754,1562,-1695,787,-1689,2111,-1650,1706,-1518,1901,-2099,
+698,-1475,2053,-1485,2154,-1762,1270,-1676,1084,-1131,1430,-918,1128,-1451,1376,-863,
+1074,-891,113,-1099,1077,-963,1562,-1373,666,-1754,828,-1880,1958,-1622,1867,-1677,
+1779,-1682,1641,-1127,1483,-761,1413,-1256,603,-1290,1975,-850,1048,-1541,1567,-862,
+540,-1411,1529,-1471,1423,-1789,230,-729,1987,-1741,4,-1844,1788,-1113,2058,-1654,
+2254,-1118,968,-1049,879,-1821,1676,-1318,-249,-1747,1836,-1857,1867,-761,305,-1400,
+1847,-1640,1871,-1749,2091,-1864,53,-2050,326,-906,2108,-1288,1357,-744,1876,-896,
+-388,-1913,207,-907,1869,-1715,1012,-2023,831,-1880,-105,-1772,309,-882,506,-1061,
+1931,-1191,531,-917,1699,-1687,680,-1874,2057,-1736,-351,-1472,2243,-815,691,-2076,
+1647,-833,1754,-856,1940,-1874,522,-1556,1728,-1710,2251,-1731,313,-1199,1659,-1738,
+824,-1741,-51,-1114,1771,-1442,45,-1114,175,-1233,1029,-1806,1321,-1501,1825,-1858,
+-422,-1173,990,-726,349,-1342,-445,-1533,1775,-2078,-88,-2026,376,-1558,402,-1678,
+1621,-1860,891,-1124,-3,-1700,53,-1762,196,-1714,-342,-1030,-548,-1795,2190,-1629,
+1881,-2004,2247,-1591,2166,-1824,457,-1590,2006,-1653,517,-1676,511,-773,2032,-1873,
+2110,-1732,-367,-862,1078,-804,-112,-912,1188,-1569,1506,-1640,51,-970,1418,-822,
+1730,-1575,1150,-1739,
+}; // 242
+
+const unsigned char rom_plan[] = { 8, 167, 210, 94, 198, 70, 24, 148 };
 
 void Apilot::load_plan() {	// chargement du plan par defaut
-	int i = 0;
-	/*
-	plan[i++] = 1;	plan[i++] = 2;	plan[i++] = 3;	plan[i++] = 4;
-	plan[i++] = 5;	plan[i++] = 6;	plan[i++] = 7;	plan[i++] = 8;	plan[i++] = 9;	plan[i++] = 10;	plan[i++] = 0;
-	*/
-	plan[i++] = 8;	plan[i++] = 7;	plan[i++] = 6;	plan[i++] = 5;
-	qplan = i;
+	for	( unsigned int i = 0; i < sizeof(rom_plan); i++ )
+		plan[i] = rom_plan[i];
+	qplan = sizeof(rom_plan);
 	}
 
 void Apilot::init() {
 	sim_speed = 1;
 	t = 0;
-	beacons = (Beacon *)rom_beacons;
+	beacons = rom_beacons;
         load_plan();
 	// rates
         w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s = 0,05236 rd/s
@@ -67,9 +84,9 @@ void Apilot::init() {
 	if	( qplan >= 1 )
 		{
 		curway = plan[0];
-		const Beacon *b = get_beacon( curway );
-		if	( b )
-			{ x = b->x; y = b->y; }
+		Beacon b;
+		if	( get_beacon( &b, curway ) == 0 )
+			{ x = b.x;  y = b.y;  }
 		else	{ x = 0.0f; y = 0.0f; }
 		}
 	else	{ x = 0.0f; y = 0.0f; }
@@ -77,9 +94,9 @@ void Apilot::init() {
 	if	( qplan >= 2 )
 		{
 		iplan = 1; curway = plan[iplan];
-		const Beacon *b = get_beacon( curway );
-		if	( b )
-			routetoXY( b->x, b->y );
+		Beacon b;
+		if	( get_beacon( &b, curway ) == 0 )
+			routetoXY( b.x, b.y );
 		else	{ vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift(); }
 		}
 	else	{ vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift(); }
@@ -87,6 +104,17 @@ void Apilot::init() {
 	diversion = -1;
 	cap_diversion = 0.0f;
 	fl_request = 0.0f;
+	};
+
+// // accesseurs
+int Apilot::get_beacon( Beacon * b, int i ) {
+	if	( i < (int)QBEACON )
+		{
+		b->x = qfp_fmul( 0.125f, (float)beacons[i*2] );
+		b->y = qfp_fmul( 0.125f, (float)beacons[1+i*2] );
+		return 0;
+		}
+	return 1;
 	};
 
 // // methodes de calcul
@@ -198,18 +226,15 @@ void Apilot::step() {
 		}
 	// ici on doit tester s'il n'y a pas une requete de diversion, avant de tester cnt
 	// possiblement la diversion va reinitialiser cnt et calculer une nouvelle route
+	Beacon b;
 	if	( diversion >= 0 )
 		{				// diversion vers un autre waypoint
 		curway = diversion;
 		// si la diversion est dans le plan, iplan va permttre la continuation de ce plan
 		// sinon iplan = -2 va faire quitter le plan apres cette diversion
 		iplan = find_in_plan( curway );
-		const Beacon *b = get_beacon( curway );
-		if	( b )
-			{
-			routetoXY( b->x, b->y );
-			//CDC_printf("diversion vers %d\n", curway );
-			}
+		if	( get_beacon( &b, curway ) == 0 )
+			routetoXY( b.x, b.y );
 		else	adrift();
 		diversion = -1;		// acknowledge
 		return;
@@ -240,21 +265,18 @@ void Apilot::step() {
 				{ iplan = -2; adrift(); return; }	// le plan est fini
 			// ici on sait ou aller
 			curway = plan[iplan];
-			const Beacon *b = get_beacon( curway );
-			if	( b )
-				routetoXY( b->x, b->y );
+			if	( get_beacon( &b, curway ) == 0 )
+				routetoXY( b.x, b.y );
 			else	adrift();
 			} break;
 		case 1: {	// fin premier virage d'une "route to XY"
-			const Beacon *b = get_beacon( curway );
-			if	( b )
-				{ gotoXY( b->x, b->y ); segtype = 0; }
+			if	( get_beacon( &b, curway ) == 0 )
+				{ gotoXY( b.x, b.y ); segtype = 0; }
 			else	adrift();
 			} break;
 		case 3: {	// fin droite initiale (rare) d'une "route to XY"
-			const Beacon *b = get_beacon( curway );
-			if	( b )
-				routetoXY( b->x, b->y );	// "nouveau calcul"
+			if	( get_beacon( &b, curway ) == 0 )
+				routetoXY( b.x, b.y );
 			else	adrift();
 			} break;
 		case 4: {	// fin virage de diversion

@@ -1,7 +1,7 @@
 #define PI ((float)3.14159265358)
 #define ToRadians ((float)(PI/180.0))
 #define ToDegrees ((float)(180.0/PI))
-#define QBEACON 11
+#define QBEACON (sizeof(rom_beacons)/4)
 #define QPLAN 56
 
 // opcodes
@@ -28,7 +28,10 @@ float x;
 float y;
 };
 
-extern const float rom_beacons[];
+// N.B. les ROM beacons sont en short (1/8 de Nm),
+// alors que l'objet Beacon contient des float
+// la conversion est effectuee par get_beacon()
+extern const short rom_beacons[];
 
 class Apilot {
 public:
@@ -53,7 +56,7 @@ float fl_request;	// FL demande
 float vzup;	// taux de montee, FL units/s
 float vzdown;	// taux de descente, FL units/s
 // donnees de plan
-const Beacon * beacons;	// base de la table des balises
+const short * beacons;	// base de la table des balises
 unsigned char plan[QPLAN];
 unsigned int qplan;	// nombre de waypoints dans le plan
 
@@ -85,11 +88,7 @@ void load_plan();
 void init();
 
 // // accesseurs
-const Beacon * get_beacon( int i ) {
-	if	 ( i < QBEACON )
-		return &(beacons[i]);
-	else	return 0;
-	};
+int get_beacon( Beacon * b, int i );
 
 // chercher un waypoint dans le plan (-2 si pas trouve)
 int find_in_plan( unsigned int wpt ) {
