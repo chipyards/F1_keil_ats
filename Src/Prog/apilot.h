@@ -129,8 +129,8 @@ void turnTo( float cap2 );
 // en imposant le taux (w) et le sens de rotation (signe de w)
 void turnTo( float cap2, float w );
 // route depuis le point courant et le cap courant: virage puis segment, ou si trop pres,
-// segment puis virage puis segment
-void routetoXY( float xb, float yb );
+// segment puis virage puis segment rend 1 si ok, 0 si trop pres
+int routetoXY( float xb, float yb );
 
 // // step de la FSM (une seconde pour le moment)
 void step();

@@ -70,12 +70,12 @@ void Apilot::init() {
 	beacons = rom_beacons;
         load_plan();
 	// rates
+        v = 0.1f;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
         w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s = 0,05236 rd/s
         r3 = qfp_fdiv( v, w3 );			// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
         // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
         // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
         // load factor : lf = 1/cos(b)
-        v = 0.1f;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
         vz = 0.0f;
 	vzup  =  0.30f;	// taux de montee, FL units/s
 	vzdown = -0.40f;	// taux de descente, FL units/s
@@ -175,7 +175,7 @@ float Apilot::angletoXY( float xb, float yb ) {
 	//CDC_printf( "|CB| %.5f\n", modcb );
 	if	( jfp_fsgn( qfp_fsub( modcb, r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
 		{
-		//CDC_printf("too close, too close, going beyond\n");
+		CDC_printf("too close, too close\n");
 		return 666.6f;
 		}
 	// angle CBD (D = fin virage), non signé et aigu
@@ -233,11 +233,22 @@ void Apilot::step() {
 		// si la diversion est dans le plan, iplan va permttre la continuation de ce plan
 		// sinon iplan = -2 va faire quitter le plan apres cette diversion
 		iplan = find_in_plan( curway );
-		if	( get_beacon( &b, curway ) == 0 )
-			routetoXY( b.x, b.y );
-		else	adrift();
-		diversion = -1;		// acknowledge
-		return;
+		do	{
+			if	( get_beacon( &b, curway ) == 0 )
+				{
+				if	( routetoXY( b.x, b.y ) )
+					{ diversion = -1; return; }	// ok, on fait la directe dans le plan ou pas
+				else 	{
+					if	( iplan < 0 )
+						{ adrift(); return; }	// c'etait la derniere chance
+					iplan++;
+					if	( iplan >= int(qplan) )			// on a atteint le bout du plan
+						{ iplan = -2; adrift(); return; }	// le plan est fini
+					curway = plan[iplan];		// on skippe sur la suite du plan
+					}
+				}
+			else	adrift();
+			} while (1);
 		}
 //	if	( diversion == -2 )
 //		{				// abandon du plan en cours
@@ -260,14 +271,19 @@ void Apilot::step() {
 		case 0:	{	// fin de la derniere droite d'une "route to XY" : on a atteint le waypoint vise
 			if	( iplan <= -2 )		// on vient d'une diversion hors plan
 				{ adrift(); return; }	// le plan est fini
-			iplan++;
-			if	( iplan >= int(qplan) )			// on a atteint le bout du plan
-				{ iplan = -2; adrift(); return; }	// le plan est fini
-			// ici on sait ou aller
-			curway = plan[iplan];
-			if	( get_beacon( &b, curway ) == 0 )
-				routetoXY( b.x, b.y );
-			else	adrift();
+			do	{
+				iplan++;
+				if	( iplan >= int(qplan) )			// on a atteint le bout du plan
+					{ iplan = -2; adrift(); return; }	// le plan est fini
+				// ici on sait ou aller
+				curway = plan[iplan];
+				if	( get_beacon( &b, curway ) == 0 )
+					{
+					if	( routetoXY( b.x, b.y ) )
+						return;		// route ok, on sort de la boucle do
+					}			// sinon "trop pres", on boucle pour chercher le waypoint suivant
+				else	adrift();
+				} while (1);
 			} break;
 		case 1: {	// fin premier virage d'une "route to XY"
 			if	( get_beacon( &b, curway ) == 0 )
@@ -341,18 +357,24 @@ void Apilot::turnTo( float cap2, float w ) {
 
 // route depuis le point courant et le cap courant: virage puis segment, ou si trop pres,
 // segment puis virage puis segment
-void Apilot::routetoXY( float xb, float yb ) {
+int Apilot::routetoXY( float xb, float yb ) {
 	float cape = angletoXY( xb, yb );
 	//CDC_printf( "cap exact %.2f\n", cap2head(cape) );
 	if	( cape > 666.0f )
-		{	// on va s'eloigner en ligne droite car le point vise est trop proche
+		{
+		#ifdef OPT_SKIP_TOO_CLOSE
+		return 0;
+		#else
+		// option s'eloigner en ligne droite car le point vise est trop proche
 		gotoD( qfp_fmul( 2.0f, r3 ) );	// avec 2r on est sur (mais c'est trop dans la plupart des cas)
 		segtype = 3;
+		#endif
 		}
 	else	{
 		turnTo( cape, w );	// w a ete mis a jour par effet de bord de angletoXY, c'est pas clean
 		segtype = 1;
 		}
+	return 1;
 	}
 
 // calcul CRC32 AIXM
