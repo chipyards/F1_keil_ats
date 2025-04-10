@@ -46,7 +46,7 @@
 
 #ifdef MAIN_WUCAM
 #define FLIGHT (103)	// flight number = address
-#define OPT_SKIP_TOO_CLOSE	// skip waypoint if too close, instead of doing a circumvolution
+//#define OPT_SKIP_TOO_CLOSE	// skip waypoint if too close, instead of doing a circumvolution
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
 #define NUCLEO
 

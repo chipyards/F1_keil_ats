@@ -122,10 +122,10 @@ int Apilot::get_beacon( Beacon * b, int i ) {
 float Apilot::limit_cap( float c ) {
 	//while	( jfp_fsgn( qfp_fsub( PI, c ) ) )	// faster, inaccurate
 	while	( c > PI )
-		c = qfp_fsub( c, ( 2.0f * PI ) );
+		c = qfp_fsub( c, PIx2 );
 	//while	( jfp_fsgn( qfp_fadd( c, PI ) ) )	// faster, inaccurate
 	while	( c <= -PI )
-		c = qfp_fadd( c, ( 2.0f * PI ) );
+		c = qfp_fadd( c, PIx2 );
 	return c;
 	}
 // notre convention:
@@ -145,54 +145,6 @@ void Apilot::dump_loc() {
 	#ifdef USE_CDC
 	CDC_printf( "L %6.2f %6.2f %6.2f div:%d cur:%d iplan:%d->%d seg:%d cnt:%d\n", x, y, cap2head(cap), diversion, curway, iplan, plan[iplan], segtype, cnt );
 	#endif
-	}
-// preparation de la route depuis le point courant et le cap courant: virage puis segment
-// cette methode calcule le cap destination de ce virage
-float Apilot::angletoXY( float xb, float yb ) {
-	// decider de quel cote tourner : cap approximatif
-	float capro = qfp_fatan2( qfp_fsub( yb, y ), qfp_fsub( xb, x ) );
-	float dcapro = limit_cap( qfp_fsub( capro, cap ) );
-	//CDC_printf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
-	// ici le signe de dcapro indique le sens du virage
-	// chercher le centre C de l'arc de cercle
-	float xc, yc;
-	if	( jfp_fsgn(dcapro) )
-		{	// C a droite
-		xc = qfp_fadd( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
-		yc = qfp_fsub( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
-		w = -w3;
-		}
-	else	{	// C a gauche
-		xc = qfp_fsub( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
-		yc = qfp_fadd( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
-		w = w3;
-		}
-	//CDC_printf( "C %.5f %.5f\n", xc, yc );
-	// distance de C a B (B = destination finale)
-	float dx, dy;
-	dx = qfp_fsub( xb, xc ); dy = qfp_fsub( yb, yc );
-	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) ); 
-	//CDC_printf( "|CB| %.5f\n", modcb );
-	if	( jfp_fsgn( qfp_fsub( modcb, r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
-		{
-		CDC_printf("too close, too close\n");
-		return 666.6f;
-		}
-	// angle CBD (D = fin virage), non signé et aigu
-	float lesin = qfp_fdiv( r3, modcb );
-	float lecos = qfp_fsqrt( jfp_fabs( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) ) );
-	float cbd = qfp_fatan2( lesin, lecos );
-	//CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
-	// argument de CB
-	float argcb = qfp_fatan2( qfp_fsub( yb, yc ), qfp_fsub( xb, xc ) );
-	//CDC_printf( "arg CB %.5f\n", cap2head(argcb) );
-	// cap exact
-	float cape;
-	if	( jfp_fsgn(dcapro) )
-		cape = qfp_fsub( argcb, cbd );
-	else	cape = qfp_fadd( argcb, cbd );
-	//CDC_printf( "cap exact %.5f\n", cap2head(cape) );
-	return cape;
 	}
 // step, nominalement d'une seconde (pour le moment)
 // fonction a iterer depuis la boucle principale
@@ -317,7 +269,7 @@ void Apilot::adrift() {
 	iplan = -2;
 	}
 // simple segment de droite de longueur d depuis le point courant x, y
-// au cap courant
+// au cap courant (d > 0.0)
 void Apilot::gotoD( float d ) {
 	w = 0.0f;	// ligne droite
 	cnt = (int)qfp_fadd( 0.5, qfp_fdiv( d, v ) );
@@ -339,41 +291,85 @@ void Apilot::gotoXY( float xd, float yd ) {
 // sens automatique (virage < 180 deg)
 void Apilot::turnTo( float cap2 ) {
 	w = w3;
-	float dc = limit_cap( cap2 - cap );
+	float dc = limit_cap( qfp_fsub( cap2, cap ) );
 	if	( jfp_fsgn( dc ) )
 		w = -w;
 	cnt = (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) );
 	}
-// arc de cercle depuis le point courant x, y et le cap courant
-// en imposant le taux (w) et le sens de rotation (signe de w)
-void Apilot::turnTo( float cap2, float w ) {
-	float dc = limit_cap( cap2 - cap );
-	if	( jfp_fsgn( dc ) && !jfp_fsgn( w ) )
-		dc = qfp_fadd( dc, qfp_fmul( 2.0f, PI ) );
-	else if	( !jfp_fsgn( dc ) && jfp_fsgn( w ) )
-		dc = qfp_fsub( dc, qfp_fmul( 2.0f, PI ) );
-	cnt = abs( (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) ) );
-	}
-
-// route depuis le point courant et le cap courant: virage puis segment, ou si trop pres,
-// segment puis virage puis segment
+// route depuis le point courant et le cap courant: virage puis segment droit, sauf si trop pres,
+// alors si OPT_SKIP_TOO_CLOSE, abandon avec return 0
+// ou sinon segment d'eloignement (segtype = 3) qui sera suivi d'un nouvel appel a routetoXY()
+// return 1 si ok, 0 si skipped
 int Apilot::routetoXY( float xb, float yb ) {
-	float cape = angletoXY( xb, yb );
-	//CDC_printf( "cap exact %.2f\n", cap2head(cape) );
-	if	( cape > 666.0f )
+// decider de quel cote tourner : cap approximatif
+	float capro = qfp_fatan2( qfp_fsub( yb, y ), qfp_fsub( xb, x ) );
+	float dcapro = limit_cap( qfp_fsub( capro, cap ) );
+	//CDC_printf( "capro=%.5f, dcapro=%.5f\n", cap2head( capro ), qfp_fmul( ToDegrees, dcapro ) );
+	// ici le signe de dcapro indique le sens du virage
+// chercher le centre C de l'arc de cercle
+	float xc, yc;
+	if	( jfp_fsgn(dcapro) )
+		{	// C a droite
+		xc = qfp_fadd( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
+		yc = qfp_fsub( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
+		}
+	else	{	// C a gauche
+		xc = qfp_fsub( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
+		yc = qfp_fadd( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
+		}
+	//CDC_printf( "C %.5f %.5f\n", xc, yc );
+// calculer distance de C a B (B = destination finale)
+	float dx, dy;
+	dx = qfp_fsub( xb, xc ); dy = qfp_fsub( yb, yc );
+	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) );
+	//CDC_printf( "|CB| %.5f\n", modcb );
+// mais est-ce possible ?
+	if	( jfp_fsgn( qfp_fsub( modcb, r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
 		{
+		CDC_printf("too close, too close\n");
 		#ifdef OPT_SKIP_TOO_CLOSE
 		return 0;
 		#else
 		// option s'eloigner en ligne droite car le point vise est trop proche
 		gotoD( qfp_fmul( 2.0f, r3 ) );	// avec 2r on est sur (mais c'est trop dans la plupart des cas)
 		segtype = 3;
+		return 1;
 		#endif
 		}
-	else	{
-		turnTo( cape, w );	// w a ete mis a jour par effet de bord de angletoXY, c'est pas clean
-		segtype = 1;
+// calculer premier virage
+	// angle CBD (D = fin virage), non signé et aigu
+	float lesin = qfp_fdiv( r3, modcb );
+	float lecos = qfp_fsqrt( jfp_fabs( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) ) );
+	float cbd = qfp_fatan2( lesin, lecos );
+	//CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
+	// argument de CB
+	float argcb = qfp_fatan2( qfp_fsub( yb, yc ), qfp_fsub( xb, xc ) );
+	//CDC_printf( "arg CB %.5f\n", cap2head(argcb) );
+	// cap exact
+	float cape;
+	if	( jfp_fsgn(dcapro) )
+		cape = qfp_fsub( argcb, cbd );
+	else	cape = qfp_fadd( argcb, cbd );
+	CDC_printf( "== cap exact %.5f\n", qfp_fmul( ToDegrees, cape) );
+// executer le virage (sens impose par signe de dcapro, possiblement > 180 deg)
+	float dc = qfp_fsub( cape, cap );
+	CDC_printf( "== dc        %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	dc = limit_cap( dc );
+	CDC_printf( "== dc limitd %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	if	( jfp_fsgn(dcapro) )
+		{
+		w = -w3;
+		if	( !jfp_fsgn( dc ) )
+			dc = qfp_fsub( dc, PIx2 );
 		}
+	else	{
+		w = w3;
+		if	( jfp_fsgn( dc ) )
+			dc = qfp_fadd( dc, PIx2 );
+		}
+	CDC_printf( "== dc fixed  %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	cnt = abs( (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) ) );
+	segtype = 1;
 	return 1;
 	}
 

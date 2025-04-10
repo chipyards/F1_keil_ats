@@ -1,4 +1,5 @@
 #define PI ((float)3.14159265358)
+#define PIx2 ((float)(PI*2.0))
 #define ToRadians ((float)(PI/180.0))
 #define ToDegrees ((float)(180.0/PI))
 #define QBEACON (sizeof(rom_beacons)/4)
@@ -111,8 +112,6 @@ float head2cap( float h );
 float cap2head( float c );
 // emet un report vers CDC
 void dump_loc();
-// calcul le cap du premier virage
-float angletoXY( float xb, float yb );
 
 // // methodes configurant la FSM pour les prochains steps
 // fuir tout droit en attendant un ordre
@@ -125,11 +124,10 @@ void gotoXY( float xd, float yd );
 // arc de cercle depuis le point courant x, y et le cap courant
 // sens automatique (virage < 180 deg)
 void turnTo( float cap2 );
-// arc de cercle depuis le point courant x, y et le cap courant
-// en imposant le taux (w) et le sens de rotation (signe de w)
-void turnTo( float cap2, float w );
-// route depuis le point courant et le cap courant: virage puis segment, ou si trop pres,
-// segment puis virage puis segment rend 1 si ok, 0 si trop pres
+// route depuis le point courant et le cap courant: virage puis segment droit, sauf si trop pres,
+// alors si OPT_SKIP_TOO_CLOSE, abandon avec return 0
+// ou sinon segment d'eloignement (segtype = 3) qui sera suivi d'un nouvel appel a routetoXY()
+// return 1 si ok, 0 si skipped
 int routetoXY( float xb, float yb );
 
 // // step de la FSM (une seconde pour le moment)
