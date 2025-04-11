@@ -130,7 +130,7 @@ while (1)
 				CDC_init();
 				CDC_printf("CC.mode = %s\n", ((CC.mode == ECHO)?("ECHO"):("PILOT")) );
 				#endif
- 				}
+				}
   			}
 		else if	( cnt1Hz == 11 )	// do this once
 			{

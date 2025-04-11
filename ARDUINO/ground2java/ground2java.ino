@@ -72,8 +72,27 @@ else {
   data[1] = FLIGHT;
   switch ( buf[0] ) {
       // --- pilot orders NEWFP=0x70, DIRECT=0x4A, TURN=0x5E, NEWFL=0x14,
-      //case 'f': data[2] = 0x70; LEN = ;
-      //  break; 
+      case 'f': { data[2] = 0x70;              // NEWFP
+        byte i = 3; 
+        data[i++] = 148;
+        data[i++] = 152;
+        data[i++] = 24;
+        data[i++] = 49;
+        data[i++] = 210;
+        data[i++] = 8;
+        data[i++] = 167;
+        data[i++] = 94;
+        data[i++] = 198;
+        data[i++] = 210;
+        data[i++] = 214;
+        data[i++] = 84;
+        data[i++] = 227;
+        data[i++] = 195;
+        data[i++] = 128;
+        data[i++] = 0;  // here, i = LEN + 1
+        data[0] = i + 3;  // add 4 for CRC, but len is counted by i, so subract 1
+        append_crc( data );  
+        } break; 
       case 'd': data[2] = 0x4A; data[0] = 7;  // DIRECT
         data[3] = atoi(buf+2); // 1 space after d
         append_crc( data );  
@@ -143,7 +162,7 @@ else	CC.format_rx_to_Serial( data );
 
 void loop() {
 static byte oldGDO0 = 0;
-static char buf[16];
+static char buf[116];
 static int j = 0; // state of the machine !!
 int c = Serial.read();
 if  ( c != -1 )

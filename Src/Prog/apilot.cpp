@@ -71,7 +71,8 @@ void Apilot::init() {
         load_plan();
 	// rates
         v = 0.1f;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
-        w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s = 0,05236 rd/s
+        // w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s = 0,05236 rd/s
+        w3 = qfp_fmul( ToRadians, 2.77f );	// mise a l'epreuve de turnTo()
         r3 = qfp_fdiv( v, w3 );			// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
         // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
         // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
@@ -295,6 +296,10 @@ void Apilot::turnTo( float cap2 ) {
 	if	( jfp_fsgn( dc ) )
 		w = -w;
 	cnt = (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) );
+	if	( cnt ==  0 )
+		w = dc;
+	else	w = qfp_fdiv( dc, (float)cnt );	// precision turn
+	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w3 );
 	}
 // route depuis le point courant et le cap courant: virage puis segment droit, sauf si trop pres,
 // alors si OPT_SKIP_TOO_CLOSE, abandon avec return 0
@@ -356,6 +361,7 @@ int Apilot::routetoXY( float xb, float yb ) {
 	CDC_printf( "== dc        %.5f\n", qfp_fmul( ToDegrees, dc ) );
 	dc = limit_cap( dc );
 	CDC_printf( "== dc limitd %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	// forcer le signe de w et dc a celui de dcapro
 	if	( jfp_fsgn(dcapro) )
 		{
 		w = -w3;
@@ -368,7 +374,12 @@ int Apilot::routetoXY( float xb, float yb ) {
 			dc = qfp_fadd( dc, PIx2 );
 		}
 	CDC_printf( "== dc fixed  %.5f\n", qfp_fmul( ToDegrees, dc ) );
-	cnt = abs( (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) ) );
+	// en raison des forçages de signe, cnt doit etre >= 0
+	cnt = (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) );
+	if	( cnt ==  0 )
+		w = dc;
+	else	w = qfp_fdiv( dc, (float)cnt );	// precision turn
+	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w3 );
 	segtype = 1;
 	return 1;
 	}
@@ -418,8 +429,9 @@ switch	( opcode_t(p[2]) )
 	// pilot orders
 	case NEWFP:  if ( ( p[0] >= 7 ) && ( CRC32ok(p) ) )
 			{
+			CC.format_rx_to_CDC( p );
 			qplan = p[0] - 6;	// len - {adr, opcode, crc}
-			if	( qplan < 55 ) qplan = 55;
+			if	( qplan > 55 ) qplan = 55;
 			for	( unsigned int i = 0; i < qplan; i++ )
 				{
 				if	( p[i+3] < QBEACON )
