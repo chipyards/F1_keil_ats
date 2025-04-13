@@ -22,9 +22,12 @@ enum err_t { BADWAY=0x70, BADHDG=0x5E, BADFL=0x14 };
 #define	VZUP   (0.30f)	// taux de montee, FL units/s
 #define	VZDOWN (-0.40f)	// taux de descente, FL units/s
 // auto-throttle FADEC
-#define TAS_FL0 (320.0/3600.0)	// Nm/s, TAS @ FL0 soit 320kt
-#define TAS_K (0.4/3600.0)	// (Nm/s)/100ft soit 0.4kt/100ft
-#define TAACC (1.2/3600.0)	// (Nm/s)/s soit 5 kt/s
+#define TAS_FL0 (float(320.0/3600.0))	// Nm/s, TAS @ FL0 soit 320kt
+#define TAS_K   (float(0.4/3600.0))	// (Nm/s)/100ft soit 0.4kt/100ft
+#define TAACC   (float(1.2/3600.0))	// (Nm/s)/s soit 5 kt/s
+// turn parameters
+#define GRAVITY (float(9.78/1852.0))	// (Nm/s)/s (9.78 m/s2 @ FL300)
+#define BANK33  (float(33.0*ToRadians))	// 33 deg nominal for A320
 
 // calcul CRC32 AIXM
 unsigned int crc_aixm( const unsigned char *buf, unsigned int len );
@@ -57,8 +60,8 @@ float vz;		// vitesse verticale, FL units/s
 // parametres du mouvement
 float v;	// vitesse en Nm/step ( 0.1 <==> 360 knots )
 float vstab;	// vitesse a atteindre par acceleration ou ralentissement
-float w3;	// taux de virage a appliquer en rad/s
-float r3;	// rayon de virage derive de v et w3 (pour 3 deg/s : 1.9 NM @ 360 knots)
+float w33;	// taux de virage a appliquer en rad/s
+float r33;	// rayon de virage derive de v et w33
 float cap_diversion;	// cap demande en cas de virage de diversion
 float fl_request;	// FL demande
 // donnees de plan
@@ -117,6 +120,8 @@ float head2cap( float h );
 float cap2head( float c );
 // calcul vitesse
 float fadec( float fl );
+// calcul taux de virage (rad/s) selon inclinaison (rad)
+float turn_rate( float bank );
 
 // emet un report vers CDC
 void dump_loc();
@@ -163,26 +168,6 @@ unsigned int from_32le( unsigned char * bbuf ) {
 		  ( ( bbuf[2] << 16 ) & 0xFF0000 ) | ( bbuf[3] << 24 )
 		);
 	}
-
-/* binary coding methods
-void to_s16le( unsigned char * buf, float f ) {
-	short s = (short)f;
-	buf[0] = s;
-	buf[1] = s >> 8;
-	}
-void to_u16le( unsigned char * buf, float f ) {
-	unsigned short s = (unsigned short)f;
-	buf[0] = s;
-	buf[1] = s >> 8;
-	}
-void to_u16le( unsigned char * buf, unsigned int u ) {
-	buf[0] = u;
-	buf[1] = u >> 8;
-	}
-unsigned int from_u16le( unsigned char * buf ) {
-	return buf[0] | ( buf[1] << 8 );
-	}
-*/
 
 // verification de CRC32 dans packet p, retour 1 si ok
 int CRC32ok( unsigned char * p );

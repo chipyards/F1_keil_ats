@@ -70,15 +70,12 @@ void Apilot::init() {
 	beacons = rom_beacons;
         load_plan();
 	// rates
+        vz = 0.0f;
 	fl = 220.0f;
         vstab = fadec( fl );	// vitesse a atteindre par acceleration ou ralentissement
         v = vstab;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
-        w3 = qfp_fmul( ToRadians, 2.77f );	// mise a l'epreuve de turnTo()
-        r3 = qfp_fdiv( v, w3 );			// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
-        // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
-        // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
-        // load factor : lf = 1/cos(b)
-        vz = 0.0f;
+        w33 = turn_rate( BANK33 );	// fonction de v !
+        r33 = qfp_fdiv( v, w33 );	// rayon de virage pour inclinaison 33 deg/s
 	// coordonnees de depart, au premier waypoint du plan si possible
 	if	( qplan >= 1 )
 		{
@@ -140,15 +137,25 @@ float Apilot::cap2head( float c ) {
 		h = qfp_fadd( h, 360.0f );
 	return h;
 	}
-	// calcul vitesse (kt/s)
+
+// calcul vitesse (kt/s)
 float Apilot::fadec( float fl ) {
 	return qfp_fadd( TAS_FL0, qfp_fmul( fl, TAS_K ) );
 	}
 
+// calcul taux de virage (rad/s) selon inclinaison (rad)
+float Apilot::turn_rate( float bank ) {
+	// acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
+        // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
+        // load factor : lf = 1/cos(b)
+	float gamma = qfp_ftan( bank ) * GRAVITY;	// GRAVITY and gamma in (Nm/s)/s
+	return qfp_fdiv( gamma, v );
+	}
+
 void Apilot::dump_loc() {
 	#ifdef USE_CDC
-	CDC_printf( "%6.2f %6.2f %6.2fdeg %.1fkts %.1fkts FL=%.1f div:%d cur:%d iplan:%d->%d seg:%d cnt:%d\n",
-		x, y, cap2head(cap), qfp_fmul(v,3600), qfp_fmul(vstab,3600), fl, diversion, curway, iplan, plan[iplan], segtype, cnt );
+	CDC_printf( "%6.2f %6.2f %6.2fdeg %.1fkts %.1fkts FL=%.1f r33=%.1f div:%d cur:%d iplan:%d->%d seg:%d cnt:%d\n",
+		x, y, cap2head(cap), qfp_fmul(v,3600), qfp_fmul(vstab,3600), fl, r33, diversion, curway, iplan, plan[iplan], segtype, cnt );
 	#endif
 	}
 // step, nominalement d'une seconde
@@ -312,7 +319,9 @@ void Apilot::gotoXY( float xd, float yd ) {
 // arc de cercle depuis le point courant x, y et le cap courant
 // sens automatique (virage < 180 deg)
 void Apilot::turnTo( float cap2 ) {
-	w = w3;
+	w33 = turn_rate(BANK33);
+	r33 = qfp_fdiv( v, w33 );
+	w = w33;
 	float dc = limit_cap( qfp_fsub( cap2, cap ) );
 	if	( jfp_fsgn( dc ) )
 		w = -w;
@@ -320,13 +329,16 @@ void Apilot::turnTo( float cap2 ) {
 	if	( cnt ==  0 )
 		w = dc;
 	else	w = qfp_fdiv( dc, (float)cnt );	// precision turn
-	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w3 );
+	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w33 );
 	}
 // route depuis le point courant et le cap courant: virage puis segment droit, sauf si trop pres,
 // alors si OPT_SKIP_TOO_CLOSE, abandon avec return 0
 // ou sinon segment d'eloignement (segtype = 3) qui sera suivi d'un nouvel appel a routetoXY()
 // return 1 si ok, 0 si skipped
 int Apilot::routetoXY( float xb, float yb ) {
+// determiner le taux de virage et le rayon, fonctions de v
+	w33 = turn_rate(BANK33);
+	r33 = qfp_fdiv( v, w33 );
 // decider de quel cote tourner : cap approximatif
 	float capro = qfp_fatan2( qfp_fsub( yb, y ), qfp_fsub( xb, x ) );
 	float dcapro = limit_cap( qfp_fsub( capro, cap ) );
@@ -336,12 +348,12 @@ int Apilot::routetoXY( float xb, float yb ) {
 	float xc, yc;
 	if	( jfp_fsgn(dcapro) )
 		{	// C a droite
-		xc = qfp_fadd( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
-		yc = qfp_fsub( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
+		xc = qfp_fadd( x, qfp_fmul( r33, qfp_fsin( cap ) ) );
+		yc = qfp_fsub( y, qfp_fmul( r33, qfp_fcos( cap ) ) );
 		}
 	else	{	// C a gauche
-		xc = qfp_fsub( x, qfp_fmul( r3, qfp_fsin( cap ) ) );
-		yc = qfp_fadd( y, qfp_fmul( r3, qfp_fcos( cap ) ) );
+		xc = qfp_fsub( x, qfp_fmul( r33, qfp_fsin( cap ) ) );
+		yc = qfp_fadd( y, qfp_fmul( r33, qfp_fcos( cap ) ) );
 		}
 	//CDC_printf( "C %.5f %.5f\n", xc, yc );
 // calculer distance de C a B (B = destination finale)
@@ -350,21 +362,21 @@ int Apilot::routetoXY( float xb, float yb ) {
 	float modcb = qfp_fsqrt( qfp_fadd( qfp_fmul( dx, dx ), qfp_fmul( dy, dy ) ) );
 	//CDC_printf( "|CB| %.5f\n", modcb );
 // mais est-ce possible ?
-	if	( jfp_fsgn( qfp_fsub( modcb, r3 ) ) )	// si D est dans le cercle, on ne sait pas faire
+	if	( jfp_fsgn( qfp_fsub( modcb, r33 ) ) )	// si D est dans le cercle, on ne sait pas faire
 		{
 		CDC_printf("too close, too close\n");
 		#ifdef OPT_SKIP_TOO_CLOSE
 		return 0;
 		#else
 		// option s'eloigner en ligne droite car le point vise est trop proche
-		gotoD( qfp_fmul( 2.0f, r3 ) );	// avec 2r on est sur (mais c'est trop dans la plupart des cas)
+		gotoD( qfp_fmul( 2.0f, r33 ) );	// avec 2r on est sur (mais c'est trop dans la plupart des cas)
 		segtype = 3;
 		return 1;
 		#endif
 		}
 // calculer premier virage
 	// angle CBD (D = fin virage), non signé et aigu
-	float lesin = qfp_fdiv( r3, modcb );
+	float lesin = qfp_fdiv( r33, modcb );
 	float lecos = qfp_fsqrt( jfp_fabs( qfp_fsub( 1.0f, qfp_fmul( lesin, lesin ) ) ) );
 	float cbd = qfp_fatan2( lesin, lecos );
 	//CDC_printf( "CBD %.5f\n", qfp_fmul( ToDegrees, cbd ) );
@@ -385,12 +397,12 @@ int Apilot::routetoXY( float xb, float yb ) {
 	// forcer le signe de w et dc a celui de dcapro
 	if	( jfp_fsgn(dcapro) )
 		{
-		w = -w3;
+		w = -w33;
 		if	( !jfp_fsgn( dc ) )
 			dc = qfp_fsub( dc, PIx2 );
 		}
 	else	{
-		w = w3;
+		w = w33;
 		if	( jfp_fsgn( dc ) )
 			dc = qfp_fadd( dc, PIx2 );
 		}
@@ -400,7 +412,7 @@ int Apilot::routetoXY( float xb, float yb ) {
 	if	( cnt ==  0 )
 		w = dc;
 	else	w = qfp_fdiv( dc, (float)cnt );	// precision turn
-	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w3 );
+	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w33 );
 	segtype = 1;
 	return 1;
 	}
