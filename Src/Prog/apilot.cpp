@@ -70,17 +70,15 @@ void Apilot::init() {
 	beacons = rom_beacons;
         load_plan();
 	// rates
-        v = 0.1f;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
-        // w3 = qfp_fmul( ToRadians, 3.0f );	// 3 deg/s = 0,05236 rd/s
+	fl = 220.0f;
+        vstab = fadec( fl );	// vitesse a atteindre par acceleration ou ralentissement
+        v = vstab;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
         w3 = qfp_fmul( ToRadians, 2.77f );	// mise a l'epreuve de turnTo()
         r3 = qfp_fdiv( v, w3 );			// rayon de virage pour 3 deg/s (1.9 NM @ 360 knots)
         // N.B. acceleration centrifuge : gamma = (v*v)/r = r*(w*w) = v * w ( 9.697 m/s2 @ 360 knots & 3 deg/s )
         // bank angle : b = atan2( gamma, g ) ( 44.6 deg  @ 360 knots & 3 deg/s ) ( passenger acft: normal is 33deg )
         // load factor : lf = 1/cos(b)
         vz = 0.0f;
-	vzup  =  0.30f;	// taux de montee, FL units/s
-	vzdown = -0.40f;	// taux de descente, FL units/s
-	fl = 220.0f;
 	// coordonnees de depart, au premier waypoint du plan si possible
 	if	( qplan >= 1 )
 		{
@@ -142,41 +140,64 @@ float Apilot::cap2head( float c ) {
 		h = qfp_fadd( h, 360.0f );
 	return h;
 	}
+	// calcul vitesse (kt/s)
+float Apilot::fadec( float fl ) {
+	return qfp_fadd( TAS_FL0, qfp_fmul( fl, TAS_K ) );
+	}
+
 void Apilot::dump_loc() {
 	#ifdef USE_CDC
-	CDC_printf( "L %6.2f %6.2f %6.2f div:%d cur:%d iplan:%d->%d seg:%d cnt:%d\n", x, y, cap2head(cap), diversion, curway, iplan, plan[iplan], segtype, cnt );
+	CDC_printf( "%6.2f %6.2f %6.2fdeg %.1fkts %.1fkts FL=%.1f div:%d cur:%d iplan:%d->%d seg:%d cnt:%d\n",
+		x, y, cap2head(cap), qfp_fmul(v,3600), qfp_fmul(vstab,3600), fl, diversion, curway, iplan, plan[iplan], segtype, cnt );
 	#endif
 	}
-// step, nominalement d'une seconde (pour le moment)
+// step, nominalement d'une seconde
 // fonction a iterer depuis la boucle principale
+// les variables vz, w, vstab determinent les variations de fl, cap, v
 void Apilot::step() {
-	if	( w != 0.0f )
-		{
-		//cap += w;
-		cap = qfp_fadd( cap, w );
-		//vx = v * Math.cos(cap);
-		vx = qfp_fmul( v, qfp_fcos(cap) );
-		//vy = v * Math.sin(cap);
-		vy = qfp_fmul( v, qfp_fsin(cap) );
-		}
-	//x += vx;
-	x = qfp_fadd( x, vx );
-	//y += vy;
-	y = qfp_fadd( y, vy );
-	// track.add( new Punkt( x, y ) );
-	t++;
+	// d'abord l'altitude, qui determine une consigne de vitesse
 	if	( vz > 0.0f )
 		{
 		fl = qfp_fadd( fl, vz );
 		if	( fl >= fl_request )
 			{ fl = fl_request; vz = 0.0f; }
+		vstab = fadec( fl );
 		}
 	else if	( vz < 0.0f )
 		{
 		fl = qfp_fadd( fl, vz );
 		if	( fl <= fl_request )
 			{ fl = fl_request; vz = 0.0f; }
+		vstab = fadec( fl );
 		}
+	// virage en cours (sa fin sera determinee par cnt)
+	if	( w != 0.0f )
+		{
+		cap = qfp_fadd( cap, w );
+		}
+	// pas de virage, accel/decel a poursuivre ?
+	else 	{
+		if	( v < vstab )
+			{
+			v = qfp_fadd( v, TAACC );
+			if	( v >= vstab )
+				{ v = vstab; }
+			}
+		else if	( v > vstab )
+			{
+			v = qfp_fsub( v, TAACC );
+			if	( v <= vstab )
+				{ v = vstab; }
+			}
+		}
+	// calcul vx et vy, on le fait meme si ni v ni cap n'ont varie
+	// (ce n'est pas optimal, mais moins sujet a erreur)
+	vx = qfp_fmul( v, qfp_fcos(cap) );
+	vy = qfp_fmul( v, qfp_fsin(cap) );
+	// calcul position
+	x = qfp_fadd( x, vx );
+	y = qfp_fadd( y, vy );
+	t++;
 	// ici on doit tester s'il n'y a pas une requete de diversion, avant de tester cnt
 	// possiblement la diversion va reinitialiser cnt et calculer une nouvelle route
 	Beacon b;
@@ -470,8 +491,10 @@ switch	( opcode_t(p[2]) )
 				{ queue_unable( BADFL, p + (p[0]-3) ); return; }
 			fl_request = float(newfl);
 			if	( fl_request > fl )
-				vz = vzup;
-			else 	vz = vzdown;
+				{ vz = VZUP; }
+			else if	( fl_request < fl )
+				{ vz = VZDOWN; }
+			else	{ vz = 0.0; }
 			queue_wilco( p + (p[0]-3) );
 			}
 		break;

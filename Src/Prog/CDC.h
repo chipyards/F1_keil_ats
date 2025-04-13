@@ -1,4 +1,4 @@
-#define QTX1 80
+#define QTX1 132
 
 // le contexte pour UART2 aka CDC
 // TX : un buffer de message

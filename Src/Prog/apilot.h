@@ -16,9 +16,15 @@ enum opcode_t {
 // errors
 enum err_t { BADWAY=0x70, BADHDG=0x5E, BADFL=0x14 };
 
-// defaults
-#define FLMIN (100)
-#define FLMAX (380)
+// altitude constants
+#define FLMIN  (100)
+#define FLMAX  (400)
+#define	VZUP   (0.30f)	// taux de montee, FL units/s
+#define	VZDOWN (-0.40f)	// taux de descente, FL units/s
+// auto-throttle FADEC
+#define TAS_FL0 (320.0/3600.0)	// Nm/s, TAS @ FL0 soit 320kt
+#define TAS_K (0.4/3600.0)	// (Nm/s)/100ft soit 0.4kt/100ft
+#define TAACC (1.2/3600.0)	// (Nm/s)/s soit 5 kt/s
 
 // calcul CRC32 AIXM
 unsigned int crc_aixm( const unsigned char *buf, unsigned int len );
@@ -49,13 +55,12 @@ float vx;		// derivee de v et cap
 float vy;		// derivee de v et cap
 float vz;		// vitesse verticale, FL units/s
 // parametres du mouvement
-float v;	// vitesse en Nm/step 0.1 <==> 360 knots
-float w3;	// taux de virage t.q. 3 deg/s
+float v;	// vitesse en Nm/step ( 0.1 <==> 360 knots )
+float vstab;	// vitesse a atteindre par acceleration ou ralentissement
+float w3;	// taux de virage a appliquer en rad/s
 float r3;	// rayon de virage derive de v et w3 (pour 3 deg/s : 1.9 NM @ 360 knots)
 float cap_diversion;	// cap demande en cas de virage de diversion
 float fl_request;	// FL demande
-float vzup;	// taux de montee, FL units/s
-float vzdown;	// taux de descente, FL units/s
 // donnees de plan
 const short * beacons;	// base de la table des balises
 unsigned char plan[QPLAN];
@@ -110,6 +115,9 @@ float limit_cap( float c );
 //	cap en radian dans ] -PI/2, +PI/2 ]
 float head2cap( float h );
 float cap2head( float c );
+// calcul vitesse
+float fadec( float fl );
+
 // emet un report vers CDC
 void dump_loc();
 
