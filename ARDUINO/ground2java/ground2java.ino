@@ -25,13 +25,13 @@ unsigned long from_32le( byte * bbuf ) {
   return retval; 
   }
 
-void append_crc( unsigned char *buf )
+// calcul CRC32 AIXM
+unsigned long crc_aixm( const unsigned char *buf, byte leng )
 {
 unsigned long crc = 0;
-byte i, j, len;
+byte i, j;
 byte lebyte, topreg;
-len = buf[0];
-for ( j = 1; j < ( len - 3 ); j++ ) 
+for ( j = 0; j < leng; j++ ) 
     {
     lebyte = buf[j];
     for ( i = 0; i < 8; i++ )
@@ -44,9 +44,34 @@ for ( j = 1; j < ( len - 3 ); j++ )
         lebyte <<= 1;
         }
     }
-snprintf( CC.tbuf, sizeof(CC.tbuf), "CRC %08lx", crc );
-        Serial.println( CC.tbuf );
-to_32le( buf + len - 3, crc );
+return crc;
+}
+
+// verification de CRC32 dans packet p (le crc est a p + (p[0]-3))
+// retour 1 si ok
+int CRC32ok( byte * p )
+{
+byte len = p[0];
+unsigned long local_crc = crc_aixm( p + 1, len - 4 );
+unsigned long rx_crc = from_32le( p + (len-3) );
+if  ( local_crc != rx_crc )
+  {
+  snprintf( CC.tbuf, sizeof(CC.tbuf), "BAD CRC %08lx vs %08lx\n", local_crc, rx_crc );
+  Serial.println( CC.tbuf );
+  return 0;
+  }
+snprintf( CC.tbuf, sizeof(CC.tbuf), "GOOD CRC %08lx\n", rx_crc );
+Serial.println( CC.tbuf );
+return 1;
+}
+
+// append a crc to a packet (with p[0]=len already including 4 crc bytes)
+void appendCRC( unsigned char * p ) {
+  byte len = p[0];
+  unsigned long local_crc = crc_aixm( p + 1, len - 4 );
+  snprintf( CC.tbuf, sizeof(CC.tbuf), "CRC %08lx", local_crc );
+  Serial.println( CC.tbuf );
+  to_32le( p + len - 3, local_crc );
 }
 
 void setup() {
@@ -57,7 +82,8 @@ void setup() {
   else Serial.println("Radio init error");
 }
 
-
+byte default_plan[] = {148,152,24,49,210,8,167,94,198,210,214,84,227,195,128,0};
+ 
 #define FLIGHT 103
 #define CRC
 void interpreter( char buf[], byte buflen ) // zero-terminated string
@@ -72,49 +98,70 @@ else {
   data[1] = FLIGHT;
   switch ( buf[0] ) {
       // --- pilot orders NEWFP=0x70, DIRECT=0x4A, TURN=0x5E, NEWFL=0x14,
-      case 'f': { data[2] = 0x70;              // NEWFP
+      case 'n': {
+        data[2] = 0x70;              // NEWFP
         byte i = 3; 
-        data[i++] = 148;
-        data[i++] = 152;
-        data[i++] = 24;
-        data[i++] = 49;
-        data[i++] = 210;
-        data[i++] = 8;
-        data[i++] = 167;
-        data[i++] = 94;
-        data[i++] = 198;
-        data[i++] = 210;
-        data[i++] = 214;
-        data[i++] = 84;
-        data[i++] = 227;
-        data[i++] = 195;
-        data[i++] = 128;
-        data[i++] = 0;  // here, i = LEN + 1
-        data[0] = i + 3;  // add 4 for CRC, but len is counted by i, so subract 1
-        append_crc( data );  
-        } break; 
-      case 'd': data[2] = 0x4A; data[0] = 7;  // DIRECT
-        data[3] = atoi(buf+2); // 1 space after d
-        append_crc( data );  
+        for ( int j = 0; j < sizeof(default_plan); j++ )
+            data[i++] = default_plan[j];
+        // here, LEN would be i - 1
+        data[0] = i + 3;  // add 4 for CRC, so LEN - i + 3
+        appendCRC( data );  
+        } break;
+      // space after single letter command is accepted but not mandatory  
+      case 'd':
+        data[2] = 0x4A; data[0] = 7;  // DIRECT
+        if ( buf[1] == ' ' )
+           data[3] = atoi(buf+2); // 1 space skipped
+        else data[3] = atoi(buf+1); // no space, ok
+        appendCRC( data );  
         break; 
-      case 't': data[2] = 0x5E; data[0] = 8;  // TURN
-        to_16le( data + 3, atoi(buf+2) );  // 1 space after t
-        append_crc( data );  
+      case 't':
+        data[2] = 0x5E; data[0] = 8;  // TURN
+        if ( buf[1] == ' ' )
+           to_16le( data + 3, atoi(buf+2) );
+        else to_16le( data + 3, atoi(buf+1) );
+        appendCRC( data );  
         break; 
-      case 'l': data[2] = 0x14; data[0] = 8;  // NEWFL
-        to_16le( data + 3, atoi(buf+2) );  // 1 space after l
-        append_crc( data );  
-        break; 
-      // --- simulation commands
-      case 'P': data[2] = 0x81; data[0] = 2;
-        break; 
-      case 'R': data[2] = 0x82; data[0] = 2;
-        break; 
-      case 'K': data[2] = 0x83; data[0] = 3;
-        data[3] = atoi(buf+1); // no space after K
-        break; 
-      case 'Z': data[2] = 0x84; data[0] = 2;
+      case 'a':
+        data[2] = 0x14; data[0] = 8;  // NEWFL
+        if ( buf[1] == ' ' )
+           to_16le( data + 3, atoi(buf+2) );
+        else to_16le( data + 3, atoi(buf+1) );
+        appendCRC( data );  
         break;
+      // --- pilot info requests REPFP=0x72, REPWCO=0x76, REPALT=0x16, REPRAT=0x7A
+      case 'c' : data[2] = 0x71; data[0] = 2; // REQFP
+        break;
+      case 'w' : data[2] = 0x75; data[0] = 3; // REQWCO
+        if ( buf[1] == ' ' )
+           data[3] = atoi(buf+2);
+        else data[3] = atoi(buf+1);
+        break;
+      case 'l' : data[2] = 0x15; data[0] = 2; // REQALT
+        break;
+      case 'r' : data[2] = 0x79; data[0] = 2; // REQRAT
+        break;
+      // --- simulation commands PAUSE=0x81, RESUME=0x82, RATECK=0x83, SRESET=0x84, SNEWFP=0x85
+      case 'P': data[2] = 0x81; data[0] = 2;  // PAUSE
+        break; 
+      case 'R': data[2] = 0x82; data[0] = 2;  // RESUME
+        break; 
+      case 'K': data[2] = 0x83; data[0] = 3;  // RATECK
+        if ( buf[1] == ' ' )
+           data[3] = atoi(buf+2);
+        else data[3] = atoi(buf+1);
+        break; 
+      case 'Z': data[2] = 0x84; data[0] = 2;  // SRESET
+        break;
+      case 'N': {                             // SNEWFP
+        data[2] = 0x85;
+        byte i = 3; 
+        for ( int j = 0; j < sizeof(default_plan); j++ )
+            data[i++] = default_plan[j];
+        // here, LEN would be i - 1
+        data[0] = i + 3;  // add 4 for CRC, so LEN - i + 3
+        appendCRC( data );  
+        } break;
       default: return;
       } // switch
   int resu = CC.tx_if_can( data );
@@ -152,6 +199,55 @@ if ( data[1] == (FLIGHT|0x80) )
         unsigned long crc = from_32le( data + 4 );
         snprintf( CC.tbuf, sizeof(CC.tbuf), "U %02x %08lx", data[3], crc );
         Serial.println( CC.tbuf );
+    } break;
+    case 0x72: { // REPFP
+        if  ( CRC32ok( data ) )
+            {
+            byte j = 3;
+            Serial.print("c { ");
+            while ( j < ( data[0] - 3 ) )
+                  { Serial.print(data[j++]); Serial.print(' '); }
+            Serial.println('}'); 
+            }
+    } break;
+    case 0x76: { // REPWCO
+        if  ( CRC32ok( data ) )
+            {
+            byte j = 3;
+            Serial.print("w ");
+            Serial.print(data[j++]); Serial.print(" (");
+            int x, y;
+            while ( j < ( data[0] - 3 ) )
+                  {
+                  x = from_16le( data + j ); j += 2;
+                  y = from_16le( data + j ); j += 2;
+                  snprintf( CC.tbuf, sizeof(CC.tbuf), "%d:%d ", x, y );
+                  Serial.print( CC.tbuf );
+                  }
+            Serial.println(')'); 
+            }
+    } break;
+    case 0x16: { // REPALT
+        if  ( CRC32ok( data ) )
+            {
+            byte j = 3;
+            Serial.print("l ");
+            int x = from_16le( data + j ); j += 2;
+            int y = from_16le( data + j ); j += 2;
+            snprintf( CC.tbuf, sizeof(CC.tbuf), "FLMIN %d FLMAX %d ", x, y );
+            Serial.println( CC.tbuf );
+            }
+    } break;
+    case 0x7A: { // REPRAT
+        if  ( CRC32ok( data ) )
+            {
+            byte j = 3;
+            Serial.print("r ");
+            int x = from_16le( data + j ); j += 2;
+            int y = from_16le( data + j ); j += 2;
+            snprintf( CC.tbuf, sizeof(CC.tbuf), "+ %d ft/mn, - %d ft/mn, bank %d deg", x, y, data[j] );
+            Serial.println( CC.tbuf );
+            }
     } break;
     default:
         CC.format_rx_to_Serial( data );

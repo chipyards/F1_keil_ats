@@ -4,6 +4,7 @@
 #define ToDegrees ((float)(180.0/PI))
 #define QBEACON (sizeof(rom_beacons)/4)
 #define QPLAN 56
+#define QPAK 62		// taille de paquet a l'emission
 
 // opcodes
 enum opcode_t {
@@ -11,7 +12,7 @@ enum opcode_t {
 	WILCO=0, UNABLE=1,
 	REQFP=0x71, REQWCO=0x75, REQALT=0x15, REQRAT=0x79,
 	REPFP=0x72, REPWCO=0x76, REPALT=0x16, REPRAT=0x7A,
-	VAAR=0x42, PAUSE=0x81, RESUME=0x82, RATECK=0x83, SRESET=0x84
+	VAAR=0x42, PAUSE=0x81, RESUME=0x82, RATECK=0x83, SRESET=0x84, SNEWFP=0x85
 	};
 // errors
 enum err_t { BADWAY=0x70, BADHDG=0x5E, BADFL=0x14 };
@@ -27,7 +28,8 @@ enum err_t { BADWAY=0x70, BADHDG=0x5E, BADFL=0x14 };
 #define TAACC   (float(1.2/3600.0))	// (Nm/s)/s soit 5 kt/s
 // turn parameters
 #define GRAVITY (float(9.78/1852.0))	// (Nm/s)/s (9.78 m/s2 @ FL300)
-#define BANK33  (float(33.0*ToRadians))	// 33 deg nominal for A320
+#define BANKD   (33)			// degrees, 33 deg nominal for A320
+#define BANK33  (float(BANKD)*ToRadians)// radians
 
 // calcul CRC32 AIXM
 unsigned int crc_aixm( const unsigned char *buf, unsigned int len );
@@ -90,10 +92,16 @@ int diversion;		// -1 : pas de diversion en cours (les autres valeurs sont tempo
 			// -3 = deroutement demandé : changement de cap puis tout droit
 
 Apilot() {	// constructeur
+	beacons = rom_beacons;
+	qplan = 0;
+	load_rom_plan();
 	init();
 	};
 
-void load_plan();
+// load a default plan
+void load_rom_plan();
+
+// before calling init(), either set qplan = 0 or load a plan
 void init();
 
 // // accesseurs
@@ -172,6 +180,9 @@ unsigned int from_32le( unsigned char * bbuf ) {
 // verification de CRC32 dans packet p, retour 1 si ok
 int CRC32ok( unsigned char * p );
 
+// append a crc to a packet (with p[0]=len already including 4 crc bytes)
+void appendCRC( unsigned char * p );
+
 // interpreteur de commandes (paquet radio, 1er byte is LEN, ADR et CRC deja verifies)
 void cmd_handler( unsigned char * p );
 
@@ -179,10 +190,19 @@ void cmd_handler( unsigned char * p );
 int AAR_tx();
 
 // mise en queue d'un WILCO (revoie les 4 bytes du crc)
-int queue_wilco( unsigned char * crcbuf );
+int queue_WILCO( unsigned char * crcbuf );
 
 // mise en queue d'un UNABLE (revoie le byte derrcode suivi des 4 bytes de CRC)
-int queue_unable( err_t err, unsigned char * crcbuf );
+int queue_UNABLE( err_t err, unsigned char * crcbuf );
+
+// mise en queue d'une reponse a REQFP : current flight plan
+int queue_REPFP();
+// mise en queue d'une reponse a REQWCO : waypoints coordinates
+int queue_REPWCO( unsigned int start );
+// mise en queue d'une reponse a REQALT : altitude limits
+int queue_REPALT();
+// mise en queue d'une reponse a REQRAT : current rates
+int queue_REPRAT();
 
 }; // class Apilot
 

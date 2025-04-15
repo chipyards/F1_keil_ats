@@ -22,6 +22,7 @@ DTICK_VARS
 Apilot lepilot;
 
 // source beacons_sorted_traffic_small.txt trie par beacons_bordeaux_toulon.html
+// unit = 1/8 Nm
 const short rom_beacons[] = {
 715,-1475,1976,-1583,1898,-1617,2035,-1728,703,-1667,2047,-1737,995,-1538,228,-1368,
 299,-1497,1466,-892,1873,-1619,2128,-1552,1523,-865,1087,-1203,897,-1508,1643,-882,
@@ -58,24 +59,25 @@ const short rom_beacons[] = {
 
 const unsigned char rom_plan[] = { 8, 167, 210, 94, 198, 70, 24, 148 };
 
-void Apilot::load_plan() {	// chargement du plan par defaut
+void Apilot::load_rom_plan() {	// chargement du plan par defaut
 	for	( unsigned int i = 0; i < sizeof(rom_plan); i++ )
 		plan[i] = rom_plan[i];
 	qplan = sizeof(rom_plan);
 	}
 
+// before calling init(), either set qplan = 0 or load a plan
 void Apilot::init() {
 	sim_speed = 1;
 	t = 0;
-	beacons = rom_beacons;
-        load_plan();
-	// rates
+        // rates
         vz = 0.0f;
 	fl = 220.0f;
         vstab = fadec( fl );	// vitesse a atteindre par acceleration ou ralentissement
         v = vstab;	// vitesse en Nm/s 0.1 <==> 360 knots <==> 185.2 m/s
         w33 = turn_rate( BANK33 );	// fonction de v !
         r33 = qfp_fdiv( v, w33 );	// rayon de virage pour inclinaison 33 deg/s
+        // coordonnees de depart, pour le cas ou il n'y aurait pas de plan
+        vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift();
 	// coordonnees de depart, au premier waypoint du plan si possible
 	if	( qplan >= 1 )
 		{
@@ -83,9 +85,7 @@ void Apilot::init() {
 		Beacon b;
 		if	( get_beacon( &b, curway ) == 0 )
 			{ x = b.x;  y = b.y;  }
-		else	{ x = 0.0f; y = 0.0f; }
 		}
-	else	{ x = 0.0f; y = 0.0f; }
 	// route initiale, vers second point du plan si possible
 	if	( qplan >= 2 )
 		{
@@ -93,9 +93,7 @@ void Apilot::init() {
 		Beacon b;
 		if	( get_beacon( &b, curway ) == 0 )
 			routetoXY( b.x, b.y );
-		else	{ vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift(); }
 		}
-	else	{ vx = v; vy = 0.0f; cap = 0.0f; w = 0.0f; adrift(); }
 	// temporaires
 	diversion = -1;
 	cap_diversion = 0.0f;
@@ -454,6 +452,14 @@ CDC_printf("GOOD CRC %08x\n", rx_crc );
 return 1;
 }
 
+// append a crc to a packet (with p[0]=len already including 4 crc bytes)
+void Apilot::appendCRC( unsigned char * p )
+{
+unsigned int len = p[0];
+unsigned int local_crc = crc_aixm( p + 1, len - 4 );
+to_32le( p + len - 3, local_crc );
+}
+
 // interpreteur de commandes (paquet radio, 1er byte is LEN, ADR verified)
 void Apilot::cmd_handler( unsigned char * p )
 {
@@ -469,51 +475,60 @@ switch	( opcode_t(p[2]) )
 				{
 				if	( p[i+3] < QBEACON )
 					plan[i] = p[i+3];
-				else	{ queue_unable( BADWAY, p + (p[0]-3) ); return; }
+				else	{ queue_UNABLE( BADWAY, p + (p[0]-3) ); return; }
 				}
 			unsigned int nextway = plan[0];
 			lepilot.diversion = (int)nextway;
-			queue_wilco( p + (p[0]-3) );
+			queue_WILCO( p + (p[0]-3) );
 			}
 		break;
 	case DIRECT: if ( ( p[0] == 7 ) && ( CRC32ok(p) ) )
 			{
 			unsigned int wpt = p[3];
 			if	( wpt >= QBEACON )
-				{ queue_unable( BADWAY, p + (p[0]-3) ); return; }
+				{ queue_UNABLE( BADWAY, p + (p[0]-3) ); return; }
 			lepilot.diversion = (int)wpt;
-			queue_wilco( p + (p[0]-3) );
+			queue_WILCO( p + (p[0]-3) );
 			}
 		break;
 	case TURN:   if ( ( p[0] == 8 ) && ( CRC32ok(p) ) )
 			{
 			int newhead = from_16le( p+3 );
 			if	( ( newhead < -180 ) || ( newhead > 360 ) )
-				{ queue_unable( BADHDG, p + (p[0]-3) ); return; }
+				{ queue_UNABLE( BADHDG, p + (p[0]-3) ); return; }
 			lepilot.diversion = -3;
 			lepilot.cap_diversion = lepilot.head2cap(float(newhead));
 			//CDC_printf("cap_d = %d = %.3f\n", newhead, lepilot.cap_diversion );
-			queue_wilco( p + (p[0]-3) );
+			queue_WILCO( p + (p[0]-3) );
 			}
 		break;
 	case NEWFL:  if ( ( p[0] == 8 ) && ( CRC32ok(p) ) )
 			{
 			unsigned int newfl = from_16le( p+3 );
 			if	( ( newfl < FLMIN ) || ( newfl > FLMAX ) )
-				{ queue_unable( BADFL, p + (p[0]-3) ); return; }
+				{ queue_UNABLE( BADFL, p + (p[0]-3) ); return; }
 			fl_request = float(newfl);
 			if	( fl_request > fl )
 				{ vz = VZUP; }
 			else if	( fl_request < fl )
 				{ vz = VZDOWN; }
 			else	{ vz = 0.0; }
-			queue_wilco( p + (p[0]-3) );
+			queue_WILCO( p + (p[0]-3) );
 			}
+		break;
+	// pilot info requests
+	case REQFP:  if ( p[0] == 2 ) queue_REPFP();
+		break;
+	case REQWCO: if ( p[0] == 3 ) queue_REPWCO( p[3] );
+		break;
+	case REQALT: if ( p[0] == 2 ) queue_REPALT();
+		break;
+	case REQRAT: if ( p[0] == 2 ) queue_REPRAT();
 		break;
 	// simulation commands
 	case PAUSE:  if ( p[0] == 2 ) CC.AAR_tx_enable = 0;
 		break;
-	case RESUME: if ( p[0] == 2 )  CC.AAR_tx_enable = 1;
+	case RESUME: if ( p[0] == 2 ) CC.AAR_tx_enable = 1;
 		break;
 	case RATECK: if ( p[0] == 3 )
 			{
@@ -522,7 +537,22 @@ switch	( opcode_t(p[2]) )
 				sim_speed = 8;
 			}
 		break;
-	case SRESET: if ( p[0] == 2 ) init();
+	case SRESET: if ( p[0] == 2 ) {
+			beacons = rom_beacons; load_rom_plan(); init();
+			}
+		break;
+	case SNEWFP: if ( ( p[0] >= 7 ) && ( CRC32ok(p) ) )
+			{
+			CC.format_rx_to_CDC( p );
+			qplan = p[0] - 6;	// len - {adr, opcode, crc}
+			if	( qplan > 55 ) qplan = 55;
+			for	( unsigned int i = 0; i < qplan; i++ )
+				{
+				if	( p[i+3] < QBEACON )
+					plan[i] = p[i+3];
+				}
+			init();
+			}
 		break;
 	default: ;
 	}
@@ -551,31 +581,31 @@ for	( unsigned int i = 0; i < sim_speed; i++ )
 	CDC_printf("* %d < %d\n", dtick, max_dtick );
 	#endif
 	}
-unsigned char ubuf[16];
-ubuf[0] = 14;
-ubuf[1] = FLIGHT | 0x80;
-ubuf[2] = opcode_t(VAAR);
-to_16le( ubuf+3, short(qfp_fmul( x, 100.0f )) );
-to_16le( ubuf+5, short(qfp_fmul( y, 100.0f )) );
-to_16le( ubuf+7, short(qfp_fmul( vx, 36000.0f )) );	// convert Nm/s to knots*10
-to_16le( ubuf+9, short(qfp_fmul( vy, 36000.0f )) );
-to_16le( ubuf+11, short(fl) );
-to_16le( ubuf+13, short(t) );
-return CC.tx_if_can( ubuf );
+unsigned char pack[QPAK];
+pack[0] = 14;
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(VAAR);
+to_16le( pack+3, short(qfp_fmul( x, 100.0f )) );
+to_16le( pack+5, short(qfp_fmul( y, 100.0f )) );
+to_16le( pack+7, short(qfp_fmul( vx, 36000.0f )) );	// convert Nm/s to knots*10
+to_16le( pack+9, short(qfp_fmul( vy, 36000.0f )) );
+to_16le( pack+11, short(fl) );
+to_16le( pack+13, short(t) );
+return CC.tx_if_can( pack );
 }
 
 // mise en queue d'un WILCO (revoie les 4 bytes du crc)
-int Apilot::queue_wilco( unsigned char * crcbuf )
+int Apilot::queue_WILCO( unsigned char * crcbuf )
 {
-unsigned char ubuf[8];
-ubuf[0] = 6;
-ubuf[1] = FLIGHT | 0x80;
-ubuf[2] = opcode_t(WILCO);
-ubuf[3] = crcbuf[0];
-ubuf[4] = crcbuf[1];
-ubuf[5] = crcbuf[2];
-ubuf[6] = crcbuf[3];
-int retval = CC.tx_if_can( ubuf );
+unsigned char pack[QPAK];
+pack[0] = 6;
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(WILCO);
+pack[3] = crcbuf[0];
+pack[4] = crcbuf[1];
+pack[5] = crcbuf[2];
+pack[6] = crcbuf[3];
+int retval = CC.tx_if_can( pack );
 if	( retval )
 	CDC_printf("WILCO failed %d\n", retval );
 else	CDC_printf("WILCO\n");
@@ -583,21 +613,102 @@ return retval;
 }
 
 // mise en queue d'un UNABLE (revoie le byte d'err code suivi des 4 bytes de CRC)
-int Apilot::queue_unable( err_t err, unsigned char * crcbuf )
+int Apilot::queue_UNABLE( err_t err, unsigned char * crcbuf )
 {
-unsigned char ubuf[8];
-ubuf[0] = 7;
-ubuf[1] = FLIGHT | 0x80;
-ubuf[2] = opcode_t(UNABLE);
-ubuf[3] = err;
-ubuf[4] = crcbuf[0];
-ubuf[5] = crcbuf[1];
-ubuf[6] = crcbuf[2];
-ubuf[7] = crcbuf[3];
-int retval = CC.tx_if_can( ubuf );
+unsigned char pack[QPAK];
+pack[0] = 7;
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(UNABLE);
+pack[3] = err;
+pack[4] = crcbuf[0];
+pack[5] = crcbuf[1];
+pack[6] = crcbuf[2];
+pack[7] = crcbuf[3];
+int retval = CC.tx_if_can( pack );
 if	( retval )
 	CDC_printf("UNABLE failed %d\n", retval );
 else	CDC_printf("UNABLE %02x\n", err );
 return retval;
 }
 
+// mise en queue d'une reponse a REQFP : current flight plan
+int Apilot::queue_REPFP()
+{
+unsigned char pack[QPAK];
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(REPFP);
+unsigned j = 3;		// index in packet
+if	( iplan >= 0 )
+	{
+	if	( qplan > 55 ) qplan = 55;	// parano
+	for	( int i = iplan; i < (int)qplan; i++ )
+		pack[j++] = plan[i];
+	}
+pack[0] = j + 3;
+appendCRC( pack );
+int retval = CC.tx_if_can( pack );
+if	( retval )
+	CDC_printf("REPFP failed %d\n", retval );
+else	CDC_printf("REPFP\n");
+return retval;
+}
+
+// mise en queue d'une reponse a REQWCO : waypoints coordinates
+int Apilot::queue_REPWCO( unsigned int start )
+{
+unsigned char pack[QPAK];
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(REPWCO);
+unsigned j = 3;		// index in packet
+pack[j++] = start;
+for	( unsigned int i = start; i < QBEACON; i++ )
+	{
+	if ( j > 54 ) break;
+	to_16le( pack+j, short( qfp_fmul( 12.5f, (float)beacons[i*2]   ) ) ); j += 2;
+	to_16le( pack+j, short( qfp_fmul( 12.5f, (float)beacons[1+i*2] ) ) ); j += 2;
+	}
+pack[0] = j + 3;
+appendCRC( pack );
+int retval = CC.tx_if_can( pack );
+if	( retval )
+	CDC_printf("REPFP failed %d\n", retval );
+else	CDC_printf("REPFP\n");
+return retval;
+}
+
+// mise en queue d'une reponse a REQALT : altitude limits
+int Apilot::queue_REPALT()
+{
+unsigned char pack[QPAK];
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(REPALT);
+unsigned j = 3;		// index in packet
+to_16le( pack+j, short(FLMIN) ); j += 2;
+to_16le( pack+j, short(FLMAX) ); j += 2;
+pack[0] = j + 3;
+appendCRC( pack );
+int retval = CC.tx_if_can( pack );
+if	( retval )
+	CDC_printf("REPFP failed %d\n", retval );
+else	CDC_printf("REPFP\n");
+return retval;
+}
+
+// mise en queue d'une reponse a REQRAT : current rates
+int Apilot::queue_REPRAT()
+{
+unsigned char pack[QPAK];
+pack[1] = FLIGHT | 0x80;
+pack[2] = opcode_t(REPRAT);
+unsigned j = 3;		// index in packet
+to_16le( pack+j, short( 6000.0f *   VZUP    ) ); j += 2;
+to_16le( pack+j, short( 6000.0f * (-VZDOWN) ) ); j += 2;
+pack[j++] = BANKD;
+pack[0] = j + 3;
+appendCRC( pack );
+int retval = CC.tx_if_can( pack );
+if	( retval )
+	CDC_printf("REPFP failed %d\n", retval );
+else	CDC_printf("REPFP\n");
+return retval;
+}

@@ -95,12 +95,13 @@ for ( byte i = 1; i < len+1; i++ )
     Serial.print( tbuf );
     }
 Serial.print("}=\"");
-// payload as filtered text
+/* payload as filtered text *
 for ( byte i = 1; i < len+1; i++ )
     {
     snprintf( tbuf, sizeof(tbuf), "%c", (char(rxdata[i])<' ')?('_'):(rxdata[i]) );
     Serial.print( tbuf );
     }
+//*/
 // diagnostics
 int hrssi = (int)((char)rxdata[len+1]) - (2*74);
 byte LQI = rxdata[len+2];
