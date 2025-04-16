@@ -327,7 +327,7 @@ void Apilot::turnTo( float cap2 ) {
 	if	( cnt ==  0 )
 		w = dc;
 	else	w = qfp_fdiv( dc, (float)cnt );	// precision turn
-	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w33 );
+	//CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w33 );
 	}
 // route depuis le point courant et le cap courant: virage puis segment droit, sauf si trop pres,
 // alors si OPT_SKIP_TOO_CLOSE, abandon avec return 0
@@ -386,12 +386,12 @@ int Apilot::routetoXY( float xb, float yb ) {
 	if	( jfp_fsgn(dcapro) )
 		cape = qfp_fsub( argcb, cbd );
 	else	cape = qfp_fadd( argcb, cbd );
-	CDC_printf( "== cap exact %.5f\n", qfp_fmul( ToDegrees, cape) );
+	//CDC_printf( "== cap exact %.5f\n", qfp_fmul( ToDegrees, cape) );
 // executer le virage (sens impose par signe de dcapro, possiblement > 180 deg)
 	float dc = qfp_fsub( cape, cap );
-	CDC_printf( "== dc        %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	//CDC_printf( "== dc        %.5f\n", qfp_fmul( ToDegrees, dc ) );
 	dc = limit_cap( dc );
-	CDC_printf( "== dc limitd %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	//CDC_printf( "== dc limitd %.5f\n", qfp_fmul( ToDegrees, dc ) );
 	// forcer le signe de w et dc a celui de dcapro
 	if	( jfp_fsgn(dcapro) )
 		{
@@ -404,13 +404,13 @@ int Apilot::routetoXY( float xb, float yb ) {
 		if	( jfp_fsgn( dc ) )
 			dc = qfp_fadd( dc, PIx2 );
 		}
-	CDC_printf( "== dc fixed  %.5f\n", qfp_fmul( ToDegrees, dc ) );
+	//CDC_printf( "== dc fixed  %.5f\n", qfp_fmul( ToDegrees, dc ) );
 	// en raison des forçages de signe, cnt doit etre >= 0
 	cnt = (int)qfp_fadd( 0.5, qfp_fdiv( dc, w ) );
 	if	( cnt ==  0 )
 		w = dc;
 	else	w = qfp_fdiv( dc, (float)cnt );	// precision turn
-	CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w33 );
+	//CDC_printf( "== dc=%.5f cnt=%d w=%.5f vs %.5f\n", dc, cnt, w, w33 );
 	segtype = 1;
 	return 1;
 	}
@@ -608,7 +608,7 @@ pack[6] = crcbuf[3];
 int retval = CC.tx_if_can( pack );
 if	( retval )
 	CDC_printf("WILCO failed %d\n", retval );
-else	CDC_printf("WILCO\n");
+else	CDC_printf("WILCO sent\n");
 return retval;
 }
 
@@ -627,7 +627,7 @@ pack[7] = crcbuf[3];
 int retval = CC.tx_if_can( pack );
 if	( retval )
 	CDC_printf("UNABLE failed %d\n", retval );
-else	CDC_printf("UNABLE %02x\n", err );
+else	CDC_printf("UNABLE %02x sent\n", err );
 return retval;
 }
 
@@ -649,7 +649,7 @@ appendCRC( pack );
 int retval = CC.tx_if_can( pack );
 if	( retval )
 	CDC_printf("REPFP failed %d\n", retval );
-else	CDC_printf("REPFP\n");
+else	CDC_printf("REPFP sent\n");
 return retval;
 }
 
@@ -671,8 +671,8 @@ pack[0] = j + 3;
 appendCRC( pack );
 int retval = CC.tx_if_can( pack );
 if	( retval )
-	CDC_printf("REPFP failed %d\n", retval );
-else	CDC_printf("REPFP\n");
+	CDC_printf("REPWCO failed %d\n", retval );
+else	CDC_printf("REPWCO sent\n");
 return retval;
 }
 
@@ -689,8 +689,8 @@ pack[0] = j + 3;
 appendCRC( pack );
 int retval = CC.tx_if_can( pack );
 if	( retval )
-	CDC_printf("REPFP failed %d\n", retval );
-else	CDC_printf("REPFP\n");
+	CDC_printf("REPALT failed %d\n", retval );
+else	CDC_printf("REPALT sent\n");
 return retval;
 }
 
@@ -708,7 +708,7 @@ pack[0] = j + 3;
 appendCRC( pack );
 int retval = CC.tx_if_can( pack );
 if	( retval )
-	CDC_printf("REPFP failed %d\n", retval );
-else	CDC_printf("REPFP\n");
+	CDC_printf("REPRAT failed %d\n", retval );
+else	CDC_printf("REPRAT\n");
 return retval;
 }

@@ -6,6 +6,7 @@
 typedef struct {
 volatile char TXbuf[QTX1];
 volatile int TXindex;
+volatile int verbose;
 // reception CDC : fifo circulaire
 #ifdef RX_FIFO
 #define QRX 32		// a power of 2 !!!

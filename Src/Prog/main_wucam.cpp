@@ -98,6 +98,9 @@ gpio_spi1_init();
 SPI1_init();
 #endif
 
+CDC_init();	// on doit faire cela avant d'entrer dans la main loop,
+		// pour que CDC_getcmd() ne capte pas de garbage tant qu'on n'a pas fait UART2_init()
+
 // LA GROSSE BOUCLE MAIN LOOP
 // pendant les 10 premieres secondes, le service est configure par etapes,
 // et la LED indique que le sleep n'est pas actif (facilite acces debug sur blue pill)
@@ -127,8 +130,10 @@ while (1)
 				// config UART (interrupt handler doit etre pret!!)
 				gpio_uart2_init();
 				UART2_init( 38400 );
-				CDC_init();
+				CDC.verbose = 1;
 				CDC_printf("CC.mode = %s\n", ((CC.mode == ECHO)?("ECHO"):("PILOT")) );
+				if	( CC.mode == PILOT )
+					CDC.verbose = -4;
 				#endif
 				}
   			}
@@ -196,8 +201,12 @@ while (1)
 	int c;
 	if	( ( c = CDC_getcmd() ) > 0 )
 		{
-		CC.demo( c );
-		// lepilot.cmd_handler(c);
+		if	( CDC.verbose <= 0 )
+			{	// si, au reset, verbose = -4, la reception d'un '4' va le faire passer a -3
+			if	( ( '0' - c ) == CDC.verbose )	// le code "43210" va le faire passer a +1
+				CDC.verbose += 1;		// et le dialogue deviendra possible
+			}
+		else	CC.demo( c );
 		}
 	#endif
  	} // while (1)

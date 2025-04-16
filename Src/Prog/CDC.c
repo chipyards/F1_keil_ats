@@ -47,12 +47,15 @@ void CDC_init()
 {
 CDC.TXindex = 0;
 CDC.RXbyte = -1;	// empty
+CDC.verbose = 0;
 }
 
 // envoyer une ligne de texte formattee
 // retourne 1 si renoncement pour cause de transmission en cours
 void CDC_printf( const char *fmt, ... )
 {
+if	( CDC.verbose <= 0 )
+	return;
 va_list  argptr;
 va_start( argptr, fmt );
 UART2_wait_TX_complete();
