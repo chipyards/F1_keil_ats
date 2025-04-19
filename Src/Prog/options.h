@@ -48,7 +48,7 @@
 #define FLIGHT (101)	// flight number = address
 #define OPT_SKIP_TOO_CLOSE	// skip waypoint if too close, instead of doing a circumvolution
 // nous sommes dans la branche blue_pill, c'est blue pill par defaut
-// #define NUCLEO
+#define NUCLEO
 
 // pour eviter brick de la blue-pill ou nucleo coupee, SLEEP n'est effectif qu'apres 10s depuis reset
 #define GREEN_CPU

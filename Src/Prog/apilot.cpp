@@ -468,7 +468,7 @@ switch	( opcode_t(p[2]) )
 	// pilot orders
 	case NEWFP:  if ( ( p[0] >= 7 ) && ( CRC32ok(p) ) )
 			{
-			CC.format_rx_to_CDC( p );
+			CC.formatb_rx_to_CDC( p );
 			qplan = p[0] - 6;	// len - {adr, opcode, crc}
 			if	( qplan > 55 ) qplan = 55;
 			for	( unsigned int i = 0; i < qplan; i++ )
@@ -543,7 +543,7 @@ switch	( opcode_t(p[2]) )
 		break;
 	case SNEWFP: if ( ( p[0] >= 7 ) && ( CRC32ok(p) ) )
 			{
-			CC.format_rx_to_CDC( p );
+			CC.formatb_rx_to_CDC( p );
 			qplan = p[0] - 6;	// len - {adr, opcode, crc}
 			if	( qplan > 55 ) qplan = 55;
 			for	( unsigned int i = 0; i < qplan; i++ )

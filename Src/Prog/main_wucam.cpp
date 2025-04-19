@@ -101,6 +101,19 @@ SPI1_init();
 CDC_init();	// on doit faire cela avant d'entrer dans la main loop,
 		// pour que CDC_getcmd() ne capte pas de garbage tant qu'on n'a pas fait UART2_init()
 
+// Cette version est destinee a un espionnage passif des messages WUCAM, qui sont simplement
+// reportes sur l'UART CDC. Le simulateur de vol Apilot est inactif.
+
+gpio_uart2_init();
+UART2_init( 38400 );
+CDC.verbose = 1;
+CDC_printf("CC.mode = RX_ONLY\n");
+// experience pour detecter le piege: "char is unsigned  ?"
+// unsigned char ccc = 0xFF;
+// int iss = (int)((signed char)ccc);
+// int icc = (int)((       char)ccc);
+// CDC_printf("%02x -> %d = %d\n", ccc, iss, icc );
+
 // LA GROSSE BOUCLE MAIN LOOP
 // pendant les 10 premieres secondes, le service est configure par etapes,
 // et la LED indique que le sleep n'est pas actif (facilite acces debug sur blue pill)
@@ -111,79 +124,26 @@ while (1)
  	if	(  ( old1Hz != cnt1Hz ) )	// une fois par seconde
  		{
  		old1Hz = cnt1Hz;
- 		if	( cnt1Hz == 1 )		// do this once
+ 		if	( cnt1Hz == 1 )	// do this once
  			{
- 			// mode ECHO avec jumper A2-A3 pour Blue Pill, avant activation UART CDC
-			if	( gpio_test_jmpA23() )
-				CC.mode = ECHO;
-			else	CC.mode = PILOT;
-			}
- 		if	( cnt1Hz == 10 )	// do this once
- 			{
- 			if	( gpio_test_jmpA23() )	// si le jumper y est encore, passer en CW
- 				{			// alors pas de CDC !
- 				if	( CC.mode == ECHO )
- 					CC.mode = CW;
- 				}
- 			else	{
-	 			#ifdef USE_CDC
-				// config UART (interrupt handler doit etre pret!!)
-				gpio_uart2_init();
-				UART2_init( 38400 );
-				CDC.verbose = 1;
-				CDC_printf("CC.mode = %s\n", ((CC.mode == ECHO)?("ECHO"):("PILOT")) );
-				if	( CC.mode == PILOT )
-					CDC.verbose = -4;
-				#endif
-				}
-  			}
-		else if	( cnt1Hz == 11 )	// do this once
-			{
-			cntblinks = 6;	// pour le cas ou SPI planterait dans while ( IS_MISO_SET() ), i.e. si transceiver absent
-			if	( CC.mode == CW )
-				cntblinks = 3 + CC.cw_radio_init();	// 3 blink si Ok, sinon 4
-			else	{
-				cntblinks = 1 + CC.GFSK_radio_init();	// 1 blink si Ok, sinon 2
-				if	( CC.mode == ECHO )
-					cntblinks += 2;			// 5 si Ok, sinon 6
-				}
-			}
-		else if	( ( cnt1Hz > 11 ) && ( CC.AAR_tx_enable ) )
-			{			// do something exactly once per second
-			if	( CC.mode == PILOT )
-				lepilot.AAR_tx();
-			else if ( ( cnt1Hz & 3 ) == 0 )
-				tx_echo_report();
+			CC.GFSK_radio_init();
 			}
 		}
 	if	( ( IS_GDO0_SET() ) && ( oldGDO0 == 0 ) )
 		{
 		unsigned char * data = CC.extract_rx();
-		if	( CC.mode == ECHO )
+		int flight = data[1] & 0x7F;
+		opcode_t opcode = (opcode_t)data[2];
+		if	( opcode == VAAR )
 			{
-			if	( ( data[0] == 4 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
-				{
-				echo_cnt = ( data[3] & 0xff ) | ( data[4] << 8 );
-				CDC_printf("echo_cnt <- %u (no CRC)\n", echo_cnt );
-				}
-			else if	( ( data[0] == 8 ) && ( data[1] == FLIGHT ) && ( data[2] == 0 ) )
-				{
-				unsigned int remoteCRC = ( data[5] & 0xff ) | ( data[6] << 8 ) | ( data[7] << 16 ) | ( data[8] << 24 );
-				unsigned int localCRC = crc_aixm( data+1, 4 );
-				if	( remoteCRC == localCRC )
-					{
-					echo_cnt = ( data[3] & 0xff ) | ( data[4] << 8 );
-					CDC_printf("echo_cnt <- to %u, CRC ok\n", echo_cnt );
-					}
-				else	CDC_printf("echo_cnt rejected, bad CRC %08x vs %08x\n", localCRC, remoteCRC );
-				}
-			else	CC.format_rx_to_CDC( data );
+			unsigned int len = data[0];
+			unsigned int lo_time = (unsigned int)data[len-1];	// timestamp modulo 256
+			int hrssi = ((int)((signed char)data[len+1])) - (2*74);	// RSSI in half-dB
+			float rssi = qfp_fmul( 0.5, (float)hrssi );		// in dB
+			unsigned char LQI = data[len+2];
+			CDC_printf("%3u: %3u %4.1fdBm, LQI=%u\n", lo_time, flight, rssi, LQI & 0x7F );
 			}
-		else	{
-			if	( data[1] == FLIGHT )
-				lepilot.cmd_handler( data );
-			else	CC.format_rx_to_CDC( data );
-			}
+		else	CC.formatb_rx_to_CDC( data );
 		oldGDO0 = 1;
 		}
 	else	oldGDO0 = 0;
