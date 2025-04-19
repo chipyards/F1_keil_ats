@@ -177,12 +177,12 @@ while (1)
 					}
 				else	CDC_printf("echo_cnt rejected, bad CRC %08x vs %08x\n", localCRC, remoteCRC );
 				}
-			else	CC.format_rx_to_CDC( data );
+			else	CC.formatb_rx_to_CDC( data );
 			}
 		else	{
 			if	( data[1] == FLIGHT )
 				lepilot.cmd_handler( data );
-			else	CC.format_rx_to_CDC( data );
+			else	CC.formatb_rx_to_CDC( data );
 			}
 		oldGDO0 = 1;
 		}

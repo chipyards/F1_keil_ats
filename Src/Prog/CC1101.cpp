@@ -333,7 +333,7 @@ switch	( c ) {
 		if	( rxbytes )
 			{
 			unsigned char * data = extract_rx();
-			format_rx_to_CDC( data );
+			formatba_rx_to_CDC( data );
 			}
 		} break;
 	// majuscules et chiffres : actions
@@ -363,7 +363,7 @@ switch	( c ) {
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
 	case 'G' :		// GFSK packet
-		preset_P10Gplus();
+		preset_P38Gplus();
 		quick_view();
 		LL_GPIO_SetPinMode( GPIOC, LL_GPIO_PIN_6, LL_GPIO_MODE_FLOATING ); // cas ou on a connect PC6 a PA10
 		break;
@@ -410,8 +410,8 @@ switch	( c ) {
 		break;
 	// les strobes
 	case 'Z' :
-		AAR_tx_enable = 1;
 		read_strobe( CC1101_SRES );
+		write_reg(CC1101_IOCFG0, CC1101_GDO_CRC_OK );	// eviter que GDO0 envoie une horloge 135.4kHz !
 		break;
 	case 'I' :
 		read_strobe( CC1101_SIDLE );
@@ -518,8 +518,8 @@ read_strobe( CC1101_STX );
 return 0;
 }
 
-// format radio RX packet to CDC (first byte is length)
-void CC1101::format_rx_to_CDC( unsigned char * rxdata )
+// format radio RX packet to CDC, binary + ascii (first byte is length)
+void CC1101::formatba_rx_to_CDC( unsigned char * rxdata )
 {
 #ifdef USE_CDC
 unsigned int len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC16
@@ -532,11 +532,28 @@ CDC_printf("}=\"");
 for	( unsigned int i = 1; i < len+1; i++ )
 	CDC_printf("%c", (char(rxdata[i])<' ')?('_'):(rxdata[i]) );
 // diagnostics
-int hrssi = (int)((char)rxdata[len+1]) - (2*74);
+int hrssi = ((int)((signed char)rxdata[len+1])) - (2*74);
 unsigned char LQI = rxdata[len+2];
 CDC_printf( "\" %d dBm, LQI=%u\n", hrssi/2, LQI & 0x7F );
 #endif
 }
+
+// format radio RX packet to CDC, binary only (first byte is length)
+void CC1101::formatb_rx_to_CDC( unsigned char * rxdata )
+{
+#ifdef USE_CDC
+unsigned int len = rxdata[0];  // The packet length is defined excluding the length byte and the CRC16
+CDC_printf("RX %d {", len );
+// payload hex display
+for	( unsigned int i = 1; i < len+1; i++ )
+	CDC_printf("%02X,", rxdata[i] );
+// diagnostics
+int hrssi = ((int)((signed char)rxdata[len+1])) - (2*74);
+unsigned char LQI = rxdata[len+2];
+CDC_printf( "} %d dBm, LQI=%u\n", hrssi/2, LQI & 0x7F );
+#endif
+}
+
 
 // extract received data from RX FIFO
 // first byte is length of remaining contents (may be 0)
