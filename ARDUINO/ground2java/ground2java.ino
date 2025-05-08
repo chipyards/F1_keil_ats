@@ -18,10 +18,20 @@ void to_32le( unsigned char * buf, long x ) {
   buf[3] = x >> 24;
   }
 
-int from_16le( byte * bbuf ) {
-  return ( ( bbuf[0] & 0xff ) | ( bbuf[1] << 8 ) );
+//int from_16le( byte * bbuf ) {
+//  return ( ( bbuf[0] & 0xff ) | ( bbuf[1] << 8 ) );
+//  }
+
+// extract a 16 bits int from a byte array, starting at address bbuf
+// (if an unsigned int is needed, just cast the result to an unsigned int)
+int from_16le( byte * bbuf ) {     // "le" is for "little-endian"
+  int retval = bbuf[1];
+  retval <<= 8; retval |= bbuf[0];
+  return retval; 
   }
 
+// extract a 32 bits long int from a byte array, starting at address bbuf
+// (if an unsigned long is needed, just cast the result to an unsigned long)
 unsigned long from_32le( byte * bbuf ) {
   unsigned long retval = bbuf[3];
   retval <<= 8; retval |= bbuf[2];
