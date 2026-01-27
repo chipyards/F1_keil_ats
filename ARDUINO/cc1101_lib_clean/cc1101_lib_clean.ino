@@ -26,6 +26,9 @@ void setup() {
   if  ( r == 0 )
       Serial.println("Radio init done");
   else Serial.println("Radio init error");
+  byte test[] = { 10, 0, 1, 0x40, 0x30, 0x37, 0x21, 0xde, 0xad, 0xca, 0xfe, -20, 44 };
+  CC.format_rx_to_Serial( test );
+  CC.format_rx_to_Serial( test, 1 );
 }
 
 #define FLIGHT 101

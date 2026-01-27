@@ -335,7 +335,10 @@ set_data_rate( 131, 10 ); // kbaud = 26000 * ( 256 + 131 ) * pow( 2, ( 10 - 28 )
 
 void dump_config();
 void dump_patable();
-void format_rx_to_Serial( byte * rxdata );
+// format radio RX packet to Serial (first byte should be length)
+// bytes are displayed as hexadecimal values, then as ascii text if option is set
+// then RSSI and LQI are displayed
+void format_rx_to_Serial( byte * rxdata, byte text_option = 0 );
 
 ///
 /// main API
