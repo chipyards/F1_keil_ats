@@ -1,7 +1,7 @@
 #define BASE_TUNING (434000)
 // CC1101 fine tuning (compensation of manufacturing variation of ref. ocillator frequency)
-#define FINE_TUNING (36)  // shield 1 
-// #define FINE_TUNING (37)  // shield 2 
+// #define FINE_TUNING (36)  // shield 1 
+#define FINE_TUNING (37)  // shield 2 
 // #define FINE_TUNING (33)  // shield 3 
 // #define FINE_TUNING (31)  // shield 4 
 // #define FINE_TUNING (31)  // shield 5 
